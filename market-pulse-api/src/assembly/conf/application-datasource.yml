@@ -1,0 +1,6 @@
+# DB 연결 정보 (배포 환경에서 수정하여 사용)
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/marketpulse
+    username: postgres
+    password: postgres

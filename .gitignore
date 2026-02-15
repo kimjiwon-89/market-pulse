@@ -1,0 +1,22 @@
+# mac
+.DS_Store
+
+# IntelliJ
+.idea
+*.iml
+
+# Node
+node_modules
+dist
+build
+
+# Spring
+target
+logs
+
+# Env
+.env
+.env.local
+
+# OS
+Thumbs.db
