@@ -2,33 +2,40 @@
 <assembly xmlns="http://maven.apache.org/ASSEMBLY/2.2.0"
           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
           xsi:schemaLocation="http://maven.apache.org/ASSEMBLY/2.2.0 https://maven.apache.org/xsd/assembly-2.2.0.xsd">
+
     <id>dist</id>
+
     <formats>
         <format>dir</format>
-        <format>zip</format>
     </formats>
-    <includeBaseDirectory>true</includeBaseDirectory>
-    <baseDirectory>${project.artifactId}-${project.version}</baseDirectory>
 
-    <dependencySets>
-        <dependencySet>
-            <useProjectArtifact>true</useProjectArtifact>
-            <useTransitiveDependencies>false</useTransitiveDependencies>
-            <outputDirectory>lib</outputDirectory>
-            <!-- 한 jar만 교체 가능하도록 고정 파일명 -->
-<outputFileNameMapping>market-pulse-api.${artifact.extension}</outputFileNameMapping>
-        </dependencySet>
-    </dependencySets>
+    <includeBaseDirectory>false</includeBaseDirectory>
+    <baseDirectory>${project.artifactId}</baseDirectory>
 
     <fileSets>
+
+        <!-- fat jar를 루트로 복사 -->
+        <fileSet>
+            <directory>${project.build.directory}</directory>
+            <includes>
+                <include>${project.build.finalName}.jar</include>
+            </includes>
+            <outputDirectory>/</outputDirectory>
+        </fileSet>
+
+        <!-- bin -->
         <fileSet>
             <directory>src/assembly/bin</directory>
-            <outputDirectory>bin</outputDirectory>
+            <outputDirectory>/bin</outputDirectory>
             <fileMode>0755</fileMode>
         </fileSet>
+
+        <!-- conf -->
         <fileSet>
             <directory>src/assembly/conf</directory>
-            <outputDirectory>conf</outputDirectory>
+            <outputDirectory>/conf</outputDirectory>
         </fileSet>
+
     </fileSets>
+
 </assembly>
