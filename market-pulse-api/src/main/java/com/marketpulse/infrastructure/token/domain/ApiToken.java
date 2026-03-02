@@ -1,5 +1,6 @@
 package com.marketpulse.infrastructure.token.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.*;
 import java.time.LocalDateTime;
 
@@ -16,6 +17,7 @@ public class ApiToken {
     private String accessToken;
     private LocalDateTime expiredAt;
 
+    @JsonIgnore
     public boolean isExpired() {
         return expiredAt == null ||
                 LocalDateTime.now().isAfter(expiredAt.minusMinutes(5));

@@ -1,5 +1,6 @@
 package com.marketpulse.infrastructure.token.service;
 import com.marketpulse.external.client.ExternalApiClient;
+import com.marketpulse.infrastructure.token.client.TokenApiClient;
 import com.marketpulse.infrastructure.token.domain.ApiToken;
 import com.marketpulse.infrastructure.token.repository.DbTokenRepository;
 import com.marketpulse.infrastructure.token.repository.RedisTokenRepository;
@@ -22,7 +23,7 @@ public class TokenService {
 
     private final RedisTokenRepository redisRepository;
     private final DbTokenRepository dbRepository;
-    private final ExternalApiClient externalApiClient; // 바로 주입
+    private final TokenApiClient tokenApiClient; // 바로 주입
 
     public synchronized String getValidToken() {
 
@@ -40,7 +41,7 @@ public class TokenService {
         }
 
         // 3. 신규 발급
-        ApiToken newToken = externalApiClient.issueToken();
+        ApiToken newToken = tokenApiClient.issueToken();
 
         dbRepository.save(newToken);
         redisRepository.save(newToken);

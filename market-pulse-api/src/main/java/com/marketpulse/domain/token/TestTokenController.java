@@ -1,5 +1,6 @@
 package com.marketpulse.domain.token;
 
+import com.marketpulse.global.response.ApiResponse;
 import com.marketpulse.infrastructure.token.service.TokenService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -16,7 +17,8 @@ public class TestTokenController {
 
     @Operation(summary = "토큰 발급 테스트", description = "현재 저장된 토큰을 반환하거나, 없으면 신규 발급합니다.")
     @GetMapping("/test/token")
-    public String issueToken() {
-        return tokenService.getValidToken();
+    public ApiResponse<String> issueToken() {
+        String token = tokenService.getValidToken();
+        return ApiResponse.success(token, "successfully");
     }
 }

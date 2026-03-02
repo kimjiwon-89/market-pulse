@@ -1,15 +1,13 @@
 package com.marketpulse.external.client;
 
-import com.marketpulse.infrastructure.token.domain.ApiToken;
-import com.marketpulse.infrastructure.token.dto.TokenResponse;
+import com.marketpulse.infrastructure.token.service.TokenService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
-import java.time.LocalDateTime;
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -35,36 +33,38 @@ public class ExternalApiClient {
     @Value("${external.api.token-path}")
     private String tokenPath;
 
-    public ApiToken issueToken() {
+    private final TokenService tokenService;
 
-        String url = baseUrl + tokenPath;
+
+    public String callGet(
+            String path,
+            String trId,
+            Map<String, String> queryParams
+    ) {
+
+        String token = tokenService.getValidToken();
+
+        UriComponentsBuilder builder =
+                UriComponentsBuilder.fromHttpUrl(baseUrl + path);
+
+        queryParams.forEach(builder::queryParam);
 
         HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(token);
+        headers.set("appkey", appKey);
+        headers.set("appsecret", appSecret);
+        headers.set("tr_id", trId);
 
-        Map<String, String> body = new HashMap<>();
-        body.put("grant_type", "client_credentials");
-        body.put("appkey", appKey);
-        body.put("appsecret", appSecret);
+        HttpEntity<?> entity = new HttpEntity<>(headers);
 
-        HttpEntity<Map<String, String>> request =
-                new HttpEntity<>(body, headers);
+        ResponseEntity<String> response =
+                restTemplate.exchange(
+                        builder.toUriString(),
+                        HttpMethod.GET,
+                        entity,
+                        String.class
+                );
 
-        ResponseEntity<TokenResponse> response =
-                restTemplate.postForEntity(url, request, TokenResponse.class);
-
-        TokenResponse tokenResponse = response.getBody();
-
-        if (tokenResponse == null || tokenResponse.getAccessToken() == null) {
-            throw new IllegalStateException("토큰 발급 실패");
-        }
-
-        LocalDateTime expiredAt =
-                LocalDateTime.now().plusSeconds(tokenResponse.getExpiresIn());
-
-        return ApiToken.builder()
-                .accessToken(tokenResponse.getAccessToken())
-                .expiredAt(expiredAt)
-                .build();
+        return response.getBody();
     }
 }

@@ -16,4 +16,13 @@ CREATE TABLE api_token (
     실행확인
     redis-cli ping
         -> PONG
+
+    레디스 접속
+    redis-cli
+
+        키 전체 조회
+        keys *
+
+        특정 키 조회
+        get TOKEN:STOCK_API
 */
