@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.marketpulse.infrastructure.token.repository.TokenMapper">
+
+    <select id="findLatest"
+            resultType="ApiToken">
+        SELECT
+        access_token AS accessToken,
+        expired_at   AS expiredAt
+        FROM api_token
+        ORDER BY id DESC
+        LIMIT 1
+    </select>
+
+    <insert id="upsert">
+        INSERT INTO api_token (access_token, expired_at)
+        VALUES (#{accessToken}, #{expiredAt})
+    </insert>
+
+</mapper>

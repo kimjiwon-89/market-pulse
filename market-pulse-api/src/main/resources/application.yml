@@ -1,12 +1,60 @@
 # 기본 설정 (배포용) - 포트, MyBatis 등
 # DB 연결 정보는 conf/application-local.yml 에서 로드
+# http://localhost:8080/swagger-ui/index.html
+  # 스웨거
+
 server:
   port: 8080
 
 spring:
   profiles:
     active: local
-
+  data:
+    redis:
+      host: localhost
+      port: 6379
 mybatis:
   mapper-locations: classpath:/mapper/**/*.xml
-  type-aliases-package: com.marketpulse.domain
+  type-aliases-package: com.marketpulse.domain,com.marketpulse.infrastructure.token.domain
+
+
+# API 설정 정보
+external:
+  api:
+    base-url: https://openapi.koreainvestment.com:9443
+    app-key:
+    app-secret:
+    token-path: /oauth2/tokenP
+
+app:
+  cors:
+    # ==========================================
+    # CORS (Cross-Origin Resource Sharing) 설정
+    # ------------------------------------------
+    # web(frontend)와 api(backend) 도메인이 다르기 때문에
+    # 브라우저 보안 정책에 의해 요청이 차단되지 않도록 허용 Origin을 지정한다.
+    #
+    # ⚠ 운영 환경에서는 반드시 실제 서비스 도메인만 허용한다.
+    # ⚠ "*" 사용 금지 (보안상 위험)
+    # ⚠ allow-credentials=true 인 경우 allowed-origins에 "*" 사용 불가
+    #
+    # ==========================================
+
+    # 허용할 프론트엔드 도메인 목록
+    allowed-origins:
+      - http://localhost:3000
+      - http://localhost:8080
+    allowed-methods:
+      - GET
+      - POST
+#      - PUT
+#      - DELETE
+#      - PATCH
+#      - OPTIONS
+    allowed-headers:
+      - "*"
+    allow-credentials: true
+
+  http:
+    connect-timeout: 5000
+    read-timeout: 5000

@@ -3,3 +3,4 @@ spring:
     url: jdbc:postgresql://localhost:5432/marketpulse
     username: postgres
     password: postgres
+
