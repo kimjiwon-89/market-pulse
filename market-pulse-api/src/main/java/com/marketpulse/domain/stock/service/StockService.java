@@ -30,7 +30,7 @@ public class StockService {
         KisResponse<List<ForeignTradeItem>> response =
                 externalApiClient.callGet(
                     "/uapi/domestic-stock/v1/quotations/frgnmem-trade-estimate",
-                    "FHPST01710000",
+                    "FHKST644100C0",
                     params,
                     new ParameterizedTypeReference<
                         KisResponse<List<ForeignTradeItem>>
