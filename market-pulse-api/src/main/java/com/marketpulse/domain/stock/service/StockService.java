@@ -1,10 +1,14 @@
 package com.marketpulse.domain.stock.service;
 
 import com.marketpulse.domain.stock.dto.ForeignTradeRequest;
+import com.marketpulse.domain.stock.dto.ForeignTradeItem;
 import com.marketpulse.external.client.ExternalApiClient;
+import com.marketpulse.global.response.KisResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -13,7 +17,7 @@ public class StockService {
 
     private final ExternalApiClient externalApiClient;
 
-    public String callForeignTrade(ForeignTradeRequest request) {
+    public List<ForeignTradeItem> callForeignTrade(ForeignTradeRequest request) {
 
         Map<String, String> params = Map.of(
                 "FID_COND_MRKT_DIV_CODE", request.getFID_COND_MRKT_DIV_CODE(),
@@ -23,10 +27,18 @@ public class StockService {
                 "FID_RANK_SORT_CLS_CODE_2", request.getFID_RANK_SORT_CLS_CODE_2()
         );
 
-        return externalApiClient.callGet(
-                "/uapi/domestic-stock/v1/quotations/frgnmem-trade-estimate",
-                "FHPST01710000",
-                params
-        );
+        KisResponse<List<ForeignTradeItem>> response =
+                externalApiClient.callGet(
+                    "/uapi/domestic-stock/v1/quotations/frgnmem-trade-estimate",
+                    "FHPST01710000",
+                    params,
+                    new ParameterizedTypeReference<
+                        KisResponse<List<ForeignTradeItem>>
+                    >(){}
+                );
+
+        response.validate();
+
+        return response.getOutput();
     }
 }

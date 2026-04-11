@@ -1,6 +1,7 @@
 package com.marketpulse.domain.stock.controller;
 
 import com.marketpulse.domain.stock.dto.ForeignTradeRequest;
+import com.marketpulse.domain.stock.dto.ForeignTradeItem;
 import com.marketpulse.domain.stock.service.StockService;
 import com.marketpulse.global.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -9,8 +10,10 @@ import lombok.RequiredArgsConstructor;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 
-@Tag(name = "외국인 Stock API", description = "외국인 매매")
+
+@Tag(name = "외국인 Stock API", description = "외국인 거래소별 순매수 순위")
 @RestController
 @RequestMapping("/api/stock")
 @RequiredArgsConstructor
@@ -20,11 +23,11 @@ public class StockController {
 
     @Operation(summary = "외국인 매매 추정 조회")
     @GetMapping("/foreign-trade")
-    public ApiResponse<String> foreignTrade(
+    public ApiResponse<List<ForeignTradeItem>> foreignTrade(
             @ParameterObject @ModelAttribute ForeignTradeRequest request
     ) {
 
-        String result = stockService.callForeignTrade(request);
+        List<ForeignTradeItem> result = stockService.callForeignTrade(request);
 
         return ApiResponse.success(result);
     }

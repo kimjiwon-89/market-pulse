@@ -1,8 +1,11 @@
 package com.marketpulse.external.client;
 
+import com.marketpulse.global.response.KisResponse;
 import com.marketpulse.infrastructure.token.service.TokenService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
@@ -15,6 +18,7 @@ import java.util.Map;
  *
  * 특정 증권사 종속 없음
  */
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class ExternalApiClient {
@@ -35,35 +39,39 @@ public class ExternalApiClient {
 
     private final TokenService tokenService;
 
-
-    public String callGet(
+    public <T> T callGet(
             String path,
             String trId,
-            Map<String, String> queryParams
-    ) {
+            Map<String,String> params,
+            ParameterizedTypeReference<T> type
+    ){
 
         String token = tokenService.getValidToken();
 
         UriComponentsBuilder builder =
                 UriComponentsBuilder.fromHttpUrl(baseUrl + path);
 
-        queryParams.forEach(builder::queryParam);
+        params.forEach(builder::queryParam);
 
         HttpHeaders headers = new HttpHeaders();
+
         headers.setBearerAuth(token);
         headers.set("appkey", appKey);
         headers.set("appsecret", appSecret);
         headers.set("tr_id", trId);
 
-        HttpEntity<?> entity = new HttpEntity<>(headers);
+        HttpEntity<?> entity =
+                new HttpEntity<>(headers);
 
-        ResponseEntity<String> response =
+        ResponseEntity<T> response =
                 restTemplate.exchange(
                         builder.toUriString(),
                         HttpMethod.GET,
                         entity,
-                        String.class
+                        type
                 );
+
+        log.info("@@@ API CALL, URL={}, response={}", path, response);
 
         return response.getBody();
     }
