@@ -24,5 +24,6 @@ CREATE TABLE api_token (
         keys *
 
         특정 키 조회
-        get TOKEN:STOCK_API
+        get KEY
+            ex) get API_TOKEN
 */
