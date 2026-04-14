@@ -4,6 +4,7 @@ import Nav from "../components/nav/Nav";
 import Footer from "../components/footer/Footer";
 import { Outlet } from "react-router-dom";
 import { styled } from "styled-components";
+import BuyingList from "../../features/buyingList/BuyingList";
 
 const Wrapper = styled.div`
   display: grid;
@@ -18,6 +19,7 @@ function DefaultLayout() {
       <Nav></Nav>
       <main>
         <Outlet />
+        <BuyingList />
       </main>
       <Footer></Footer>
     </Wrapper>
