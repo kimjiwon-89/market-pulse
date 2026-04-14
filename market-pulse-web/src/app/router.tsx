@@ -1,12 +1,12 @@
-import { createBrowserRouter, RouterProvider, Outlet } from 'react-router-dom';
-import { Dashboard } from '@/pages/Dashboard';
-import { IndexDetail } from '@/pages/IndexDetail';
-import { InvestorTrend } from '@/pages/InvestorTrend';
-import { NetBuyingList } from '@/pages/NetBuyingList';
+import { createBrowserRouter, RouterProvider, Outlet } from "react-router-dom";
+import { Dashboard } from "@/pages/Dashboard";
+import { IndexDetail } from "@/pages/IndexDetail";
+import { InvestorTrend } from "@/pages/InvestorTrend";
+import { NetBuyingList } from "@/pages/NetBuyingList";
 
 const router = createBrowserRouter([
   {
-    path: '/',
+    path: "/",
     element: (
       <div>
         <Outlet />
@@ -14,9 +14,9 @@ const router = createBrowserRouter([
     ),
     children: [
       { index: true, element: <Dashboard /> },
-      { path: 'index/:id', element: <IndexDetail /> },
-      { path: 'investor', element: <InvestorTrend /> },
-      { path: 'net-buy', element: <NetBuyingList /> },
+      { path: "index/:id", element: <IndexDetail /> },
+      { path: "investor", element: <InvestorTrend /> },
+      { path: "net-buy", element: <NetBuyingList /> },
     ],
   },
 ]);
