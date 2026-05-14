@@ -1,7 +1,22 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx tsc *)"
+      "Bash(find /Users/gim-yeong-ug -name \"mvn\" 2>/dev/null | head -5; find /opt -name \"mvn\" 2>/dev/null | head -5; find /usr/local -name \"mvn\" 2>/dev/null | head -5)",
+      "Read(//Users/gim-yeong-ug/**)",
+      "Read(//opt/**)",
+      "Read(//usr/local/**)",
+      "Bash(brew install *)",
+      "Bash(xargs cat)",
+      "Bash(psql -U gim-yeong-ug -d marketpulse -c \"\\\\dt\")",
+      "Bash(psql -U gim-yeong-ug -d marketpulse -c ' *)",
+      "Bash(./mvnw compile *)",
+      "Bash(mvn compile *)",
+      "Bash(java -version)",
+      "Bash(mvn -version)",
+      "Bash(ls /Library/Java/JavaVirtualMachines/ 2>/dev/null && ls /opt/homebrew/opt/ | grep java 2>/dev/null)",
+      "Read(//Library/Java/JavaVirtualMachines/**)",
+      "Bash(JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home mvn compile -q)",
+      "Bash(psql -U gim-yeong-ug -d marketpulse -c \"SELECT * FROM users;\")"
     ]
   }
 }

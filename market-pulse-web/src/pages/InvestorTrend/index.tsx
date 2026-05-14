@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { apiClient } from "@/services/apiClient";
+import { useNavigate } from "react-router-dom";
+import { apiClient, getToken } from "@/services/apiClient";
 import type { TradeTopItem, InvestorMemo } from "@/types";
 import { dirCls, triangle, fmtPct, fmtAmount, fmtVolume } from "@/utils/format";
 
@@ -31,6 +32,8 @@ function inputToApi(s: string): string {
 }
 
 export function InvestorTrend() {
+  const navigate = useNavigate();
+  const isAuthed = !!getToken();
   const [market, setMarket] = useState<Market>("KOSPI");
   const [investorType, setInvestorType] = useState<InvestorType>("FOREIGN");
   const [tradeType, setTradeType] = useState<TradeType>("BUY");
@@ -61,6 +64,7 @@ export function InvestorTrend() {
   }, [market, investorType, tradeType, date]);
 
   const fetchMemo = useCallback(async () => {
+    if (!isAuthed) return;
     setMemoLoading(true);
     try {
       const res = await apiClient.get("/investor/memo", {
@@ -75,13 +79,13 @@ export function InvestorTrend() {
     } finally {
       setMemoLoading(false);
     }
-  }, [date, market]);
+  }, [date, market, isAuthed]);
 
   useEffect(() => { fetchTradeTop(); }, [fetchTradeTop]);
   useEffect(() => { fetchMemo(); }, [fetchMemo]);
 
   async function saveMemo() {
-    if (!memoContent.trim()) return;
+    if (!isAuthed || !memoContent.trim()) return;
     setMemoSaving(true);
     try {
       const res = await apiClient.post("/investor/memo", {
@@ -96,7 +100,7 @@ export function InvestorTrend() {
   }
 
   async function deleteMemo() {
-    if (!memo) return;
+    if (!isAuthed || !memo) return;
     try {
       await apiClient.delete(`/investor/memo/${memo.id}`);
       setMemo(null);
@@ -312,7 +316,7 @@ export function InvestorTrend() {
             <div className="card-title">메모</div>
             <div className="card-sub">
               {labelMarket} · {displayDate}
-              {memo && (
+              {isAuthed && memo && (
                 <span
                   style={{
                     marginLeft: 8,
@@ -326,38 +330,57 @@ export function InvestorTrend() {
               )}
             </div>
           </div>
-          {memo && (
+          {isAuthed && memo && (
             <button className="btn sm danger" onClick={deleteMemo}>
               삭제
             </button>
           )}
         </div>
-        <textarea
-          value={memoContent}
-          onChange={(e) => setMemoContent(e.target.value)}
-          placeholder={
-            memoLoading
-              ? "불러오는 중..."
-              : "이 날의 투자 동향을 기록하세요..."
-          }
-          disabled={memoLoading}
-          style={{ width: "100%", minHeight: 120 }}
-        />
-        <div
-          style={{
-            marginTop: 10,
-            display: "flex",
-            justifyContent: "flex-end",
-          }}
-        >
-          <button
-            className="btn primary"
-            onClick={saveMemo}
-            disabled={memoSaving || !memoContent.trim()}
+
+        {isAuthed ? (
+          <>
+            <textarea
+              value={memoContent}
+              onChange={(e) => setMemoContent(e.target.value)}
+              placeholder={
+                memoLoading
+                  ? "불러오는 중..."
+                  : "이 날의 투자 동향을 기록하세요..."
+              }
+              disabled={memoLoading}
+              style={{ width: "100%", minHeight: 120 }}
+            />
+            <div style={{ marginTop: 10, display: "flex", justifyContent: "flex-end" }}>
+              <button
+                className="btn primary"
+                onClick={saveMemo}
+                disabled={memoSaving || !memoContent.trim()}
+              >
+                {memoSaving ? "저장 중..." : "저장"}
+              </button>
+            </div>
+          </>
+        ) : (
+          <div
+            style={{
+              minHeight: 120,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 10,
+              border: "1px dashed var(--border)",
+              borderRadius: "var(--radius)",
+              color: "var(--text-4)",
+              fontSize: 13,
+            }}
           >
-            {memoSaving ? "저장 중..." : "저장"}
-          </button>
-        </div>
+            <span>로그인이 필요한 기능입니다</span>
+            <button className="btn sm" onClick={() => navigate("/login")}>
+              로그인하기
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -22,17 +22,21 @@ src/
 │   ├── Dashboard/index.tsx
 │   ├── IndexDetail/index.tsx
 │   ├── InvestorTrend/index.tsx
-│   └── NetBuyingList/index.tsx
+│   ├── NetBuyingList/index.tsx
+│   ├── MemoList/index.tsx
+│   ├── NewsList/index.tsx
+│   ├── Login/index.tsx         # 로그인 페이지 (DefaultLayout 바깥)
+│   └── Admin/index.tsx         # 사용자 관리 (ADMIN 전용)
 ├── components/
 │   ├── chart/
 │   │   └── RankingTable.tsx    # 순매수 순위 테이블
 │   └── common/
 │       ├── DefaultLayout.tsx   # Header + Nav + main + Footer 레이아웃
-│       ├── Header.tsx
-│       ├── Nav.tsx
+│       ├── Header.tsx          # 로그인 유저명 + 로그아웃 버튼 포함
+│       ├── Nav.tsx             # ADMIN 로그인 시 "관리자" 메뉴 노출
 │       └── Footer.tsx
 ├── services/
-│   └── apiClient.ts            # axios 인스턴스 (baseURL: http://localhost:8080/api)
+│   └── apiClient.ts            # axios + JWT 인터셉터, auth 헬퍼 함수
 ├── hooks/index.ts
 ├── types/index.ts              # 공통 타입
 ├── index.css                   # @import "tailwindcss"
@@ -41,13 +45,17 @@ src/
 
 ## 페이지 라우팅
 
-| 경로 | 컴포넌트 | 상태 |
-|------|----------|------|
-| `/` | Dashboard | 구현 예정 |
-| `/index/:id` | IndexDetail | 구현 예정 |
-| `/investor` | InvestorTrend | 구현 예정 — 순매수/매도 테이블 + 메모 |
-| `/net-buy` | NetBuyingList | 목업 데이터 연결 완료 — 필터·시계열 뷰 구현 예정 |
-| `/memo` | MemoList | 구현 예정 |
+| 경로 | 컴포넌트 | 인증 필요 | 상태 |
+|------|----------|-----------|------|
+| `/login` | Login | ❌ | 완료 |
+| `/` | Dashboard | ❌ | 완료 |
+| `/index/:id` | IndexDetail | ❌ | 완료 |
+| `/investor` | InvestorTrend | ❌ (메모 기능만 필요) | 완료 |
+| `/net-buy` | NetBuyingList | ❌ | 완료 |
+| `/memo` | MemoList | ❌ (메모 기능만 필요) | 완료 |
+| `/news` | NewsList | ❌ | 완료 |
+| `/stock/:code` | StockDetail | ❌ | 구현 예정 |
+| `/admin` | Admin | ✅ ADMIN | 완료 |
 
 ## 코드 컨벤션
 
@@ -70,6 +78,41 @@ src/
 - 특정 도메인에 종속: `components/chart/` 또는 도메인별 폴더
 - 레이아웃/공통 UI: `components/common/`
 - 재사용 단위 컴포넌트: props 타입 정의 필수
+
+## 인증 (JWT)
+
+### 토큰 저장 위치
+
+`localStorage` — 키: `mp_token`, `mp_username`, `mp_role`
+
+### apiClient 헬퍼 함수
+
+```ts
+import { apiClient, setAuth, clearAuth, getToken, getUsername, getRole } from '@/services/apiClient';
+
+// 로그인 후 저장
+setAuth(token, username, role);
+
+// 로그아웃
+clearAuth();  // localStorage 전체 삭제 후 /login 이동
+
+// 현재 유저 정보 읽기
+getUsername();  // 헤더 표시용
+getRole();      // 'ADMIN' | 'USER' — Nav 메뉴 분기용
+```
+
+### 인터셉터 동작
+
+- **요청**: `Authorization: Bearer <token>` 자동 주입
+- **응답 401**: `clearAuth()` + `/login` 리다이렉트 (단, `/auth/` 경로 제외)
+
+### 로그인
+
+```ts
+const res = await apiClient.post('/auth/login', { username, password });
+const { token, username: uname, role } = res.data.data;
+setAuth(token, uname, role);
+```
 
 ## API 호출
 
@@ -116,6 +159,99 @@ const res = await apiClient.get('/investor/trade-top', { params: { market: 'KOSP
 - 가로: 날짜 1개 = 3컬럼 (종목명, 순매수대금, 순매수량), 5일 후 주간합계 컬럼 1세트 추가
 - 기본값: 오늘 날짜 단일 조회
 - 날짜 추가/제거 시 컬럼 동적 증감
+
+---
+
+## 종목 상세 + @mention 태그 스펙 (구현 예정)
+
+### StockDetail 페이지 (`/stock/:code`)
+
+```
+KPI 카드 (현재가 / 등락률 / 거래량 / 시가총액)
+기간 선택 칩 (1M / 3M / 1Y) + AreaChart
+투자자동향 카드 (외국인·기관 순매수)
+```
+
+- `GET /api/stock/detail?code=:code`
+- `GET /api/stock/chart?code=:code&period=1M`
+- `GET /api/stock/investor?code=:code`
+
+### @mention 태그 (InvestorTrend 메모 카드)
+
+**UX 흐름**
+```
+textarea에 @ 입력
+  → GET /api/stock/search?q=<이후 입력> → 드롭다운 표시
+  → 종목 선택 → 텍스트에 @종목명(코드) 삽입
+  → 메모 저장 시 @태그 파싱 → 현재가 스냅샷과 함께 /api/investor/memo/{id}/tag POST
+```
+
+**메모 카드 태그 표시**
+```
+[삼성전자 005930]  기준가 82,000원  →  현재 84,500원  +3.05%  (클릭 시 /stock/005930)
+```
+- 현재가는 trade-top 테이블에서 있으면 실시간, 없으면 `/api/stock/detail` 호출
+- X 버튼으로 태그 제거 (`DELETE /api/investor/memo/tag/{tagId}`)
+
+**타입 추가 (`src/types/index.ts`)**
+```ts
+interface StockMasterItem {
+  code: string;
+  name: string;
+  market: 'KOSPI' | 'KOSDAQ';
+  sector?: string;
+}
+
+interface MemoStockTag {
+  id: number;
+  stockCode: string;
+  stockName: string;
+  priceAtTag: number;
+  changeRateAtTag: number;
+  taggedAt: string;
+}
+```
+
+**MemoResponseDto 변경** — `tags: MemoStockTag[]` 필드 포함 (백엔드 동시 작업 필요)
+
+---
+
+## 실시간 데이터 갱신 (구현 예정)
+
+방식: **프론트 폴링 (`setInterval`)** — 추가 인프라 없이 가장 단순·안정적
+
+### 장중 여부 판단 헬퍼 (공통 유틸로 추가 예정)
+
+```ts
+// src/utils/market.ts
+export function isMarketOpen(): boolean {
+  const now = new Date();
+  const minutes = now.getHours() * 60 + now.getMinutes();
+  return minutes >= 540 && minutes < 930; // 09:00 ~ 15:30 (KST)
+}
+```
+
+### 폴링 간격 기준
+
+| 데이터 | 위치 | 간격 | 조건 |
+|--------|------|------|------|
+| 시장 지수 (KOSPI/KOSDAQ/KOSPI200) | Dashboard | 10초 | 장중에만 |
+| 종목 현재가 | StockDetail | 10초 | 장중에만 |
+| 투자자 동향 | Dashboard, InvestorTrend | 30초 | 장중에만 |
+
+### 패턴
+
+```ts
+useEffect(() => {
+  if (!isMarketOpen()) return;
+  const id = setInterval(fetchData, 10_000);
+  return () => clearInterval(id);
+}, [fetchData]);
+```
+
+- 장 외 시간에는 interval 등록 자체를 안 함 (KIS API 불필요 호출 방지)
+- cleanup 함수로 언마운트 시 자동 해제
+- 요청 실패해도 다음 interval에 자동 재시도 (별도 에러 처리 불필요)
 
 ---
 

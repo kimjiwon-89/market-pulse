@@ -1,4 +1,5 @@
 import { NavLink } from "react-router-dom";
+import { getRole } from "@/services/apiClient";
 
 const NAV_ITEMS = [
   {
@@ -45,7 +46,18 @@ const NAV_ITEMS = [
   },
 ];
 
+const ADMIN_ITEM = {
+  id: "admin",
+  to: "/admin",
+  label: "관리자",
+  icon: "M12 2a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM4 20c0-4 3.6-7 8-7s8 3 8 7",
+  end: false,
+};
+
 export function Nav() {
+  const role = getRole();
+  const items = role === "ADMIN" ? [...NAV_ITEMS, ADMIN_ITEM] : NAV_ITEMS;
+
   return (
     <aside
       style={{
@@ -63,7 +75,7 @@ export function Nav() {
         gap: 2,
       }}
     >
-      {NAV_ITEMS.map(({ id, to, label, icon, end }) => (
+      {items.map(({ id, to, label, icon, end }) => (
         <NavLink
           key={id}
           to={to}

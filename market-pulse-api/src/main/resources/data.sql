@@ -5,6 +5,25 @@ CREATE TABLE api_token (
    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE investor_memo (
+    id         SERIAL PRIMARY KEY,
+    memo_date  DATE        NOT NULL,
+    market     VARCHAR(10) NOT NULL,
+    content    TEXT        NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_investor_memo_date_market UNIQUE (memo_date, market)
+);
+
+
+CREATE TABLE users (
+    id            SERIAL PRIMARY KEY,
+    username      VARCHAR(50)  NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    role          VARCHAR(20)  NOT NULL DEFAULT 'USER',
+    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 
 /*
     REDIS 설치

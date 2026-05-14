@@ -52,6 +52,61 @@ com.marketpulse/
     └── response/            # ApiResponse<T>, KisResponse
 ```
 
+## 사용자 관리 (Admin)
+
+### DB 테이블
+
+```sql
+CREATE TABLE users (
+    id            SERIAL PRIMARY KEY,
+    username      VARCHAR(50)  NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,  -- BCrypt
+    role          VARCHAR(20)  NOT NULL DEFAULT 'USER',  -- 'ADMIN' | 'USER'
+    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+> `data.sql`은 참고용. 실제 테이블은 psql로 직접 생성 필요.
+
+### 초기 관리자 계정
+
+앱 시작 시 `InitialDataRunner`가 `users` 테이블에 없으면 자동 생성.
+`application-local.yml`의 `app.auth.username/password` 값 사용.
+
+```
+기본값: admin / market2026
+```
+
+### API 엔드포인트 (ADMIN 전용)
+
+| 메서드 | 경로 | 설명 |
+|--------|------|------|
+| GET | `/api/admin/users` | 목록 |
+| POST | `/api/admin/users` | 추가 `{ username, password, role }` |
+| DELETE | `/api/admin/users/{id}` | 삭제 (자신 삭제 불가) |
+| PATCH | `/api/admin/users/{id}/password` | 비밀번호 변경 `{ newPassword }` |
+
+### 주요 파일
+
+```
+domain/user/
+├── controller/UserController.java
+├── service/UserService.java
+├── dto/UserCreateRequest.java
+├── dto/UserChangePasswordRequest.java
+├── dto/UserResponseDto.java
+├── mapper/UserMapper.java
+└── vo/UserVo.java
+resources/mapper/user/UserMapper.xml
+global/auth/InitialDataRunner.java
+```
+
+### 회원가입 정책
+
+공개 회원가입 없음 — 관리자가 `/admin` 페이지에서 직접 추가.
+
+---
+
 ## API 엔드포인트 현황
 
 | 도메인 | 메서드 | 경로 | 상태 |
@@ -161,7 +216,10 @@ GET /api/stock/foreign-trade
 | 엔드포인트 | TR ID | 용도 |
 |---|---|---|
 | 국내기관_외국인 매매종목가집계 | `FHKST01010900` | 외국인/기관 순매수·순매도 상위 종목 |
-| 시장별 투자자매매동향(일별) | `FHKST01010800` | 코스피/코스닥 시장 구분 |
+| 시장별 투자자 흐름 (market-flow) | `FHKST01010900` | 동일 TR ID, fid_input_iscd=0001(KOSPI)/1001(KOSDAQ) |
+
+> ⚠️ `FHKST01010800`은 KIS API에 존재하지 않음 (개발자포털 검색 0건). `FHKST01010900`으로 통일.
+> ⚠️ `FHKST01010900`은 실시간 전용 — 장 마감(15:30) 후엔 `output:[]` 반환. 과거 날짜 지원 여부는 미확인 (2026-05-15 장중 테스트 예정).
 
 ### REST API
 
@@ -207,6 +265,164 @@ domain/investor/
 ├── mapper/MemoMapper.java
 └── vo/MemoVo.java
 ```
+
+## 인증 (JWT)
+
+### 방식
+
+`spring-boot-starter-security` + `jjwt 0.11.5`. Stateless — 세션 없음.
+
+### 흐름
+
+```
+POST /api/auth/login  { username, password }
+→ 서버 검증 → JWT 발급 (24시간)
+→ 클라이언트 localStorage 저장 (키: mp_token)
+→ 이후 모든 요청 헤더: Authorization: Bearer <token>
+→ 401 시 토큰 삭제 + /login 리다이렉트
+```
+
+### 보호 경로
+
+`/api/investor/memo/**` 만 인증 필요. 나머지는 공개.
+
+### 계정 관리
+
+`application-local.yml` 에서 설정:
+
+```yaml
+app:
+  auth:
+    username: admin
+    password: market2026
+  jwt:
+    secret: marketpulse-jwt-secret-key-local-dev  # 운영 시 반드시 교체
+```
+
+> 운영 배포 시 `jwt.secret`은 환경변수로 주입. 32자 이상 무작위 문자열 권장.
+
+### 주요 파일
+
+| 파일 | 역할 |
+|------|------|
+| `global/auth/JwtUtil.java` | 토큰 생성·검증 |
+| `global/auth/JwtAuthenticationFilter.java` | 요청마다 Authorization 헤더 파싱 |
+| `global/auth/AuthController.java` | `POST /api/auth/login`, `GET /api/auth/me` |
+| `global/config/SecurityConfig.java` | 필터 체인 구성 |
+| `global/config/AuthConfig.java` | `UserDetailsService` + `AuthenticationManager` 빈 |
+
+---
+
+## stock_master + 종목 상세 + 메모 태그 스펙 (구현 예정)
+
+### stock_master 도메인
+
+#### DB
+```sql
+CREATE TABLE stock_master (
+    code       VARCHAR(10)  PRIMARY KEY,
+    name       VARCHAR(100) NOT NULL,
+    market     VARCHAR(10)  NOT NULL,   -- 'KOSPI' | 'KOSDAQ'
+    sector     VARCHAR(100),
+    updated_at TIMESTAMP    DEFAULT NOW()
+);
+CREATE INDEX idx_stock_master_name ON stock_master(name);
+```
+
+#### 파일 구조
+```
+domain/stock/
+├── controller/StockController.java      # 기존 foreign-trade + 신규 검색·상세
+├── service/StockMasterService.java      # 검색, 업데이트 로직
+├── service/StockDetailService.java      # KIS API 연동 (현재가·차트·투자자)
+├── dto/StockSearchResultDto.java
+├── dto/StockDetailDto.java
+├── dto/StockChartDto.java
+├── mapper/StockMasterMapper.java
+├── vo/StockMasterVo.java
+└── scheduler/StockMasterScheduler.java  # 매일 자정 갱신
+resources/mapper/stock/StockMasterMapper.xml
+```
+
+#### REST API
+```
+GET /api/stock/search?q=삼성&limit=10
+  → [{ code, name, market, sector }]
+
+GET /api/stock/detail?code=005930
+  → { code, name, market, currentPrice, changeRate, volume, ... }
+
+GET /api/stock/chart?code=005930&period=1M|3M|1Y
+  → [{ date, open, high, low, close, volume }]
+
+GET /api/stock/investor?code=005930
+  → { foreign: { buy, sell, net }, institution: { buy, sell, net } }
+```
+
+#### 스케줄러
+```java
+// StockMasterScheduler.java
+@Component
+@RequiredArgsConstructor
+public class StockMasterScheduler {
+
+    @Scheduled(cron = "0 0 0 * * *")  // 매일 자정
+    public void updateStockMaster() {
+        // 데이터 소스 형식에 따라 구현 (KRX CSV 파싱 또는 API 호출)
+        // ⚠️ 데이터 소스 미정 — 전달받은 형식 기준으로 구현
+    }
+}
+```
+
+> `@EnableScheduling`은 `global/config/SchedulerConfig.java`에 추가.
+
+#### KIS API (종목 상세)
+| TR ID | 경로 | 용도 |
+|-------|------|------|
+| `FHKST01010100` | `/uapi/domestic-stock/v1/quotations/inquire-price` | 주식현재가시세 |
+| `FHKST01010400` | `/uapi/domestic-stock/v1/quotations/inquire-daily-price` | 일자별 가격 |
+| `FHKST01010900` | 기존 경로 동일 | 투자자 동향 (종목 단위) |
+
+---
+
+### memo_stock_tag 스펙
+
+#### DB
+```sql
+CREATE TABLE memo_stock_tag (
+    id                 BIGSERIAL   PRIMARY KEY,
+    memo_id            BIGINT      NOT NULL REFERENCES investor_memo(id) ON DELETE CASCADE,
+    stock_code         VARCHAR(10) NOT NULL,
+    stock_name         VARCHAR(100) NOT NULL,
+    price_at_tag       BIGINT      NOT NULL,
+    change_rate_at_tag DECIMAL(8,2),
+    tagged_at          TIMESTAMP   DEFAULT NOW()
+);
+```
+
+#### 파일 구조
+```
+domain/investor/
+├── dto/MemoStockTagDto.java
+├── dto/MemoTagRequestDto.java    # { stockCode, stockName, priceAtTag, changeRateAtTag }
+├── mapper/MemoStockTagMapper.java
+└── vo/MemoStockTagVo.java
+resources/mapper/investor/MemoStockTagMapper.xml
+```
+
+#### REST API
+```
+POST   /api/investor/memo/{memoId}/tag
+  body: { stockCode, stockName, priceAtTag, changeRateAtTag }
+DELETE /api/investor/memo/tag/{tagId}
+```
+
+`GET /api/investor/memo` 응답의 `MemoResponseDto`에 `List<MemoStockTagDto> tags` 필드 포함.
+
+#### 보호 경로
+`/api/investor/memo/**` 전체가 인증 필요이므로 태그 API도 자동으로 보호됨.
+
+---
 
 ## CORS 설정
 

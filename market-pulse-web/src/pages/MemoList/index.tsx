@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { apiClient } from "@/services/apiClient";
+import { apiClient, getToken } from "@/services/apiClient";
 import type { InvestorMemo } from "@/types";
 
 type Market = "KOSPI" | "KOSDAQ";
@@ -17,6 +17,7 @@ function fmtApiDate(memoDate: string): string {
 
 export function MemoList() {
   const navigate = useNavigate();
+  const isAuthed = !!getToken();
   const [market, setMarket] = useState<Market>("KOSPI");
   const [memos, setMemos] = useState<InvestorMemo[]>([]);
   const [loading, setLoading] = useState(false);
@@ -28,6 +29,7 @@ export function MemoList() {
 
   const fetchMemos = useCallback(
     async (pageNum: number, replace: boolean) => {
+      if (!isAuthed) return;
       setLoading(true);
       setError(null);
       try {
@@ -43,13 +45,14 @@ export function MemoList() {
         setLoading(false);
       }
     },
-    [market]
+    [market, isAuthed]
   );
 
   useEffect(() => {
+    if (!isAuthed) return;
     setPage(0);
     fetchMemos(0, true);
-  }, [fetchMemos]);
+  }, [fetchMemos, isAuthed]);
 
   function loadMore() {
     const next = page + 1;
@@ -61,6 +64,73 @@ export function MemoList() {
     sessionStorage.setItem("mp:flow:initDate", fmtApiDate(memo.memoDate));
     sessionStorage.setItem("mp:flow:initMarket", memo.market);
     navigate(`/investor?date=${fmtApiDate(memo.memoDate)}&market=${memo.market}`);
+  }
+
+  if (!isAuthed) {
+    return (
+      <div style={{ position: "relative" }}>
+        {/* 배경: 흐릿한 페이지 미리보기 */}
+        <div
+          className="stack"
+          style={{ filter: "blur(3px)", opacity: 0.45, pointerEvents: "none", userSelect: "none" }}
+        >
+          <div className="card">
+            <div className="card-head">
+              <div className="card-title">메모 모아보기</div>
+              <span className="tag">날짜 내림차순</span>
+            </div>
+            <div className="seg-tabs" role="tablist">
+              <button role="tab" aria-selected={true}>코스피</button>
+              <button role="tab" aria-selected={false}>코스닥</button>
+            </div>
+          </div>
+          <div className="card" style={{ padding: "var(--pad-card)" }}>
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
+                <div className="sk short" />
+                <div className="sk" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* 로그인 안내 overlay */}
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 14,
+          }}
+        >
+          <svg
+            width={32}
+            height={32}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="var(--text-3)"
+            strokeWidth={1.5}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+          <div style={{ fontSize: 14, color: "var(--text-2)", fontWeight: 600 }}>
+            로그인이 필요한 기능입니다
+          </div>
+          <button
+            className="btn primary sm"
+            onClick={() => navigate("/login")}
+          >
+            로그인하기
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (

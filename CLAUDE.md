@@ -59,10 +59,26 @@ external.api:
 
 | 도메인 | 경로 | 설명 |
 |--------|------|------|
+| stock-master | `GET /api/stock/search` | 전종목 검색 (stock_master 테이블 기반) |
+| stock-detail | `GET /api/stock/detail` `GET /api/stock/chart` `GET /api/stock/investor` | 종목 상세 (현재가·차트·투자자) |
+
+**기존 도메인 구조**
+
+| 도메인 | 경로 | 설명 |
+|--------|------|------|
 | index | `GET /api/index/inquire-daily-indexchartprice` | 국내 업종 기간별 시세 |
-| stock | `GET /api/stock/foreign-trade` | 투자자(외국인/기관/전체) × 거래유형(순매수/순매도) × 시장(코스피/코스닥/전체) 필터 조합 조회, 날짜별 시계열 지원 |
+| stock | `GET /api/stock/foreign-trade` | 투자자×거래유형×시장 필터 조합, 날짜별 시계열 |
 | news | `GET /api/news/inquire-daily-news` | 국내 뉴스 |
-| investor | `GET /api/investor/trade-top` `GET /api/investor/memo` | 투자자 매매동향 + 메모 |
+| investor | `GET /api/investor/trade-top` `GET/POST/DELETE /api/investor/memo` | 투자자 매매동향 + 메모 |
+| auth | `POST /api/auth/login` `GET /api/auth/me` | JWT 인증 |
+| admin | `GET/POST/DELETE/PATCH /api/admin/users` | 사용자 관리 (ADMIN 전용) |
+
+**인증 (JWT)**
+
+- `POST /api/auth/login` — `{ username, password }` → `{ token, username, role }`
+- 보호 경로: `/api/investor/memo/**` (인증 필요), `/api/admin/**` (ADMIN 전용)
+- 나머지 조회 API는 공개
+- 기본 계정: `admin / market2026` (앱 시작 시 자동 생성, `application-local.yml`에서 변경)
 
 **토큰 관리 (TokenService)**
 
@@ -78,15 +94,21 @@ com.marketpulse/
 │   ├── index/
 │   ├── investor/
 │   ├── news/
-│   └── stock/
+│   ├── stock/       # foreign-trade + stock_master 검색 + 종목 상세
+│   └── user/        # 사용자 관리 (ADMIN API)
 ├── external/        # KIS API 직접 호출 클라이언트
 ├── infrastructure/  # 토큰 발급/저장 인프라
-└── global/          # 공통 응답(ApiResponse), CORS, Swagger, 예외 처리
+└── global/
+    ├── auth/        # JwtUtil, JwtAuthenticationFilter, AuthController, InitialDataRunner
+    ├── config/      # SecurityConfig, AuthConfig, WebConfig, SwaggerConfig, SchedulerConfig
+    ├── exception/   # GlobalExceptionHandler
+    └── response/    # ApiResponse<T>
 ```
 
 **공통 응답 형식**
 ```java
-ApiResponse<T>  // success() / error() 팩토리 메서드 사용
+ApiResponse.success(data)       // 성공
+ApiResponse.failure("message")  // 실패  ← error() 아님 주의
 ```
 
 ---
@@ -111,13 +133,17 @@ baseURL: 'http://localhost:8080/api'
 
 **페이지 라우팅**
 
-| 경로 | 컴포넌트 | 설명 |
-|------|----------|------|
-| `/` | Dashboard | 메인 대시보드 |
-| `/index/:id` | IndexDetail | 업종 상세 시세 |
-| `/investor` | InvestorTrend | 투자자 매매동향 + 날짜별 메모 입력 |
-| `/net-buy` | NetBuyingList | 순매수/순매도 순위 — 투자자·거래유형·시장 필터 + 날짜별 시계열 |
-| `/memo` | MemoList | 메모 모아보기 |
+| 경로 | 컴포넌트 | 인증 | 설명 |
+|------|----------|------|------|
+| `/login` | Login | 공개 | 로그인 |
+| `/` | Dashboard | 공개 | 메인 대시보드 |
+| `/index/:id` | IndexDetail | 공개 | 업종 상세 시세 |
+| `/investor` | InvestorTrend | 공개 (메모만 인증) | 투자자 매매동향 + 메모 |
+| `/net-buy` | NetBuyingList | 공개 | 순매수/순매도 순위 |
+| `/memo` | MemoList | 공개 (메모만 인증) | 메모 모아보기 |
+| `/news` | NewsList | 공개 | 뉴스 |
+| `/stock/:code` | StockDetail | 공개 | 종목 상세 (현재가·차트·투자자동향) |
+| `/admin` | Admin | ADMIN | 사용자 관리 |
 
 **디렉터리 구조**
 ```
@@ -146,8 +172,9 @@ KIS 데이터는 KRX(한국거래소) 기반이므로 객관성 확보됨.
 
 | KIS 엔드포인트 | TR ID | 용도 |
 |---|---|---|
-| 국내기관_외국인 매매종목가집계 | `FHKST01010900` | 외국인/기관 순매수·순매도 상위 종목 |
-| 시장별 투자자매매동향(일별) | `FHKST01010800` | 코스피/코스닥 시장 구분 |
+| 국내기관_외국인 매매종목가집계 | `FHKST01010900` | 외국인/기관 순매수·순매도 상위 종목 + 시장별 투자자 흐름 |
+
+> ⚠️ `FHKST01010800`은 KIS에 존재하지 않음. `FHKST01010900`으로 통일.
 
 ### API 설계
 
@@ -221,6 +248,74 @@ POST는 upsert로 처리 (날짜+시장 중복이면 content 업데이트).
 
 ---
 
+## 종목 마스터 + 종목 상세 + 메모 @태그 기능 (구현 예정)
+
+> 상세 스펙은 `.claude/.back/back.md`, `.claude/.front/front.md` 참고
+
+### 개요
+
+1. **stock_master 테이블** — KRX 전종목(코드·이름·시장·업종) DB 저장, 매일 자정 자동 업데이트
+2. **종목 상세 페이지** (`/stock/:code`) — KIS API로 현재가·일자별 차트·투자자동향 조회
+3. **메모 @mention 태그** — 메모 작성 시 `@종목명` 입력 → 자동완성 드롭다운 → 저장 시 가격 스냅샷 기록
+
+### DB 테이블 (신규 — psql 직접 생성 필요)
+
+```sql
+-- 전종목 마스터
+CREATE TABLE stock_master (
+    code       VARCHAR(10)  PRIMARY KEY,   -- 종목코드 (6자리)
+    name       VARCHAR(100) NOT NULL,       -- 종목명
+    market     VARCHAR(10)  NOT NULL,       -- 'KOSPI' | 'KOSDAQ'
+    sector     VARCHAR(100),               -- 업종명
+    updated_at TIMESTAMP    DEFAULT NOW()
+);
+CREATE INDEX idx_stock_master_name ON stock_master(name);
+
+-- 메모 종목 태그 (저장 시점 스냅샷 포함)
+CREATE TABLE memo_stock_tag (
+    id                  BIGSERIAL PRIMARY KEY,
+    memo_id             BIGINT       NOT NULL REFERENCES investor_memo(id) ON DELETE CASCADE,
+    stock_code          VARCHAR(10)  NOT NULL,
+    stock_name          VARCHAR(100) NOT NULL,
+    price_at_tag        BIGINT       NOT NULL,    -- 태그 시점 현재가
+    change_rate_at_tag  DECIMAL(8,2),             -- 태그 시점 등락률
+    tagged_at           TIMESTAMP    DEFAULT NOW()
+);
+```
+
+### API (신규)
+
+```
+# 종목 검색 (stock_master 기반)
+GET /api/stock/search?q=삼성&limit=10
+  → [{ code, name, market, sector }]
+
+# 종목 상세
+GET /api/stock/detail?code=005930         # 현재가·기본정보 (KIS FHKST01010100)
+GET /api/stock/chart?code=005930&period=1M|3M|1Y  # 일자별 차트 (KIS FHKST01010400)
+GET /api/stock/investor?code=005930       # 투자자 동향 (KIS FHKST01010900)
+
+# 메모 태그
+POST   /api/investor/memo/{memoId}/tag
+  body: { stockCode, stockName, priceAtTag, changeRateAtTag }
+DELETE /api/investor/memo/tag/{tagId}
+```
+
+### 스케줄러
+
+`@Scheduled(cron = "0 0 0 * * *")` — 매일 자정 stock_master 전체 갱신.
+데이터 소스: KRX에서 전달받은 형식에 따라 구현 (CSV 파싱 또는 API 호출).
+
+### KIS API (종목 상세용)
+
+| TR ID | 용도 |
+|-------|------|
+| `FHKST01010100` | 주식현재가시세 (현재가·등락률·거래량·시가총액 등) |
+| `FHKST01010400` | 주식현재가 일자별 (차트 데이터) |
+| `FHKST01010900` | 기관·외국인 매매동향 (종목 단위) |
+
+---
+
 ## 작업 로그
 
 작업 기록은 `.claude/.logs/` 폴더에 날짜별 파일로 남긴다.
@@ -249,5 +344,8 @@ POST는 upsert로 처리 (날짜+시장 중복이면 content 업데이트).
 
 - CORS: 백엔드는 `localhost:3000`, `localhost:8080`만 허용. 운영 배포 시 `allowed-origins` 수정 필요
 - KIS API app-key / app-secret은 `application.yml`에 직접 입력하지 말고 환경변수나 별도 설정파일로 관리
+- JWT secret(`app.jwt.secret`)도 운영 시 환경변수로 주입. 32자 이상 무작위 문자열 권장
 - MyBatis XML 매퍼 위치: `src/main/resources/mapper/**/*.xml`
-- `market-pulse-react`는 레거시 폴더. `market-pulse-web`으로 마이그레이션 완료 (styled-components → Tailwind, JSX → TSX)
+- `ApiResponse.failure()` 사용 — `error()` 없음
+- DB 테이블(`users`, `investor_memo`, `api_token`)은 `data.sql` 참고용, 실제 생성은 psql 직접 실행 필요
+- Maven 실행 시 Java 17 명시 필요: `JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home mvn ...`

@@ -1,5 +1,6 @@
 package com.marketpulse.external.client;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.marketpulse.global.response.KisResponse;
 import com.marketpulse.infrastructure.token.service.TokenService;
 import lombok.RequiredArgsConstructor;
@@ -11,7 +12,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import org.springframework.web.client.HttpStatusCodeException;
+
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * 외부 API 인증 토큰 발급 Client
@@ -24,6 +28,10 @@ import java.util.Map;
 public class ExternalApiClient {
 
     private final RestTemplate restTemplate;
+    private final ObjectMapper objectMapper;
+
+    private final AtomicLong lastCallTime = new AtomicLong(0);
+    private static final long MIN_INTERVAL_MS = 210;
 
     @Value("${external.api.base-url}")
     private String baseUrl;
@@ -39,12 +47,22 @@ public class ExternalApiClient {
 
     private final TokenService tokenService;
 
+    private synchronized void throttle() {
+        long now = System.currentTimeMillis();
+        long wait = MIN_INTERVAL_MS - (now - lastCallTime.get());
+        if (wait > 0) {
+            try { Thread.sleep(wait); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+        }
+        lastCallTime.set(System.currentTimeMillis());
+    }
+
     public <T> T callGet(
             String path,
             String trId,
             Map<String,String> params,
             ParameterizedTypeReference<T> type
     ){
+        throttle();
 
         String token = tokenService.getValidToken();
 
@@ -63,16 +81,26 @@ public class ExternalApiClient {
         HttpEntity<?> entity =
                 new HttpEntity<>(headers);
 
-        ResponseEntity<T> response =
-                restTemplate.exchange(
-                        builder.toUriString(),
-                        HttpMethod.GET,
-                        entity,
-                        type
-                );
+        try {
+            ResponseEntity<T> response =
+                    restTemplate.exchange(
+                            builder.toUriString(),
+                            HttpMethod.GET,
+                            entity,
+                            type
+                    );
 
-        log.info("@@@ API CALL, URL={}, status={}, body={}", path, response.getStatusCode(), response.getBody());
+            try {
+                String json = objectMapper.writeValueAsString(response.getBody());
+                log.info("@@@ API CALL tr_id={}, URL={}, status={}, body={}", trId, path, response.getStatusCode(), json);
+            } catch (Exception e) {
+                log.info("@@@ API CALL tr_id={}, URL={}, status={}", trId, path, response.getStatusCode());
+            }
 
-        return response.getBody();
+            return response.getBody();
+        } catch (HttpStatusCodeException e) {
+            log.error("@@@ API ERROR tr_id={}, URL={}, status={}, body={}", trId, path, e.getStatusCode(), e.getResponseBodyAsString());
+            throw e;
+        }
     }
 }

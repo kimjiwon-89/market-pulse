@@ -70,16 +70,16 @@ public class InvestorService {
                 .toList();
     }
 
-    /* ── Market Flow (FHKST01010800) ── */
+    /* ── Market Flow (FHKST01010900) ── */
 
     public List<MarketFlowDto> getMarketFlow(String market) {
         Map<String, String> params = new HashMap<>();
-        params.put("FID_COND_MRKT_DIV_CODE", "J");
-        params.put("FID_INPUT_ISCD", "KOSDAQ".equals(market) ? "1001" : "0001");
+        params.put("fid_cond_mrkt_div_code", "J");
+        params.put("fid_input_iscd", "KOSDAQ".equals(market) ? "1001" : "0001");
 
         KisResponse<List<InvestorDailyItem>> response = externalApiClient.callGet(
                 "/uapi/domestic-stock/v1/quotations/inquire-investor",
-                "FHKST01010800",
+                "FHKST01010900",
                 params,
                 new ParameterizedTypeReference<KisResponse<List<InvestorDailyItem>>>() {}
         );

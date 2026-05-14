@@ -135,7 +135,7 @@ export function Dashboard() {
       .finally(() => setSectorsLoading(false));
 
     // 뉴스
-    apiClient.get("/news/inquire-daily-news", { params: { limit: 4 } })
+    apiClient.get("/news/inquire-daily-news", { params: { limit: 15 } })
       .then(r => {
         const raw: any[] = Array.isArray(r.data.data) ? r.data.data : [];
         setNews(raw.map(n => ({
@@ -270,37 +270,39 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* 오른쪽: 뉴스 카드 */}
-        <div className="card" style={{ height: "fit-content" }}>
-          <div className="card-head">
-            <div className="card-title">최신 뉴스</div>
-            <button className="btn ghost sm" onClick={() => navigate("/news")}>더 보기</button>
-          </div>
-          {newsLoading ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              {[0, 1, 2, 3, 4].map(i => (
-                <div key={i} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  <div className="sk" />
-                  <div className="sk short" />
-                </div>
-              ))}
+        {/* 오른쪽: 뉴스 카드 — 왼쪽 컬럼이 행 높이를 결정, 뉴스는 맞춰 늘어남 */}
+        <div style={{ position: "relative", minHeight: 0 }}>
+          <div className="card" style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column" }}>
+            <div className="card-head">
+              <div className="card-title">최신 뉴스</div>
+              <button className="btn ghost sm" onClick={() => navigate("/news")}>더 보기</button>
             </div>
-          ) : news.length === 0 ? (
-            <div style={{ color: "var(--text-4)", fontSize: 13, padding: "16px 0" }}>
-              뉴스를 불러올 수 없습니다
-            </div>
-          ) : (
-            <div className="news-list">
-              {news.map(item => (
-                <div key={item.id} className="news-item">
-                  <div className="news-title">{item.title}</div>
-                  <div className="news-meta">
-                    {[item.source, item.date, item.time].filter(Boolean).join(" · ")}
+            {newsLoading ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                {[0, 1, 2, 3, 4].map(i => (
+                  <div key={i} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <div className="sk" />
+                    <div className="sk short" />
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            ) : news.length === 0 ? (
+              <div style={{ color: "var(--text-4)", fontSize: 13, padding: "16px 0" }}>
+                뉴스를 불러올 수 없습니다
+              </div>
+            ) : (
+              <div className="news-list" style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+                {news.map(item => (
+                  <div key={item.id} className="news-item">
+                    <div className="news-title">{item.title}</div>
+                    <div className="news-meta">
+                      {[item.source, item.date, item.time].filter(Boolean).join(" · ")}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
