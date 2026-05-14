@@ -1,34 +1,33 @@
 package com.marketpulse.domain.stock.controller;
 
-import com.marketpulse.domain.stock.dto.ForeignTradeRequest;
-import com.marketpulse.domain.stock.dto.ForeignTradeItem;
-import com.marketpulse.domain.stock.service.StockService;
+import com.marketpulse.domain.investor.dto.TradeTopResponseDto;
+import com.marketpulse.domain.investor.service.InvestorService;
 import com.marketpulse.global.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-
-@Tag(name = "외국인 Stock API", description = "외국인 거래소별 순매수 순위")
+@Tag(name = "Stock API", description = "투자자별 순매수/순매도 종목 순위")
 @RestController
 @RequestMapping("/api/stock")
 @RequiredArgsConstructor
 public class StockController {
 
-    private final StockService stockService;
+    private final InvestorService investorService;
 
-    @Operation(summary = "외국인 매매 추정 조회")
+    @Operation(summary = "투자자별 순매수/순매도 상위 종목 조회")
     @GetMapping("/foreign-trade")
-    public ApiResponse<List<ForeignTradeItem>> foreignTrade(
-            @ParameterObject @ModelAttribute ForeignTradeRequest request
+    public ApiResponse<List<TradeTopResponseDto>> foreignTrade(
+            @RequestParam(required = false) String market,
+            @RequestParam(required = false) String investorType,
+            @RequestParam(required = false) String tradeType,
+            @RequestParam(required = false) String date
     ) {
-
-        List<ForeignTradeItem> result = stockService.callForeignTrade(request);
-
-        return ApiResponse.success(result);
+        return ApiResponse.success(
+                investorService.getTradeTop(market, investorType, tradeType, date)
+        );
     }
 }

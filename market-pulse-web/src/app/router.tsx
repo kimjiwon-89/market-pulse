@@ -5,6 +5,7 @@ import { IndexDetail } from "@/pages/IndexDetail";
 import { InvestorTrend } from "@/pages/InvestorTrend";
 import { NetBuyingList } from "@/pages/NetBuyingList";
 import { MemoList } from "@/pages/MemoList";
+import { NewsList } from "@/pages/NewsList";
 
 const router = createBrowserRouter([
   {
@@ -16,6 +17,7 @@ const router = createBrowserRouter([
       { path: "investor", element: <InvestorTrend /> },
       { path: "net-buy", element: <NetBuyingList /> },
       { path: "memo", element: <MemoList /> },
+      { path: "news", element: <NewsList /> },
     ],
   },
 ]);

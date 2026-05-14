@@ -636,6 +636,7 @@ textarea:focus {
   border-bottom: 1px solid var(--divider);
   cursor: pointer;
   transition: background 0.1s;
+  overflow: hidden;
 }
 
 .news-item:last-child {
@@ -661,6 +662,9 @@ textarea:focus {
   font-size: 11.5px;
   color: var(--text-4);
   font-family: var(--font-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ─────────────────────────────────────────────

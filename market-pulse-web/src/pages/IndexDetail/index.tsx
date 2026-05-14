@@ -24,6 +24,19 @@ interface IndexDetail {
 
 type Period = "1M" | "3M" | "1Y";
 
+function fmtDate(d: Date): string {
+  return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function periodToDateParams(period: Period) {
+  const today = new Date();
+  const start = new Date(today);
+  if (period === "1M") start.setMonth(start.getMonth() - 1);
+  else if (period === "3M") start.setMonth(start.getMonth() - 3);
+  else start.setFullYear(start.getFullYear() - 1);
+  return { fid_input_date_1: fmtDate(start), fid_input_date_2: fmtDate(today) };
+}
+
 const SECTORS = [
   { code: "0001", name: "KOSPI" },
   { code: "1001", name: "KOSDAQ" },
@@ -47,11 +60,32 @@ export function IndexDetail() {
     if (!id) return;
     setLoading(true);
     setError(false);
+    const { fid_input_date_1, fid_input_date_2 } = periodToDateParams(period);
     apiClient
       .get("/index/inquire-daily-indexchartprice", {
-        params: { indexCode: id, period },
+        params: { indexCode: id, fid_input_date_1, fid_input_date_2 },
       })
-      .then(r => setDetail(r.data.data))
+      .then(r => {
+        const resp = r.data.data;
+        const o1 = resp?.output1;
+        const raw2: any[] = resp?.output2 ?? [];
+        const prices = raw2.map((d: any) => parseFloat(d.bstp_nmix_prpr ?? "0") || 0).filter(v => v > 0);
+        setDetail({
+          code: o1?.bstp_cls_code ?? "",
+          name: o1?.hts_kor_isnm ?? "",
+          value: parseFloat(o1?.bstp_nmix_prpr ?? "0") || 0,
+          change: parseFloat(o1?.bstp_nmix_prdy_vrss ?? "0") || 0,
+          pct: parseFloat(o1?.bstp_nmix_prdy_ctrt ?? "0") || 0,
+          volume: parseInt(o1?.acml_vol ?? "0") || 0,
+          amount: o1?.acml_tr_pbmn ?? "0",
+          high52: prices.length ? Math.max(...prices) : parseFloat(o1?.bstp_nmix_hgpr ?? "0") || 0,
+          low52: prices.length ? Math.min(...prices) : parseFloat(o1?.bstp_nmix_lwpr ?? "0") || 0,
+          chartData: raw2.map((d: any) => ({
+            date: d.stck_bsop_date ?? "",
+            value: parseFloat(d.bstp_nmix_prpr ?? "0") || 0,
+          })).reverse(),
+        });
+      })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, [id, period]);
@@ -95,8 +129,8 @@ export function IndexDetail() {
             {[
               { label: "지수", value: detail.value.toLocaleString(), cls: dirCls(detail.pct) },
               { label: "등락률", value: `${triangle(detail.pct)} ${fmtPct(detail.pct)}`, cls: dirCls(detail.pct) },
-              { label: "52주 최고", value: detail.high52?.toLocaleString() ?? "—", cls: "flat" },
-              { label: "52주 최저", value: detail.low52?.toLocaleString() ?? "—", cls: "flat" },
+              { label: `${period} 최고`, value: detail.high52?.toLocaleString() ?? "—", cls: "flat" },
+              { label: `${period} 최저`, value: detail.low52?.toLocaleString() ?? "—", cls: "flat" },
             ].map(kpi => (
               <div key={kpi.label} className="card stat-cell">
                 <div className="stat-label">{kpi.label}</div>
@@ -132,6 +166,7 @@ export function IndexDetail() {
                     tickLine={false}
                     axisLine={false}
                     interval="preserveStartEnd"
+                    tickFormatter={v => `${v.slice(4, 6)}/${v.slice(6, 8)}`}
                   />
                   <YAxis
                     tick={{ fontSize: 11, fill: "var(--text-4)", fontFamily: "var(--font-mono)" }}

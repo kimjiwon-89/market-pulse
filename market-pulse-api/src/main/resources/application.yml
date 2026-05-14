@@ -9,6 +9,9 @@ server:
 spring:
   profiles:
     active: local
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
   data:
     redis:
       host: localhost
@@ -22,8 +25,8 @@ mybatis:
 external:
   api:
     base-url: https://openapi.koreainvestment.com:9443
-    app-key:
-    app-secret:
+    app-key: PS7dx7X6h1EH8gGYLJLXVa7XEGMEu7blBIHr
+    app-secret: 827dp5XgVvqHuIvfWHLzRqAC1yMeMAt1C2mPTw2RkDgklqSEzu/cxNhzfJ9EKZlBNfmV7S2KLekl/DgELaiWHZQh8qDZK2rNPkjm+jaxLHn1h3Y+nLBDxWbheQ0Kc/ZpaQ9E/KphaJDHMSfhF6S5EmNUxbXJrkNpQ2freC6Wyz+G3jJWFmw=
     token-path: /oauth2/tokenP
 
 app:
@@ -47,8 +50,8 @@ app:
     allowed-methods:
       - GET
       - POST
+      - DELETE
 #      - PUT
-#      - DELETE
 #      - PATCH
 #      - OPTIONS
     allowed-headers:

@@ -71,7 +71,7 @@ public class ExternalApiClient {
                         type
                 );
 
-        log.info("@@@ API CALL, URL={}, response={}", path, response);
+        log.info("@@@ API CALL, URL={}, status={}, body={}", path, response.getStatusCode(), response.getBody());
 
         return response.getBody();
     }

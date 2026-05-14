@@ -2,6 +2,7 @@ package com.marketpulse.domain.index.controller;
 
 import com.marketpulse.domain.index.dto.IndexRequest;
 import com.marketpulse.domain.index.dto.IndexResponse;
+import com.marketpulse.domain.index.dto.TopSectorItem;
 import com.marketpulse.domain.index.service.IndexService;
 import com.marketpulse.global.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -12,6 +13,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @Tag(name = "국내주식업종기간별시세", description = "J_국내주식업종기간별시세(일/주/월/년)")
 @RestController
@@ -27,7 +30,14 @@ public class IndexController {
         return ApiResponse.success(
                 indexService.callIndex(request)
         );
+    }
 
+    @Operation(summary = "상위 업종 조회 (등락률 기준 상위 6개)")
+    @GetMapping("/top-sectors")
+    public ApiResponse<List<TopSectorItem>> topSectors(){
+        return ApiResponse.success(
+                indexService.getTopSectors()
+        );
     }
 
 }

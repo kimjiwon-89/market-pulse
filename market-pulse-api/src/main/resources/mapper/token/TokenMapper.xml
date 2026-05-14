@@ -16,8 +16,12 @@
     </select>
 
     <insert id="upsert">
-        INSERT INTO api_token (access_token, expired_at)
-        VALUES (#{accessToken}, #{expiredAt})
+        INSERT INTO api_token (access_token, expired_at, singleton)
+        VALUES (#{accessToken}, #{expiredAt}, TRUE)
+        ON CONFLICT (singleton) DO UPDATE
+            SET access_token = EXCLUDED.access_token,
+                expired_at   = EXCLUDED.expired_at,
+                created_at   = NOW()
     </insert>
 
 </mapper>

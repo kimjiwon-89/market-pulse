@@ -61,6 +61,13 @@ public class NewsService {
 
         response.validate();
 
-        return response.getOutput();
+        List<NewsRespDto> items = response.getOutput();
+        if (items == null) return List.of();
+
+        if (request.getLimit() != null && request.getLimit() > 0) {
+            return items.stream().limit(request.getLimit()).toList();
+        }
+
+        return items;
     }
 }

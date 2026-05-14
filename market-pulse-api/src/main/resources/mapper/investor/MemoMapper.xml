@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.marketpulse.domain.investor.mapper.MemoMapper">
+
+    <insert id="upsert">
+        INSERT INTO investor_memo (memo_date, market, content)
+        VALUES (#{memoDate}, #{market}, #{content})
+        ON CONFLICT (memo_date, market) DO UPDATE
+            SET content    = EXCLUDED.content,
+                updated_at = NOW()
+    </insert>
+
+    <select id="findByDateAndMarket" resultType="MemoVo">
+        SELECT id,
+               memo_date  AS memoDate,
+               market,
+               content,
+               created_at AS createdAt,
+               updated_at AS updatedAt
+        FROM investor_memo
+        WHERE memo_date = #{memoDate}
+          AND market = #{market}
+    </select>
+
+    <delete id="deleteById">
+        DELETE FROM investor_memo WHERE id = #{id}
+    </delete>
+
+    <select id="findList" resultType="MemoVo">
+        SELECT id,
+               memo_date  AS memoDate,
+               market,
+               content,
+               created_at AS createdAt,
+               updated_at AS updatedAt
+        FROM investor_memo
+        WHERE market = #{market}
+        ORDER BY memo_date DESC, id DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+</mapper>

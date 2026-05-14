@@ -62,4 +62,11 @@ public class NewsReqDto {
             requiredMode = Schema.RequiredMode.NOT_REQUIRED
     )
     private String FID_INPUT_SRNO;
+
+    @Schema(
+            description = "조회 결과 제한 개수",
+            example = "10",
+            requiredMode = Schema.RequiredMode.NOT_REQUIRED
+    )
+    private Integer limit;
 }

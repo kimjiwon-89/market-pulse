@@ -40,12 +40,6 @@ interface TradeTopItem {
   netBuyVolume: number;
 }
 
-interface InvestorStat {
-  name: string;
-  net: number;
-  buy: number;
-  sell: number;
-}
 
 /* ── 스파크라인 ── */
 function Sparkline({ data, color }: { data: number[]; color: string }) {
@@ -95,8 +89,10 @@ export function Dashboard() {
   const [flowLoading, setFlowLoading] = useState(true);
 
   /* ── 투자자 동향 ── */
-  const [investors, setInvestors] = useState<InvestorStat[]>([]);
-  const [investorsLoading, setInvestorsLoading] = useState(true);
+  interface MarketFlowItem { name: string; net: number; buy: number; sell: number; }
+  const [marketFlow, setMarketFlow] = useState<MarketFlowItem[]>([]);
+  const [marketFlowLoading, setMarketFlowLoading] = useState(true);
+
 
   /* ── 데이터 페칭 ── */
   useEffect(() => {
@@ -106,28 +102,60 @@ export function Dashboard() {
         apiClient.get("/index/inquire-daily-indexchartprice", { params: { indexCode: code } })
       )
     ).then(results => {
-      setIndices(results.map(r => r.data.data));
+      setIndices(results.map(r => {
+        const resp = r.data.data;
+        const o1 = resp?.output1;
+        return {
+          code: o1?.bstp_cls_code ?? "",
+          name: o1?.hts_kor_isnm ?? "",
+          value: parseFloat(o1?.bstp_nmix_prpr ?? "0") || 0,
+          change: parseFloat(o1?.bstp_nmix_prdy_vrss ?? "0") || 0,
+          pct: parseFloat(o1?.bstp_nmix_prdy_ctrt ?? "0") || 0,
+          hist: (resp?.output2 ?? []).map((d: any) => parseFloat(d.bstp_nmix_prpr ?? "0") || 0).reverse(),
+        };
+      }));
     }).catch(() => {
       setIndices([]);
     }).finally(() => setIndicesLoading(false));
 
-    // 업종 상위 6개
-    apiClient.get("/index/inquire-daily-indexchartprice", { params: { type: "sector", limit: 6 } })
-      .then(r => setSectors(r.data.data ?? []))
+    // 업종 상위 6개 (등락률 기준)
+    apiClient.get("/index/top-sectors")
+      .then(r => {
+        const raw = Array.isArray(r.data.data) ? r.data.data : [];
+        setSectors(raw.map((s: any) => ({
+          code: s.code,
+          name: s.name,
+          price: parseFloat(s.price) || 0,
+          pct: parseFloat(s.changeRate) || 0,
+          vol: s.volume,
+          hist: Array.isArray(s.history) ? s.history : [],
+        })));
+      })
       .catch(() => setSectors([]))
       .finally(() => setSectorsLoading(false));
 
     // 뉴스
-    apiClient.get("/news/inquire-daily-news", { params: { limit: 5 } })
-      .then(r => setNews(r.data.data ?? []))
+    apiClient.get("/news/inquire-daily-news", { params: { limit: 4 } })
+      .then(r => {
+        const raw: any[] = Array.isArray(r.data.data) ? r.data.data : [];
+        setNews(raw.map(n => ({
+          id: n.cntt_usiq_srno ?? Math.random(),
+          title: n.hts_pbnt_titl_cntt ?? "",
+          date: n.data_dt ? `${n.data_dt.slice(0, 4)}-${n.data_dt.slice(4, 6)}-${n.data_dt.slice(6, 8)}` : "",
+          source: n.dorg ?? "",
+          time: n.data_tm ? `${n.data_tm.slice(0, 2)}:${n.data_tm.slice(2, 4)}` : "",
+        })));
+      })
       .catch(() => setNews([]))
       .finally(() => setNewsLoading(false));
 
-    // 투자자 동향 (기관/외국인/개인)
-    apiClient.get("/investor/trade-top", { params: { market: "KOSPI", date: todayStr() } })
-      .then(r => setInvestors(r.data.data ?? []))
-      .catch(() => setInvestors([]))
-      .finally(() => setInvestorsLoading(false));
+
+
+    // 투자자 동향 (외국인/기관/개인 순매수 합계)
+    apiClient.get("/investor/market-flow", { params: { market: "KOSPI" } })
+      .then(r => setMarketFlow(Array.isArray(r.data.data) ? r.data.data : []))
+      .catch(() => setMarketFlow([]))
+      .finally(() => setMarketFlowLoading(false));
   }, []);
 
   // FlowDirCard: 필터 변경마다 재조회
@@ -141,7 +169,7 @@ export function Dashboard() {
         date: todayStr(),
       },
     })
-      .then(r => setFlowItems(r.data.data ?? []))
+      .then(r => setFlowItems(Array.isArray(r.data.data) ? r.data.data : []))
       .catch(() => setFlowItems([]))
       .finally(() => setFlowLoading(false));
   }, [flowInvestor, flowTrade, flowMarket]);
@@ -353,54 +381,48 @@ export function Dashboard() {
           )}
         </div>
 
-        {/* 오른쪽: 투자자 동향 */}
+        {/* 오른쪽: 투자자 동향 (외국인/기관/개인 순매수 합계) */}
         <div className="card">
           <div className="card-head">
             <div className="card-title">투자자 동향</div>
             <span className="tag">코스피</span>
           </div>
 
-          {investorsLoading ? (
+          {marketFlowLoading ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               {[0, 1, 2].map(i => (
-                <div key={i} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  <div className="sk short" />
-                  <div className="sk" style={{ height: 8 }} />
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div className="sk short" style={{ width: 40 }} />
+                  <div className="sk" style={{ flex: 1, height: 8 }} />
+                  <div className="sk short" style={{ width: 56 }} />
                 </div>
               ))}
             </div>
-          ) : investors.length === 0 ? (
+          ) : marketFlow.length === 0 ? (
             <div style={{ color: "var(--text-4)", fontSize: 13, padding: "16px 0" }}>
               투자자 데이터를 불러올 수 없습니다
             </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              {investors.slice(0, 5).map((inv, i) => {
-                const total = Math.abs(inv.buy ?? 0) + Math.abs(inv.sell ?? 0) || 1;
-                const buyRatio = Math.abs(inv.buy ?? 0) / total;
-                const sellRatio = Math.abs(inv.sell ?? 0) / total;
-                return (
-                  <div key={inv.name ?? i} className="bi-bar">
-                    <span style={{ width: 48, fontSize: 12, color: "var(--text-2)", flexShrink: 0 }}>
-                      {inv.name}
-                    </span>
+          ) : (() => {
+            const maxAmt = Math.max(...marketFlow.map(inv => Math.max(Math.abs(inv.buy), Math.abs(inv.sell)))) || 1;
+            return (
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                {marketFlow.map(inv => (
+                  <div key={inv.name} className="bi-bar">
+                    <span style={{ width: 40, fontSize: 12, color: "var(--text-2)", flexShrink: 0 }}>{inv.name}</span>
                     <div style={{ display: "flex", flexDirection: "column", flex: 1, gap: 4 }}>
                       <div className="bar-track">
-                        <div className="bar-fill-up" style={{ width: `${buyRatio * 50}%` }} />
-                        <div className="bar-fill-down" style={{ width: `${sellRatio * 50}%` }} />
+                        <div className="bar-fill-up" style={{ width: `${(Math.abs(inv.buy) / maxAmt) * 50}%` }} />
+                        <div className="bar-fill-down" style={{ width: `${(Math.abs(inv.sell) / maxAmt) * 50}%` }} />
                       </div>
                     </div>
-                    <span
-                      className={`mono ${dirCls(inv.net ?? 0)}`}
-                      style={{ width: 64, textAlign: "right", fontSize: 12, flexShrink: 0 }}
-                    >
-                      {fmtAmount(inv.net ?? 0)}
+                    <span className={`mono ${dirCls(inv.net)}`} style={{ width: 64, textAlign: "right", fontSize: 12, flexShrink: 0 }}>
+                      {fmtAmount(inv.net)}
                     </span>
                   </div>
-                );
-              })}
-            </div>
-          )}
+                ))}
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>
