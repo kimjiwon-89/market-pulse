@@ -1,4 +1,5 @@
-import { createBrowserRouter, RouterProvider, Outlet } from "react-router-dom";
+import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { DefaultLayout } from "@/components/common/DefaultLayout";
 import { Dashboard } from "@/pages/Dashboard";
 import { IndexDetail } from "@/pages/IndexDetail";
 import { InvestorTrend } from "@/pages/InvestorTrend";
@@ -7,11 +8,7 @@ import { NetBuyingList } from "@/pages/NetBuyingList";
 const router = createBrowserRouter([
   {
     path: "/",
-    element: (
-      <div>
-        <Outlet />
-      </div>
-    ),
+    element: <DefaultLayout />,
     children: [
       { index: true, element: <Dashboard /> },
       { path: "index/:id", element: <IndexDetail /> },
