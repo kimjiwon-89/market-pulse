@@ -316,6 +316,127 @@ DELETE /api/investor/memo/tag/{tagId}
 
 ---
 
+## 로또 분석 연구소 기능 (구현 예정)
+
+> 상세 기획: `.claude/.lotto/lotto-final-plan.md` / 수식 레퍼런스: `.claude/.lotto/lotto_machine_learning_analysis_overview_md.md`
+
+### 컨셉
+
+매 회차마다 5가지 통계 전략이 번호 풀(10개)을 생성하고 추천 조합 3개를 뽑는다.
+당첨 결과가 나오면 전략별 적중률을 자동 계산·누적 → **전략 성적 대시보드** 제공.
+사용자는 내 조합을 저장하고 회차 결과와 직접 비교할 수 있다.
+
+### 5가지 분석 전략
+
+| 전략 | 통합 원소 | 컨셉 |
+|------|-----------|------|
+| 모멘텀 | HOT + RISING | 최근 빈도 높고 상승 추세인 번호 |
+| 잠수함 | COLD + FALLING | 장기 미출현 + 최근 더 줄어드는 번호 |
+| 관계망 | 동반번호 + 연속번호 | 같이 나오는 번호 네트워크 |
+| 위치 패턴 | 끝수 + 구간 | 강세 번호대·끝자리 흐름 |
+| AI 스마트픽 | 밸런스 + 역배 + CORE + AI종합 | 다중 분석 가중합 종합 추천 |
+
+### 핵심 흐름
+
+```
+매 회차 (토요일 밤 동행복권 API 수집 후)
+├── 전략 5개 × 풀 10개 번호 계산
+├── 각 풀에서 추천 조합 3개 생성 (필터: 합계 80~170, 홀짝 편차 ≤ 2, 구간 ≥ 3)
+└── 당첨 번호 수집 → 풀·조합 적중률 자동 비교 저장
+
+적중률 계산
+├── 풀 적중률: 당첨 6개 중 Pool 10개에 포함된 수 / 6 * 100%
+└── 조합 적중률: 조합 6개 중 당첨번호 일치 수 / 6 * 100%
+```
+
+### 데이터 소스
+
+동행복권 공개 API (인증 불필요):
+```
+https://www.dhlottery.co.kr/common.do?method=getLottoNumber&drwNo={회차}
+```
+
+### DB 테이블 (신규 — psql 직접 생성 필요)
+
+```sql
+CREATE TABLE lotto_result (
+    draw_no    INTEGER PRIMARY KEY,
+    draw_date  DATE NOT NULL,
+    no1 INTEGER NOT NULL, no2 INTEGER NOT NULL, no3 INTEGER NOT NULL,
+    no4 INTEGER NOT NULL, no5 INTEGER NOT NULL, no6 INTEGER NOT NULL,
+    bonus_no   INTEGER NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE lotto_analysis_pool (
+    id           BIGSERIAL PRIMARY KEY,
+    draw_no      INTEGER NOT NULL,
+    strategy     VARCHAR(20) NOT NULL,  -- MOMENTUM|SUBMARINE|NETWORK|PATTERN|AI_PICK
+    pool_numbers INTEGER[] NOT NULL,    -- 10개
+    combos       JSONB,                 -- 추천 조합 3개
+    created_at   TIMESTAMP DEFAULT NOW(),
+    UNIQUE (draw_no, strategy)
+);
+
+CREATE TABLE lotto_analysis_result (
+    id             BIGSERIAL PRIMARY KEY,
+    draw_no        INTEGER NOT NULL,
+    strategy       VARCHAR(20) NOT NULL,
+    pool_hit_count INTEGER NOT NULL,
+    combo_results  JSONB,
+    created_at     TIMESTAMP DEFAULT NOW(),
+    UNIQUE (draw_no, strategy)
+);
+
+CREATE TABLE lotto_user_combo (
+    id         BIGSERIAL PRIMARY KEY,
+    draw_no    INTEGER NOT NULL,
+    numbers    INTEGER[] NOT NULL,  -- 6개
+    hit_count  INTEGER,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+### API
+
+```
+GET  /api/lotto/latest               -- 최신 회차 분석
+GET  /api/lotto/rounds               -- 전체 회차 목록
+GET  /api/lotto/analysis?round=1157  -- 특정 회차 5개 전략 풀 + 조합 + 적중률
+GET  /api/lotto/stats                -- 전략별 누적 성적 (그래프용)
+
+POST   /api/lotto/combo             -- 내 조합 저장 { drawNo, numbers[] }
+GET    /api/lotto/combo             -- 내 저장 조합 목록
+DELETE /api/lotto/combo/{id}        -- 삭제
+
+POST   /api/lotto/analyze?round=N   -- DB 기존 데이터로 분석만 실행 (동행복권 수집 없이)
+POST   /api/lotto/collect?from=N&to=M -- 역대 데이터 일괄 수집 (관리자용, 동행복권 API 봇차단 이슈 있음)
+```
+
+> ⚠️ 동행복권 API(`www.dhlottery.co.kr`)는 서버 측 HTTP 요청 시 봇 차단 (HTML 리다이렉트 반환).
+> 초기 데이터는 psql로 직접 INSERT 후 `POST /api/lotto/analyze?round=N` 으로 분석 실행할 것.
+
+### 페이지 라우팅
+
+| 경로 | 컴포넌트 | 인증 | 설명 |
+|------|----------|------|------|
+| `/lotto` | LottoAnalysis | 공개 (조합 저장만 인증) | 로또 분석 연구소 |
+
+### 화면 구성
+
+| 화면 | 내용 |
+|------|------|
+| 최신 회차 | 5개 전략 풀(10개) + 추천 조합 3개씩 |
+| 과거 회차 조회 | 해당 회차 풀/조합 + 실제 당첨번호 비교 + 적중률 |
+| 성적 대시보드 | 전략별 누적 적중률 그래프 |
+| 내 조합함 | 저장한 조합 + 회차별 적중 결과 |
+
+### 스케줄러
+
+`@Scheduled(cron = "0 30 21 * * SAT")` — 매주 토요일 21:30 동행복권 API 호출 → lotto_result 저장 → 분석 실행 → lotto_analysis_pool/result 저장
+
+---
+
 ## 작업 로그
 
 작업 기록은 `.claude/.logs/` 폴더에 날짜별 파일로 남긴다.

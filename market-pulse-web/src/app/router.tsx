@@ -8,6 +8,7 @@ import { MemoList } from "@/pages/MemoList";
 import { NewsList } from "@/pages/NewsList";
 import { Login } from "@/pages/Login";
 import { Admin } from "@/pages/Admin";
+import { LottoAnalysis } from "@/pages/LottoAnalysis";
 
 const router = createBrowserRouter([
   { path: "/login", element: <Login /> },
@@ -22,6 +23,7 @@ const router = createBrowserRouter([
       { path: "memo", element: <MemoList /> },
       { path: "news", element: <NewsList /> },
       { path: "admin", element: <Admin /> },
+      { path: "lotto", element: <LottoAnalysis /> },
     ],
   },
 ]);

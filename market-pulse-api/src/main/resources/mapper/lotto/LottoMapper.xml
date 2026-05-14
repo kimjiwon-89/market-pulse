@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.marketpulse.domain.lotto.mapper.LottoMapper">
+
+    <!-- ── lotto_result ── -->
+
+    <insert id="insertResult">
+        INSERT INTO lotto_result (draw_no, draw_date, no1, no2, no3, no4, no5, no6, bonus_no)
+        VALUES (#{drawNo}, #{drawDate}, #{no1}, #{no2}, #{no3}, #{no4}, #{no5}, #{no6}, #{bonusNo})
+        ON CONFLICT (draw_no) DO NOTHING
+    </insert>
+
+    <select id="findResultByDrawNo" resultType="LottoResultVo">
+        SELECT draw_no AS drawNo, draw_date AS drawDate,
+               no1, no2, no3, no4, no5, no6, bonus_no AS bonusNo, created_at AS createdAt
+        FROM lotto_result
+        WHERE draw_no = #{drawNo}
+    </select>
+
+    <select id="findRecentResults" resultType="LottoResultVo">
+        SELECT draw_no AS drawNo, draw_date AS drawDate,
+               no1, no2, no3, no4, no5, no6, bonus_no AS bonusNo, created_at AS createdAt
+        FROM lotto_result
+        ORDER BY draw_no DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="findAllResults" resultType="LottoResultVo">
+        SELECT draw_no AS drawNo, draw_date AS drawDate,
+               no1, no2, no3, no4, no5, no6, bonus_no AS bonusNo, created_at AS createdAt
+        FROM lotto_result
+        ORDER BY draw_no DESC
+    </select>
+
+    <select id="findLatestDrawNo" resultType="java.lang.Integer">
+        SELECT MAX(draw_no) FROM lotto_result
+    </select>
+
+    <!-- ── lotto_analysis_pool ── -->
+
+    <insert id="upsertPool">
+        INSERT INTO lotto_analysis_pool (draw_no, strategy, pool_numbers, combos)
+        VALUES (#{drawNo}, #{strategy},
+                #{poolNumbers, typeHandler=com.marketpulse.domain.lotto.mapper.IntArrayTypeHandler}::integer[],
+                #{combos}::jsonb)
+        ON CONFLICT (draw_no, strategy) DO UPDATE
+            SET pool_numbers = EXCLUDED.pool_numbers,
+                combos       = EXCLUDED.combos
+    </insert>
+
+    <select id="findPoolsByDrawNo" resultMap="poolResultMap">
+        SELECT id, draw_no AS drawNo, strategy,
+               pool_numbers AS poolNumbers,
+               combos::text AS combos,
+               created_at AS createdAt
+        FROM lotto_analysis_pool
+        WHERE draw_no = #{drawNo}
+        ORDER BY strategy
+    </select>
+
+    <resultMap id="poolResultMap" type="LottoAnalysisPoolVo">
+        <id     property="id"          column="id"/>
+        <result property="drawNo"      column="drawNo"/>
+        <result property="strategy"    column="strategy"/>
+        <result property="poolNumbers" column="poolNumbers"
+                typeHandler="com.marketpulse.domain.lotto.mapper.IntArrayTypeHandler"/>
+        <result property="combos"      column="combos"/>
+        <result property="createdAt"   column="createdAt"/>
+    </resultMap>
+
+    <!-- ── lotto_analysis_result ── -->
+
+    <insert id="upsertAnalysisResult">
+        INSERT INTO lotto_analysis_result (draw_no, strategy, pool_hit_count, combo_results)
+        VALUES (#{drawNo}, #{strategy}, #{poolHitCount}, #{comboResults}::jsonb)
+        ON CONFLICT (draw_no, strategy) DO UPDATE
+            SET pool_hit_count = EXCLUDED.pool_hit_count,
+                combo_results  = EXCLUDED.combo_results
+    </insert>
+
+    <select id="findAnalysisResultsByDrawNo" resultType="LottoAnalysisResultVo">
+        SELECT id, draw_no AS drawNo, strategy,
+               pool_hit_count AS poolHitCount,
+               combo_results::text AS comboResults,
+               created_at AS createdAt
+        FROM lotto_analysis_result
+        WHERE draw_no = #{drawNo}
+    </select>
+
+    <select id="findAllAnalysisResults" resultType="LottoAnalysisResultVo">
+        SELECT id, draw_no AS drawNo, strategy,
+               pool_hit_count AS poolHitCount,
+               combo_results::text AS comboResults,
+               created_at AS createdAt
+        FROM lotto_analysis_result
+        ORDER BY draw_no DESC
+    </select>
+
+    <!-- ── lotto_user_combo ── -->
+
+    <insert id="insertUserCombo" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO lotto_user_combo (draw_no, numbers)
+        VALUES (#{drawNo},
+                #{numbers, typeHandler=com.marketpulse.domain.lotto.mapper.IntArrayTypeHandler}::integer[])
+    </insert>
+
+    <select id="findUserCombos" resultMap="userComboResultMap">
+        SELECT id, draw_no AS drawNo,
+               numbers,
+               hit_count AS hitCount,
+               created_at AS createdAt
+        FROM lotto_user_combo
+        ORDER BY created_at DESC
+    </select>
+
+    <resultMap id="userComboResultMap" type="LottoUserComboVo">
+        <id     property="id"        column="id"/>
+        <result property="drawNo"    column="drawNo"/>
+        <result property="numbers"   column="numbers"
+                typeHandler="com.marketpulse.domain.lotto.mapper.IntArrayTypeHandler"/>
+        <result property="hitCount"  column="hitCount"/>
+        <result property="createdAt" column="createdAt"/>
+    </resultMap>
+
+    <update id="updateUserComboHitCount">
+        UPDATE lotto_user_combo SET hit_count = #{hitCount} WHERE id = #{id}
+    </update>
+
+    <delete id="deleteUserCombo">
+        DELETE FROM lotto_user_combo WHERE id = #{id}
+    </delete>
+
+</mapper>

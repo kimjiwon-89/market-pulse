@@ -44,6 +44,13 @@ const NAV_ITEMS = [
     icon: "M4 5h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z",
     end: false,
   },
+  {
+    id: "lotto",
+    to: "/lotto",
+    label: "로또 연구소",
+    icon: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 6a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm-4 8a4 4 0 0 1 8 0H8z",
+    end: false,
+  },
 ];
 
 const ADMIN_ITEM = {

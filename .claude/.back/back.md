@@ -117,6 +117,12 @@ global/auth/InitialDataRunner.java
 | investor | GET | `/api/investor/trade-top` | 구현 예정 |
 | investor | GET/POST/DELETE | `/api/investor/memo` | 구현 예정 |
 | investor | GET | `/api/investor/memo/list` | 구현 예정 |
+| lotto | GET | `/api/lotto/latest` | 완료 |
+| lotto | GET | `/api/lotto/rounds` | 완료 |
+| lotto | GET | `/api/lotto/analysis?round=` | 완료 |
+| lotto | GET | `/api/lotto/stats` | 완료 |
+| lotto | POST/GET/DELETE | `/api/lotto/combo` | 완료 |
+| lotto | POST | `/api/lotto/collect?from=&to=` | 완료 (관리자용 일괄 수집) |
 
 ## 공통 응답 형식
 

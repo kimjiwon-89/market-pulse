@@ -25,6 +25,54 @@ CREATE TABLE users (
 );
 
 
+-- =============================================
+-- 로또 분석 연구소
+-- =============================================
+
+CREATE TABLE lotto_result (
+    draw_no    INTEGER PRIMARY KEY,
+    draw_date  DATE    NOT NULL,
+    no1        INTEGER NOT NULL,
+    no2        INTEGER NOT NULL,
+    no3        INTEGER NOT NULL,
+    no4        INTEGER NOT NULL,
+    no5        INTEGER NOT NULL,
+    no6        INTEGER NOT NULL,
+    bonus_no   INTEGER NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 회차별 전략 풀(10개) + 추천 조합(3개)
+CREATE TABLE lotto_analysis_pool (
+    id           BIGSERIAL    PRIMARY KEY,
+    draw_no      INTEGER      NOT NULL,
+    strategy     VARCHAR(20)  NOT NULL,  -- MOMENTUM|SUBMARINE|NETWORK|PATTERN|AI_PICK
+    pool_numbers INTEGER[]    NOT NULL,  -- 10개
+    combos       JSONB,                  -- [[n1,n2,n3,n4,n5,n6], ...]
+    created_at   TIMESTAMP    DEFAULT NOW(),
+    UNIQUE (draw_no, strategy)
+);
+
+-- 당첨 결과 대비 적중 분석
+CREATE TABLE lotto_analysis_result (
+    id             BIGSERIAL   PRIMARY KEY,
+    draw_no        INTEGER     NOT NULL,
+    strategy       VARCHAR(20) NOT NULL,
+    pool_hit_count INTEGER     NOT NULL,  -- 풀 10개 중 당첨번호 포함 수
+    combo_results  JSONB,                 -- [{combo:[...], hitCount:N}, ...]
+    created_at     TIMESTAMP   DEFAULT NOW(),
+    UNIQUE (draw_no, strategy)
+);
+
+-- 사용자 저장 조합
+CREATE TABLE lotto_user_combo (
+    id         BIGSERIAL PRIMARY KEY,
+    draw_no    INTEGER   NOT NULL,
+    numbers    INTEGER[] NOT NULL,  -- 6개
+    hit_count  INTEGER,             -- 결과 확인 후 채워짐
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
 /*
     REDIS 설치
     brew install redis
