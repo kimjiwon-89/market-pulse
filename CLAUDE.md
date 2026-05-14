@@ -5,7 +5,10 @@
 
 ## 작업 전 필독 규칙
 
-**프론트엔드 작업 시** → 반드시 `.claude/.front/front.md` 먼저 읽고 시작
+**프론트엔드 작업 시** → 반드시 아래 두 파일 먼저 읽고 시작
+- `.claude/.front/front.md` — 컨벤션, 디렉터리 구조, 라우팅, API 패턴
+- `.claude/.front/design-guide.md` — CSS 토큰, 타이포그래피, 컴포넌트 패턴, 페이지별 UI 스펙
+
 **백엔드 작업 시** → 반드시 `.claude/.back/back.md` 먼저 읽고 시작
 
 각 파일에는 해당 영역의 컨벤션, 디렉터리 구조, 구현 스펙, 주의사항이 정리되어 있다.
@@ -20,8 +23,9 @@ market-pulse/
 ├── market-pulse-api/   # Spring Boot 백엔드
 ├── market-pulse-web/   # React 프론트엔드 (메인, 개발 여기서)
 └── .claude/
-    ├── .front/front.md # 프론트엔드 작업 가이드
-    ├── .back/back.md   # 백엔드 작업 가이드
+    ├── .front/front.md         # 프론트엔드 작업 가이드
+    ├── .front/design-guide.md  # 디자인 시스템 (CSS 토큰, 컴포넌트, 페이지 스펙)
+    ├── .back/back.md           # 백엔드 작업 가이드
     └── .logs/          # 날짜별 작업 로그 (YYYY-MM-DD-log.md)
 ```
 
@@ -56,7 +60,7 @@ external.api:
 | 도메인 | 경로 | 설명 |
 |--------|------|------|
 | index | `GET /api/index/inquire-daily-indexchartprice` | 국내 업종 기간별 시세 |
-| stock | `GET /api/stock/foreign-trade` | 외국인 순매수 순위 |
+| stock | `GET /api/stock/foreign-trade` | 투자자(외국인/기관/전체) × 거래유형(순매수/순매도) × 시장(코스피/코스닥/전체) 필터 조합 조회, 날짜별 시계열 지원 |
 | news | `GET /api/news/inquire-daily-news` | 국내 뉴스 |
 | investor | `GET /api/investor/trade-top` `GET /api/investor/memo` | 투자자 매매동향 + 메모 |
 
@@ -112,7 +116,7 @@ baseURL: 'http://localhost:8080/api'
 | `/` | Dashboard | 메인 대시보드 |
 | `/index/:id` | IndexDetail | 업종 상세 시세 |
 | `/investor` | InvestorTrend | 투자자 매매동향 + 날짜별 메모 입력 |
-| `/net-buy` | NetBuyingList | 외국인 순매수 목록 |
+| `/net-buy` | NetBuyingList | 순매수/순매도 순위 — 투자자·거래유형·시장 필터 + 날짜별 시계열 |
 | `/memo` | MemoList | 메모 모아보기 |
 
 **디렉터리 구조**

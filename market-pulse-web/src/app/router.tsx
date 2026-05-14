@@ -4,6 +4,7 @@ import { Dashboard } from "@/pages/Dashboard";
 import { IndexDetail } from "@/pages/IndexDetail";
 import { InvestorTrend } from "@/pages/InvestorTrend";
 import { NetBuyingList } from "@/pages/NetBuyingList";
+import { MemoList } from "@/pages/MemoList";
 
 const router = createBrowserRouter([
   {
@@ -14,6 +15,7 @@ const router = createBrowserRouter([
       { path: "index/:id", element: <IndexDetail /> },
       { path: "investor", element: <InvestorTrend /> },
       { path: "net-buy", element: <NetBuyingList /> },
+      { path: "memo", element: <MemoList /> },
     ],
   },
 ]);

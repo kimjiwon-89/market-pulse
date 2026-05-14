@@ -1,17 +1,25 @@
 import { Outlet } from "react-router-dom";
 import { Header } from "./Header";
 import { Nav } from "./Nav";
-import { Footer } from "./Footer";
 
 export function DefaultLayout() {
   return (
-    <div className="grid grid-rows-[auto_auto_1fr_auto] min-h-screen">
+    <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       <Header />
-      <Nav />
-      <main className="p-6">
-        <Outlet />
-      </main>
-      <Footer />
+      <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
+        <Nav />
+        <main
+          style={{
+            flex: 1,
+            padding: "var(--pad-pg)",
+            background: "var(--bg)",
+            minWidth: 0,
+            overflowY: "auto",
+          }}
+        >
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }

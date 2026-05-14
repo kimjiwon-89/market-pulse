@@ -57,7 +57,7 @@ com.marketpulse/
 | 도메인 | 메서드 | 경로 | 상태 |
 |--------|--------|------|------|
 | index | GET | `/api/index/inquire-daily-indexchartprice` | 완료 |
-| stock | GET | `/api/stock/foreign-trade` | 완료 |
+| stock | GET | `/api/stock/foreign-trade` | 완료 — 필터 3종 조합 + 날짜별 시계열 |
 | news | GET | `/api/news/inquire-daily-news` | 완료 |
 | investor | GET | `/api/investor/trade-top` | 구현 예정 |
 | investor | GET/POST/DELETE | `/api/investor/memo` | 구현 예정 |
@@ -97,6 +97,62 @@ KIS API 호출 전 반드시 `TokenService.getValidToken()` 사용.
 3. `application.yml` → `type-aliases-package`에 패키지 추가 여부 확인
 4. Controller에 `@Tag`, `@Operation` Swagger 어노테이션 추가
 5. 이 파일 엔드포인트 현황 테이블 업데이트
+
+## stock 도메인 구현 스펙 (NetBuyingList)
+
+> 참고 레퍼런스: `.claude/연합뉴스 순매수도 상위 20위.xlsx`
+
+### 기능 개요
+
+3가지 필터를 자유롭게 조합해 순위 1~20위를 조회하고, 날짜별 시계열로 볼 수 있어야 한다.
+
+| 필터 | 선택지 |
+|------|--------|
+| 투자자 | 외국인 / 기관 / 전체 |
+| 거래유형 | 순매수 / 순매도 |
+| 시장 | 코스피 / 코스닥 / 전체 |
+
+### 엑셀 기반 데이터 구조
+
+날짜별로 (종목명 / 순매수대금(억) / 순매수량(만주)) 3컬럼이 가로 확장되며,
+**5영업일마다 주간 합계 컬럼**이 자동 삽입된다.
+
+```
+행: 순위 1~20
+열: [날짜1] 종목명·대금·수량 | [날짜2] ... | [주간합계] ... | [날짜6] ...
+```
+
+### REST API
+
+```
+GET /api/stock/foreign-trade
+  ?investorType=FOREIGN|INSTITUTION|ALL   # 투자자 구분 (기본값: ALL)
+  &tradeType=BUY|SELL                     # 순매수/순매도
+  &market=KOSPI|KOSDAQ|ALL               # 시장 구분 (기본값: ALL)
+  &date=20260514                          # 단일 날짜 (기본값: 오늘)
+  &dates=20260512,20260513,20260514       # 날짜 복수 선택 (시계열 뷰용)
+```
+
+### 응답 구조 (날짜 복수 요청 시)
+
+```json
+{
+  "dates": ["20260512", "20260513", "20260514"],
+  "weeklyGroups": [["20260512", "20260513"]],  // 5일 묶음 (주간합계 표시용)
+  "data": [
+    {
+      "rank": 1,
+      "byDate": {
+        "20260512": { "name": "삼성전자", "amount": 7789.7, "volume": 412.1 },
+        "20260513": { "name": "SK하이닉스", "amount": 5323.5, "volume": 58.5 },
+        "20260514": { "name": "SK하이닉스", "amount": 6898.7, "volume": 59.1 }
+      }
+    }
+  ]
+}
+```
+
+---
 
 ## investor 도메인 구현 스펙
 
