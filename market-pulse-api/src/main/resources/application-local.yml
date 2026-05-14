@@ -1,6 +1,5 @@
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/marketpulse
-    username: postgres
-    password: postgreskh
+    username: gim-yeong-ug
     driver-class-name: org.postgresql.Driver
