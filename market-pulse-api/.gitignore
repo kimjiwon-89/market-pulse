@@ -34,3 +34,6 @@ build/
 
 ### Mac ###
 .DS_Store
+
+### Local config (sensitive) ###
+src/main/resources/application-local.yml
