@@ -13,4 +13,5 @@ public class TradeTopResponseDto {
     private long netBuyVolume;
     private long currentPrice;
     private double changeRate;
+    private double foreignShareRatio;
 }

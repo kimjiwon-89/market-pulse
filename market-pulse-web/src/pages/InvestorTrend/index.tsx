@@ -1,75 +1,198 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { apiClient, getToken } from "@/services/apiClient";
 import type { TradeTopItem, InvestorMemo } from "@/types";
-import { dirCls, triangle, fmtPct, fmtAmount, fmtVolume } from "@/utils/format";
+import { dirCls, triangle, fmtPct, fmtAmount } from "@/utils/format";
 
 type Market = "KOSPI" | "KOSDAQ";
-type InvestorType = "FOREIGN" | "INSTITUTION";
 type TradeType = "BUY" | "SELL";
 
-function todayStr(): string {
+function todayStr() {
   const d = new Date();
   return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
 }
-
-function shiftDay(apiDate: string, delta: number): string {
-  const d = new Date(
-    parseInt(apiDate.slice(0, 4)),
-    parseInt(apiDate.slice(4, 6)) - 1,
-    parseInt(apiDate.slice(6, 8))
-  );
+function shiftDay(s: string, delta: number) {
+  const d = new Date(+s.slice(0, 4), +s.slice(4, 6) - 1, +s.slice(6, 8));
   d.setDate(d.getDate() + delta);
   return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
 }
+function apiToInput(s: string) { return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`; }
+function dispDate(s: string) { return `${s.slice(0, 4)}.${s.slice(4, 6)}.${s.slice(6, 8)}`; }
 
-function apiToInput(s: string): string {
-  return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`;
+/* ── 투자자 열 컴포넌트 ── */
+interface ColProps {
+  title: string;
+  ready?: boolean;
+  items: TradeTopItem[];
+  loading: boolean;
+  tradeType: TradeType;
 }
 
-function inputToApi(s: string): string {
-  return s.replace(/-/g, "");
+function InvestorCol({ title, ready = true, items, loading, tradeType }: ColProps) {
+  const labelTrade = tradeType === "BUY" ? "순매수" : "순매도";
+
+  return (
+    <div className="card" style={{ padding: 0, overflow: "hidden", minWidth: 0 }}>
+      {/* 열 헤더 */}
+      <div
+        style={{
+          padding: "14px var(--pad-card) 10px",
+          borderBottom: "1px solid var(--border)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <span style={{ fontWeight: 700, fontSize: 14, color: "var(--text)" }}>{title}</span>
+        {ready ? (
+          <span style={{ fontSize: 11, color: "var(--text-4)" }}>실시간</span>
+        ) : (
+          <span className="tag">준비 중</span>
+        )}
+      </div>
+
+      {/* 컨텐츠 */}
+      {!ready ? (
+        <div
+          style={{
+            padding: "48px var(--pad-card)",
+            textAlign: "center",
+            color: "var(--text-4)",
+            fontSize: 13,
+            lineHeight: 1.8,
+          }}
+        >
+          {title} {labelTrade} 데이터<br />서비스 준비 중입니다
+        </div>
+      ) : loading ? (
+        <div style={{ padding: "8px var(--pad-card)", display: "flex", flexDirection: "column", gap: 6 }}>
+          {Array.from({ length: 10 }).map((_, i) => (
+            <div key={i} className="sk" style={{ height: 52, borderRadius: "var(--radius-sm)" }} />
+          ))}
+        </div>
+      ) : items.length === 0 ? (
+        <div style={{ padding: 48, textAlign: "center", color: "var(--text-4)", fontSize: 13 }}>
+          데이터가 없습니다
+        </div>
+      ) : (
+        <div>
+          {items.map((item) => (
+            <div
+              key={item.stockCode}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                padding: "10px var(--pad-card)",
+                borderBottom: "1px solid var(--divider)",
+                gap: 10,
+                cursor: "pointer",
+              }}
+              className="clickable"
+            >
+              {/* 순위 */}
+              <span
+                style={{
+                  width: 22,
+                  flexShrink: 0,
+                  fontWeight: 700,
+                  fontSize: 13,
+                  color: item.rank <= 3 ? "var(--accent)" : "var(--text-4)",
+                  fontFamily: "var(--font-mono)",
+                }}
+              >
+                {item.rank}
+              </span>
+
+              {/* 종목명 + 현재가/등락률 */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  style={{
+                    fontWeight: 600,
+                    fontSize: 13,
+                    color: "var(--text)",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {item.stockName}
+                </div>
+                <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 1, fontFamily: "var(--font-mono)" }}>
+                  {item.currentPrice > 0 ? (
+                    <>
+                      {item.currentPrice.toLocaleString()}원{" "}
+                      <span className={dirCls(item.changeRate)}>
+                        {triangle(item.changeRate)}{fmtPct(item.changeRate)}
+                      </span>
+                    </>
+                  ) : (
+                    <span style={{ color: "var(--text-4)" }}>{item.stockCode}</span>
+                  )}
+                </div>
+              </div>
+
+              {/* 순매수대금 */}
+              <div
+                style={{
+                  flexShrink: 0,
+                  textAlign: "right",
+                  fontFamily: "var(--font-mono)",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "var(--text)",
+                }}
+              >
+                {fmtAmount(item.netBuyAmount)}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
+/* ── 메인 페이지 ── */
 export function InvestorTrend() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const isAuthed = !!getToken();
-  const [market, setMarket] = useState<Market>("KOSPI");
-  const [investorType, setInvestorType] = useState<InvestorType>("FOREIGN");
-  const [tradeType, setTradeType] = useState<TradeType>("BUY");
-  const [date, setDate] = useState(todayStr);
 
-  const [items, setItems] = useState<TradeTopItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [market, setMarket] = useState<Market>(
+    (searchParams.get("market") as Market) ?? "KOSPI"
+  );
+  const [tradeType, setTradeType] = useState<TradeType>("BUY");
+  const [date, setDate] = useState(
+    searchParams.get("date") ?? todayStr()
+  );
+
+  const [foreignItems, setForeignItems] = useState<TradeTopItem[]>([]);
+  const [foreignLoading, setForeignLoading] = useState(false);
 
   const [memo, setMemo] = useState<InvestorMemo | null>(null);
   const [memoContent, setMemoContent] = useState("");
   const [memoLoading, setMemoLoading] = useState(false);
   const [memoSaving, setMemoSaving] = useState(false);
 
-  const fetchTradeTop = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  const fetchForeign = useCallback(async () => {
+    setForeignLoading(true);
     try {
       const res = await apiClient.get("/investor/trade-top", {
-        params: { market, investorType, tradeType, date },
+        params: { market, investorType: "FOREIGN", tradeType, date },
       });
-      setItems(res.data.data ?? []);
+      setForeignItems(res.data.data ?? []);
     } catch {
-      setError("데이터를 불러올 수 없습니다.");
+      setForeignItems([]);
     } finally {
-      setLoading(false);
+      setForeignLoading(false);
     }
-  }, [market, investorType, tradeType, date]);
+  }, [market, tradeType, date]);
 
   const fetchMemo = useCallback(async () => {
     if (!isAuthed) return;
     setMemoLoading(true);
     try {
-      const res = await apiClient.get("/investor/memo", {
-        params: { date, market },
-      });
+      const res = await apiClient.get("/investor/memo", { params: { date, market } });
       const m: InvestorMemo | null = res.data.data ?? null;
       setMemo(m);
       setMemoContent(m?.content ?? "");
@@ -81,18 +204,14 @@ export function InvestorTrend() {
     }
   }, [date, market, isAuthed]);
 
-  useEffect(() => { fetchTradeTop(); }, [fetchTradeTop]);
+  useEffect(() => { fetchForeign(); }, [fetchForeign]);
   useEffect(() => { fetchMemo(); }, [fetchMemo]);
 
   async function saveMemo() {
     if (!isAuthed || !memoContent.trim()) return;
     setMemoSaving(true);
     try {
-      const res = await apiClient.post("/investor/memo", {
-        date,
-        market,
-        content: memoContent,
-      });
+      const res = await apiClient.post("/investor/memo", { date, market, content: memoContent });
       setMemo(res.data.data);
     } finally {
       setMemoSaving(false);
@@ -105,208 +224,75 @@ export function InvestorTrend() {
       await apiClient.delete(`/investor/memo/${memo.id}`);
       setMemo(null);
       setMemoContent("");
-    } catch {
-      /* silent */
-    }
+    } catch { /* silent */ }
   }
 
   const labelMarket = market === "KOSPI" ? "코스피" : "코스닥";
-  const labelInvestor = investorType === "FOREIGN" ? "외국인" : "기관";
-  const labelTrade = tradeType === "BUY" ? "순매수" : "순매도";
-  const displayDate = `${date.slice(0, 4)}.${date.slice(4, 6)}.${date.slice(6, 8)}`;
 
   return (
     <div className="stack">
       {/* 필터 카드 */}
       <div className="card">
         <div className="card-head">
-          <div className="card-title">투자자 매매동향</div>
+          <div className="card-title">투자자 동향</div>
           <span className="tag">KRX 기준</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <div className="seg-tabs" role="tablist">
             {(["KOSPI", "KOSDAQ"] as Market[]).map((m) => (
-              <button
-                key={m}
-                role="tab"
-                aria-selected={market === m}
-                onClick={() => setMarket(m)}
-              >
+              <button key={m} role="tab" aria-selected={market === m} onClick={() => setMarket(m)}>
                 {m === "KOSPI" ? "코스피" : "코스닥"}
               </button>
             ))}
           </div>
 
           <div className="seg-tabs" role="tablist">
-            {(
-              [
-                ["FOREIGN", "외국인"],
-                ["INSTITUTION", "기관"],
-              ] as [InvestorType, string][]
-            ).map(([v, label]) => (
-              <button
-                key={v}
-                role="tab"
-                aria-selected={investorType === v}
-                onClick={() => setInvestorType(v)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
-          <div className="seg-tabs" role="tablist">
-            {(
-              [
-                ["BUY", "순매수"],
-                ["SELL", "순매도"],
-              ] as [TradeType, string][]
-            ).map(([v, label]) => (
-              <button
-                key={v}
-                role="tab"
-                aria-selected={tradeType === v}
-                onClick={() => setTradeType(v)}
-              >
-                {label}
+            {([["BUY", "순매수"], ["SELL", "순매도"]] as [TradeType, string][]).map(([v, lbl]) => (
+              <button key={v} role="tab" aria-selected={tradeType === v} onClick={() => setTradeType(v)}>
+                {lbl}
               </button>
             ))}
           </div>
 
           <div className="date-nav">
-            <button
-              className="date-nav-btn"
-              onClick={() => setDate((d) => shiftDay(d, -1))}
-              title="하루 전"
-            >
-              ←
-            </button>
+            <button className="date-nav-btn" onClick={() => setDate((d) => shiftDay(d, -1))}>←</button>
             <input
               type="date"
               value={apiToInput(date)}
-              onChange={(e) => {
-                if (e.target.value) setDate(inputToApi(e.target.value));
-              }}
+              onChange={(e) => { if (e.target.value) setDate(e.target.value.replace(/-/g, "")); }}
             />
-            <button
-              className="date-nav-btn"
-              onClick={() => setDate((d) => shiftDay(d, 1))}
-              title="하루 후"
-            >
-              →
-            </button>
-            <button className="btn sm" onClick={() => setDate(todayStr())}>
-              오늘
-            </button>
+            <button className="date-nav-btn" onClick={() => setDate((d) => shiftDay(d, 1))}>→</button>
+            <button className="btn sm" onClick={() => setDate(todayStr())}>오늘</button>
           </div>
+
+          <span style={{ fontSize: 12, color: "var(--text-4)", marginLeft: "auto" }}>
+            {labelMarket} · {dispDate(date)}
+          </span>
         </div>
       </div>
 
-      {/* 순위 테이블 카드 */}
-      <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-        <div
-          className="card-head"
-          style={{ padding: "var(--pad-card)", paddingBottom: 16 }}
-        >
-          <div className="card-title">
-            {labelMarket} {labelInvestor} {labelTrade} 상위 20
-          </div>
-          <span className="tag">{displayDate}</span>
-        </div>
-
-        {loading ? (
-          <div
-            style={{
-              padding: "0 var(--pad-card) var(--pad-card)",
-              display: "flex",
-              flexDirection: "column",
-              gap: 8,
-            }}
-          >
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="sk" style={{ height: "var(--row-h)" }} />
-            ))}
-          </div>
-        ) : error ? (
-          <div className="error-block">
-            <div className="error-title">{error}</div>
-            <div className="error-msg">
-              백엔드 서버 연결을 확인하거나 잠시 후 다시 시도하세요
-            </div>
-            <button className="btn sm" onClick={fetchTradeTop}>
-              재시도
-            </button>
-          </div>
-        ) : (
-          <table className="t">
-            <thead>
-              <tr>
-                <th style={{ width: 44, paddingLeft: "var(--pad-card)" }}>순위</th>
-                <th>종목명</th>
-                <th className="num">현재가</th>
-                <th className="num">등락률</th>
-                <th className="num">순매수대금</th>
-                <th className="num" style={{ paddingRight: "var(--pad-card)" }}>
-                  순매수량
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={6}
-                    style={{
-                      textAlign: "center",
-                      color: "var(--text-4)",
-                      padding: 48,
-                    }}
-                  >
-                    데이터가 없습니다
-                  </td>
-                </tr>
-              ) : (
-                items.map((item) => (
-                  <tr key={item.stockCode} className="clickable">
-                    <td
-                      className="rank"
-                      style={{ paddingLeft: "var(--pad-card)" }}
-                    >
-                      {item.rank}
-                    </td>
-                    <td className="ticker">
-                      {item.stockName}
-                      <span
-                        style={{
-                          marginLeft: 6,
-                          fontSize: 11,
-                          color: "var(--text-4)",
-                          fontFamily: "var(--font-mono)",
-                          fontWeight: 400,
-                        }}
-                      >
-                        {item.stockCode}
-                      </span>
-                    </td>
-                    <td className="num mono">
-                      {item.currentPrice.toLocaleString()}
-                    </td>
-                    <td className={`num pct ${dirCls(item.changeRate)}`}>
-                      {triangle(item.changeRate)} {fmtPct(item.changeRate)}
-                    </td>
-                    <td className="num">{fmtAmount(item.netBuyAmount)}</td>
-                    <td
-                      className="num"
-                      style={{ paddingRight: "var(--pad-card)" }}
-                    >
-                      {fmtVolume(item.netBuyVolume)}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        )}
+      {/* 3열 투자자 열 */}
+      <div className="grid-3">
+        <InvestorCol
+          title="외국인"
+          items={foreignItems}
+          loading={foreignLoading}
+          tradeType={tradeType}
+        />
+        <InvestorCol
+          title="기관"
+          ready={false}
+          items={[]}
+          loading={false}
+          tradeType={tradeType}
+        />
+        <InvestorCol
+          title="개인"
+          ready={false}
+          items={[]}
+          loading={false}
+          tradeType={tradeType}
+        />
       </div>
 
       {/* 메모 카드 */}
@@ -315,25 +301,16 @@ export function InvestorTrend() {
           <div>
             <div className="card-title">메모</div>
             <div className="card-sub">
-              {labelMarket} · {displayDate}
+              {labelMarket} · {dispDate(date)}
               {isAuthed && memo && (
-                <span
-                  style={{
-                    marginLeft: 8,
-                    color: "var(--text-4)",
-                    fontFamily: "var(--font-mono)",
-                    fontSize: 11,
-                  }}
-                >
+                <span style={{ marginLeft: 8, color: "var(--text-4)", fontFamily: "var(--font-mono)", fontSize: 11 }}>
                   저장됨
                 </span>
               )}
             </div>
           </div>
           {isAuthed && memo && (
-            <button className="btn sm danger" onClick={deleteMemo}>
-              삭제
-            </button>
+            <button className="btn sm danger" onClick={deleteMemo}>삭제</button>
           )}
         </div>
 
@@ -342,13 +319,9 @@ export function InvestorTrend() {
             <textarea
               value={memoContent}
               onChange={(e) => setMemoContent(e.target.value)}
-              placeholder={
-                memoLoading
-                  ? "불러오는 중..."
-                  : "이 날의 투자 동향을 기록하세요..."
-              }
+              placeholder={memoLoading ? "불러오는 중..." : "이 날의 투자 동향을 기록하세요..."}
               disabled={memoLoading}
-              style={{ width: "100%", minHeight: 120 }}
+              style={{ width: "100%", minHeight: 100 }}
             />
             <div style={{ marginTop: 10, display: "flex", justifyContent: "flex-end" }}>
               <button
@@ -363,7 +336,7 @@ export function InvestorTrend() {
         ) : (
           <div
             style={{
-              minHeight: 120,
+              minHeight: 100,
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
@@ -376,9 +349,7 @@ export function InvestorTrend() {
             }}
           >
             <span>로그인이 필요한 기능입니다</span>
-            <button className="btn sm" onClick={() => navigate("/login")}>
-              로그인하기
-            </button>
+            <button className="btn sm" onClick={() => navigate("/login")}>로그인하기</button>
           </div>
         )}
       </div>

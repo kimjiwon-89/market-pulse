@@ -1,11 +1,11 @@
-CREATE TABLE api_token (
+CREATE TABLE IF NOT EXISTS api_token (
    id SERIAL PRIMARY KEY,
    access_token TEXT NOT NULL,
    expired_at TIMESTAMP NOT NULL,
    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE investor_memo (
+CREATE TABLE IF NOT EXISTS investor_memo (
     id         SERIAL PRIMARY KEY,
     memo_date  DATE        NOT NULL,
     market     VARCHAR(10) NOT NULL,
@@ -15,8 +15,7 @@ CREATE TABLE investor_memo (
     CONSTRAINT uq_investor_memo_date_market UNIQUE (memo_date, market)
 );
 
-
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id            SERIAL PRIMARY KEY,
     username      VARCHAR(50)  NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
@@ -29,7 +28,7 @@ CREATE TABLE users (
 -- 로또 분석 연구소
 -- =============================================
 
-CREATE TABLE lotto_result (
+CREATE TABLE IF NOT EXISTS lotto_result (
     draw_no    INTEGER PRIMARY KEY,
     draw_date  DATE    NOT NULL,
     no1        INTEGER NOT NULL,
@@ -42,8 +41,7 @@ CREATE TABLE lotto_result (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
--- 회차별 전략 풀(10개) + 추천 조합(3개)
-CREATE TABLE lotto_analysis_pool (
+CREATE TABLE IF NOT EXISTS lotto_analysis_pool (
     id           BIGSERIAL    PRIMARY KEY,
     draw_no      INTEGER      NOT NULL,
     strategy     VARCHAR(20)  NOT NULL,  -- MOMENTUM|SUBMARINE|NETWORK|PATTERN|AI_PICK
@@ -53,8 +51,7 @@ CREATE TABLE lotto_analysis_pool (
     UNIQUE (draw_no, strategy)
 );
 
--- 당첨 결과 대비 적중 분석
-CREATE TABLE lotto_analysis_result (
+CREATE TABLE IF NOT EXISTS lotto_analysis_result (
     id             BIGSERIAL   PRIMARY KEY,
     draw_no        INTEGER     NOT NULL,
     strategy       VARCHAR(20) NOT NULL,
@@ -64,14 +61,32 @@ CREATE TABLE lotto_analysis_result (
     UNIQUE (draw_no, strategy)
 );
 
--- 사용자 저장 조합
-CREATE TABLE lotto_user_combo (
+CREATE TABLE IF NOT EXISTS lotto_user_combo (
     id         BIGSERIAL PRIMARY KEY,
     draw_no    INTEGER   NOT NULL,
     numbers    INTEGER[] NOT NULL,  -- 6개
     hit_count  INTEGER,             -- 결과 확인 후 채워짐
     created_at TIMESTAMP DEFAULT NOW()
 );
+
+-- =============================================
+-- 순매수 랭킹 스냅샷 (매일 장 마감 시 저장)
+-- =============================================
+
+CREATE TABLE IF NOT EXISTS ranking_snapshot (
+    id             BIGSERIAL    PRIMARY KEY,
+    snap_date      DATE         NOT NULL,
+    investor_type  VARCHAR(20)  NOT NULL,  -- FOREIGN
+    trade_type     VARCHAR(10)  NOT NULL,  -- BUY | SELL
+    market         VARCHAR(10)  NOT NULL,  -- KOSPI | KOSDAQ | ALL
+    rank           INTEGER      NOT NULL,
+    stock_code     VARCHAR(10)  NOT NULL,
+    stock_name     VARCHAR(100) NOT NULL,
+    net_buy_amount BIGINT       NOT NULL DEFAULT 0,
+    net_buy_volume BIGINT       NOT NULL DEFAULT 0,
+    CONSTRAINT uq_ranking_snapshot UNIQUE (snap_date, investor_type, trade_type, market, rank)
+);
+CREATE INDEX IF NOT EXISTS idx_ranking_snapshot_date ON ranking_snapshot (snap_date);
 
 /*
     REDIS 설치

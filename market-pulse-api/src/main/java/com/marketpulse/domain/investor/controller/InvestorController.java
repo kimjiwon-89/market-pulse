@@ -9,6 +9,8 @@ import com.marketpulse.global.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+
 import java.util.List;
 
 @RestController
@@ -30,6 +32,28 @@ public class InvestorController {
         return ApiResponse.success(
                 investorService.getTradeTop(market, investorType, tradeType, date)
         );
+    }
+
+    /* ── Snapshot 관련 ── */
+
+    @GetMapping("/snapshot/dates")
+    public ApiResponse<List<String>> snapshotDates(
+            @RequestParam(required = false, defaultValue = "FOREIGN") String investorType,
+            @RequestParam(required = false, defaultValue = "BUY") String tradeType,
+            @RequestParam(required = false, defaultValue = "KOSPI") String market
+    ) {
+        return ApiResponse.success(investorService.getAvailableDates(investorType, tradeType, market));
+    }
+
+    @PostMapping("/snapshot")
+    public ApiResponse<String> triggerSnapshot(
+            @RequestParam(required = false) String date
+    ) {
+        LocalDate snapDate = date != null
+                ? LocalDate.parse(date, java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"))
+                : LocalDate.now();
+        investorService.saveSnapshots(snapDate);
+        return ApiResponse.success("Snapshot saved for " + snapDate);
     }
 
     /* ── Market Flow ── */

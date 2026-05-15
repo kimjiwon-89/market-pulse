@@ -1,41 +1,41 @@
 package com.marketpulse.domain.stock.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.Setter;
 
-/**
- * 외국인 매매 추정 종목 DTO
- */
 @Getter
 @Setter
+@JsonIgnoreProperties(ignoreUnknown = true)
 @Schema(description = "외국인 매매 추정 종목 정보", name = "ForeignTradeItem")
 public class ForeignTradeItem {
 
-    @Schema(description = "주식단축종목코드", example = "000250")
-    private String stck_shrn_iscd;
+    @JsonProperty("stck_shrn_iscd")
+    private String stockCode;
 
-    @Schema(description = "종목명", example = "한화에어로스페이스")
-    private String hts_kor_isnm;
+    @JsonProperty("hts_kor_isnm")
+    private String stockName;
 
-    @Schema(description = "총 순매수(매도) 수량", example = "60940")
-    private Long glob_ntsl_qty;
+    @JsonProperty("glob_ntsl_qty")
+    private String netVolume;
 
-    @Schema(description = "주식 현재가", example = "1488000")
-    private Long stck_prpr;
+    @JsonProperty("glob_ntby_tr_pbmn")
+    private String netBuyAmount;
 
-    @Schema(description = "전일 대비 가격", example = "23000")
-    private Long prdy_vrss;
+    @JsonProperty("stck_prpr")
+    private String currentPrice;
 
-    @Schema(description = "등락률(전일 대비율)", example = "1.57")
-    private Double prdy_ctrt;
+    @JsonProperty("prdy_ctrt")
+    private String changeRate;
 
-    @Schema(description = "누적 거래량", example = "324291")
-    private Long acml_vol;
+    @JsonProperty("glob_total_seln_qty")
+    private String totalSellQty;
 
-    @Schema(description = "외국계 총 순매도 수량", example = "414")
-    private Long glob_total_seln_qty;
+    @JsonProperty("glob_total_shnu_qty")
+    private String totalBuyQty;
 
-    @Schema(description = "외국계 총 순매수 수량", example = "61379")
-    private Long glob_total_shnu_qty;
+    @JsonProperty("frgn_hldn_qty_rt")
+    private String foreignShareRatio;
 }

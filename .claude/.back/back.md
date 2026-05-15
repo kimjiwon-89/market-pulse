@@ -114,9 +114,11 @@ global/auth/InitialDataRunner.java
 | index | GET | `/api/index/inquire-daily-indexchartprice` | 완료 |
 | stock | GET | `/api/stock/foreign-trade` | 완료 — 필터 3종 조합 + 날짜별 시계열 |
 | news | GET | `/api/news/inquire-daily-news` | 완료 |
-| investor | GET | `/api/investor/trade-top` | 구현 예정 |
-| investor | GET/POST/DELETE | `/api/investor/memo` | 구현 예정 |
-| investor | GET | `/api/investor/memo/list` | 구현 예정 |
+| investor | GET | `/api/investor/trade-top` | 완료 |
+| investor | GET | `/api/investor/snapshot/dates` | 완료 |
+| investor | POST | `/api/investor/snapshot` | 완료 (수동 트리거) |
+| investor | GET/POST/DELETE | `/api/investor/memo` | 완료 |
+| investor | GET | `/api/investor/memo/list` | 완료 |
 | lotto | GET | `/api/lotto/latest` | 완료 |
 | lotto | GET | `/api/lotto/rounds` | 완료 |
 | lotto | GET | `/api/lotto/analysis?round=` | 완료 |
@@ -235,12 +237,56 @@ GET /api/investor/trade-top
   &investorType=FOREIGN|INSTITUTION
   &tradeType=BUY|SELL
   &date=20260514          # 기본값: 오늘
+  → 오늘 날짜면 KIS API 실시간, 과거 날짜면 ranking_snapshot DB 조회
+
+GET /api/investor/snapshot/dates
+  ?investorType=FOREIGN&tradeType=BUY&market=KOSPI
+  → 저장된 날짜 목록 (YYYYMMDD 문자열 배열, 최신순)
+
+POST /api/investor/snapshot?date=20260514
+  → 해당 날짜 스냅샷 즉시 저장 (수동 트리거)
+  → 생략 시 오늘 날짜
 
 GET    /api/investor/memo?date=20260514&market=KOSPI|KOSDAQ
 POST   /api/investor/memo   body: { date, market, content }  # upsert
 DELETE /api/investor/memo/{id}
 GET    /api/investor/memo/list?market=KOSPI|KOSDAQ&page=0&size=20
 ```
+
+### TradeTopResponseDto 필드
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| rank | int | 순위 |
+| stockCode | String | 종목코드 |
+| stockName | String | 종목명 |
+| netBuyAmount | long | 순매수대금 (원 단위) |
+| netBuyVolume | long | 순매수량 (주) |
+| currentPrice | long | 현재가 (실시간만 제공, 스냅샷은 0) |
+| changeRate | double | 등락률 (실시간만 제공, 스냅샷은 0.0) |
+| foreignShareRatio | double | 외국인 지분률 (실시간만 제공, 스냅샷은 0.0) |
+
+> `foreignShareRatio`: KIS API 필드 `frgn_hldn_qty_rt` — 실시간 API에서만 반환, 스냅샷에는 저장하지 않음.
+
+### ranking_snapshot 테이블
+
+```sql
+CREATE TABLE IF NOT EXISTS ranking_snapshot (
+    id             BIGSERIAL    PRIMARY KEY,
+    snap_date      DATE         NOT NULL,
+    investor_type  VARCHAR(20)  NOT NULL,  -- FOREIGN
+    trade_type     VARCHAR(10)  NOT NULL,  -- BUY | SELL
+    market         VARCHAR(10)  NOT NULL,  -- KOSPI | KOSDAQ | ALL
+    rank           INTEGER      NOT NULL,
+    stock_code     VARCHAR(10)  NOT NULL,
+    stock_name     VARCHAR(100) NOT NULL,
+    net_buy_amount BIGINT       NOT NULL DEFAULT 0,
+    net_buy_volume BIGINT       NOT NULL DEFAULT 0,
+    CONSTRAINT uq_ranking_snapshot UNIQUE (snap_date, investor_type, trade_type, market, rank)
+);
+```
+
+스케줄러: 매 평일 15:35 자동 저장 (`RankingSnapshotScheduler.java`)
 
 ### DB 테이블
 

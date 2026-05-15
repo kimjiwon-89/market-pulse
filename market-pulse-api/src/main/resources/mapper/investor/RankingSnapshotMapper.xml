@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.marketpulse.domain.investor.mapper.RankingSnapshotMapper">
+
+    <select id="findByFilter" resultType="com.marketpulse.domain.investor.vo.RankingSnapshotVo">
+        SELECT id, snap_date, investor_type, trade_type, market, rank,
+               stock_code, stock_name, net_buy_amount, net_buy_volume
+        FROM ranking_snapshot
+        WHERE snap_date    = #{snapDate}
+          AND investor_type = #{investorType}
+          AND trade_type    = #{tradeType}
+          AND market        = #{market}
+        ORDER BY rank
+    </select>
+
+    <select id="findAvailableDates" resultType="string">
+        SELECT DISTINCT TO_CHAR(snap_date, 'YYYYMMDD')
+        FROM ranking_snapshot
+        WHERE investor_type = #{investorType}
+          AND trade_type    = #{tradeType}
+          AND market        = #{market}
+        ORDER BY 1 DESC
+    </select>
+
+    <insert id="bulkUpsert">
+        INSERT INTO ranking_snapshot
+            (snap_date, investor_type, trade_type, market, rank,
+             stock_code, stock_name, net_buy_amount, net_buy_volume)
+        VALUES
+        <foreach collection="list" item="v" separator=",">
+            (#{v.snapDate}, #{v.investorType}, #{v.tradeType}, #{v.market}, #{v.rank},
+             #{v.stockCode}, #{v.stockName}, #{v.netBuyAmount}, #{v.netBuyVolume})
+        </foreach>
+        ON CONFLICT ON CONSTRAINT uq_ranking_snapshot DO UPDATE SET
+            stock_code     = EXCLUDED.stock_code,
+            stock_name     = EXCLUDED.stock_name,
+            net_buy_amount = EXCLUDED.net_buy_amount,
+            net_buy_volume = EXCLUDED.net_buy_volume
+    </insert>
+
+</mapper>
