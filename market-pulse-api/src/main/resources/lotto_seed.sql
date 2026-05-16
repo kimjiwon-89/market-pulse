@@ -1,6 +1,10 @@
 -- 로또 당첨 번호 시드 데이터 (1회 ~ 1223회)
--- 새 환경 세팅 시 data.sql 실행 후 이 파일을 실행하세요.
--- psql -d marketpulse -f lotto_seed.sql
+--
+-- 새 환경 세팅 순서:
+--   1. psql -d marketpulse -f data.sql
+--   2. psql -d marketpulse -f lotto_seed.sql
+--   3. curl -X POST http://localhost:8080/api/lotto/analyze-all
+--      → lotto_analysis_pool / lotto_analysis_result 전략 분석 데이터 자동 생성
 
 INSERT INTO lotto_result (draw_no, draw_date, no1, no2, no3, no4, no5, no6, bonus_no) VALUES
 (1, '2002-12-07', 10, 23, 29, 33, 37, 40, 16),
