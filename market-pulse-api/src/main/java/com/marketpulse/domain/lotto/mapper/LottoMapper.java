@@ -16,6 +16,7 @@ public interface LottoMapper {
     void insertResult(LottoResultVo vo);
     LottoResultVo findResultByDrawNo(@Param("drawNo") int drawNo);
     List<LottoResultVo> findRecentResults(@Param("limit") int limit);
+    List<LottoResultVo> findResultsBeforeDrawNo(@Param("drawNo") int drawNo);
     List<LottoResultVo> findAllResults();
     Integer findLatestDrawNo();
 

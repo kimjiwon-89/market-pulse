@@ -7,21 +7,21 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-/**
- * 5가지 전략 수식 계산 엔진
- * 입력: 최근 N회 당첨 결과 리스트
- * 출력: 전략별 풀(10개) + 추천 조합(3개)
- */
 @Component
 public class LottoAnalysisEngine {
 
-    private static final int POOL_SIZE   = 10;
-    private static final int COMBO_SIZE  = 3;
-    private static final int[] ALL_NUMS  = IntStream.rangeClosed(1, 45).toArray();
+    private static final int POOL_SIZE  = 10;
+    private static final int COMBO_SIZE = 3;
+    private static final int[] ALL_NUMS = IntStream.rangeClosed(1, 45).toArray();
 
     // ──────────────────────────────────────────────
-    // 공통 통계 계산
+    // 기본 통계 헬퍼
     // ──────────────────────────────────────────────
+
+    private boolean contains(int[] arr, int n) {
+        for (int v : arr) if (v == n) return true;
+        return false;
+    }
 
     private int recent(List<LottoResultVo> draws, int n, int k) {
         return (int) draws.stream().limit(k)
@@ -40,12 +40,53 @@ public class LottoAnalysisEngine {
         return draws.size();
     }
 
-    private boolean contains(int[] arr, int n) {
-        for (int v : arr) if (v == n) return true;
-        return false;
+    /**
+     * 지수 감쇠 가중 빈도 — 최근 출현일수록 더 높은 가중치
+     * WeightedFreq(n) = Σ 0.95^(latestDrawNo - drawNo_i)  (n 출현 회차)
+     */
+    private double weightedFreq(List<LottoResultVo> draws, int n) {
+        if (draws.isEmpty()) return 0;
+        int latest = draws.get(0).getDrawNo();
+        return draws.stream()
+                .filter(d -> contains(d.getNumbers(), n))
+                .mapToDouble(d -> Math.pow(0.95, latest - d.getDrawNo()))
+                .sum();
     }
 
-    /** 전체 회차 기준 두 번호 동반 출현 횟수 */
+    /**
+     * 특정 index 범위 내 지수 감쇠 가중 빈도 (Rising 계산용)
+     */
+    private double weightedFreqRange(List<LottoResultVo> draws, int n, int fromIdx, int toIdx) {
+        if (draws.isEmpty()) return 0;
+        int latest = draws.get(0).getDrawNo();
+        return draws.stream().skip(fromIdx).limit(toIdx - fromIdx)
+                .filter(d -> contains(d.getNumbers(), n))
+                .mapToDouble(d -> Math.pow(0.95, latest - d.getDrawNo()))
+                .sum();
+    }
+
+    /**
+     * 기대 주기 대비 현재 공백 비율
+     * DueScore(n) = LastAbsent(n) / AvgInterval(n) — 1 이상이면 "나왔어야 할 번호"
+     */
+    private double dueScore(List<LottoResultVo> draws, int n) {
+        List<Integer> indices = new ArrayList<>();
+        for (int i = 0; i < draws.size(); i++) {
+            if (contains(draws.get(i).getNumbers(), n)) indices.add(i);
+        }
+        if (indices.isEmpty()) return draws.size();
+        if (indices.size() < 2) return indices.get(0);
+
+        double sumInterval = 0;
+        for (int i = 1; i < indices.size(); i++) {
+            sumInterval += indices.get(i) - indices.get(i - 1);
+        }
+        double avgInterval = sumInterval / (indices.size() - 1);
+        if (avgInterval <= 0) return 0;
+        return indices.get(0) / avgInterval;
+    }
+
+    /** 전체 기간 동반 출현 비율 */
     private double pairRate(List<LottoResultVo> draws, int a, int b) {
         long co = draws.stream()
                 .filter(d -> contains(d.getNumbers(), a) && contains(d.getNumbers(), b))
@@ -58,59 +99,69 @@ public class LottoAnalysisEngine {
         long co = recent30.stream()
                 .filter(d -> contains(d.getNumbers(), a) && contains(d.getNumbers(), b))
                 .count();
-        return (double) co / recent30.size();
+        return (double) co / Math.max(recent30.size(), 1);
     }
 
-    // min-max 정규화
     private double[] normalize(double[] raw) {
         double min = Arrays.stream(raw).min().orElse(0);
         double max = Arrays.stream(raw).max().orElse(1);
-        if (max == min) return new double[46]; // 모두 0
+        if (max == min) return new double[raw.length];
         double[] norm = new double[raw.length];
         for (int i = 0; i < raw.length; i++) norm[i] = (raw[i] - min) / (max - min);
         return norm;
     }
 
+    private int sectionOf(int n) {
+        if (n <= 10) return 0;
+        if (n <= 20) return 1;
+        if (n <= 30) return 2;
+        if (n <= 40) return 3;
+        return 4;
+    }
+
     // ──────────────────────────────────────────────
-    // 전략 1: 모멘텀 (HOT + RISING)
+    // 전략 1: 모멘텀 (지수 감쇠 WeightedFreq + Rising)
     // ──────────────────────────────────────────────
 
     public int[] momentum(List<LottoResultVo> draws) {
-        double[] hot     = new double[46];
-        double[] rising  = new double[46];
+        double[] wFreq  = new double[46];
+        double[] rising = new double[46];
 
         for (int n : ALL_NUMS) {
-            hot[n] = recent(draws, n, 10) * 0.5
-                   + recent(draws, n, 30) * 0.3
-                   + recent(draws, n, 100) * 0.2;
-            rising[n] = recent(draws, n, 10) - prev10(draws, n);
+            wFreq[n]  = weightedFreq(draws, n);
+            double recent10 = weightedFreqRange(draws, n, 0, 10);
+            double prev10   = weightedFreqRange(draws, n, 10, 20);
+            rising[n] = recent10 - prev10;
         }
 
-        double[] nHot    = normalize(hot);
+        double[] nFreq   = normalize(wFreq);
         double[] nRising = normalize(rising);
         double[] score   = new double[46];
-        for (int n : ALL_NUMS) score[n] = nHot[n] * 0.6 + nRising[n] * 0.4;
+        for (int n : ALL_NUMS) score[n] = nFreq[n] * 0.6 + nRising[n] * 0.4;
 
         return topN(score, POOL_SIZE);
     }
 
     // ──────────────────────────────────────────────
-    // 전략 2: 잠수함 (COLD + FALLING)
+    // 전략 2: 잠수함 (Cold + Falling + DueScore)
     // ──────────────────────────────────────────────
 
     public int[] submarine(List<LottoResultVo> draws) {
         double[] cold    = new double[46];
         double[] falling = new double[46];
+        double[] due     = new double[46];
 
         for (int n : ALL_NUMS) {
             cold[n]    = Math.min(absent(draws, n), 30);
             falling[n] = Math.max(prev10(draws, n) - recent(draws, n, 10), 0);
+            due[n]     = dueScore(draws, n);
         }
 
         double[] nCold    = normalize(cold);
         double[] nFalling = normalize(falling);
+        double[] nDue     = normalize(due);
         double[] score    = new double[46];
-        for (int n : ALL_NUMS) score[n] = nCold[n] * 0.6 + nFalling[n] * 0.4;
+        for (int n : ALL_NUMS) score[n] = nCold[n] * 0.4 + nFalling[n] * 0.3 + nDue[n] * 0.3;
 
         return topN(score, POOL_SIZE);
     }
@@ -120,7 +171,7 @@ public class LottoAnalysisEngine {
     // ──────────────────────────────────────────────
 
     public int[] network(List<LottoResultVo> draws) {
-        double[] compRaw  = new double[46];
+        double[] compRaw   = new double[46];
         double[] consecRaw = new double[46];
 
         for (int n : ALL_NUMS) {
@@ -150,16 +201,13 @@ public class LottoAnalysisEngine {
     // ──────────────────────────────────────────────
 
     public int[] pattern(List<LottoResultVo> draws) {
-        // 끝수별 최근 30회 출현 합계
-        int[] digitCount = new int[10];
-        draws.stream().limit(30).forEach(d -> {
-            for (int n : d.getNumbers()) digitCount[n % 10]++;
-        });
-
-        // 구간별 최근 30회 출현 합계 (구간: 0=1~10, 1=11~20, 2=21~30, 3=31~40, 4=41~45)
+        int[] digitCount   = new int[10];
         int[] sectionCount = new int[5];
         draws.stream().limit(30).forEach(d -> {
-            for (int n : d.getNumbers()) sectionCount[sectionOf(n)]++;
+            for (int n : d.getNumbers()) {
+                digitCount[n % 10]++;
+                sectionCount[sectionOf(n)]++;
+            }
         });
 
         double[] digitScore   = new double[46];
@@ -177,16 +225,8 @@ public class LottoAnalysisEngine {
         return topN(score, POOL_SIZE);
     }
 
-    private int sectionOf(int n) {
-        if (n <= 10) return 0;
-        if (n <= 20) return 1;
-        if (n <= 30) return 2;
-        if (n <= 40) return 3;
-        return 4;
-    }
-
     // ──────────────────────────────────────────────
-    // 전략 5: AI 스마트픽
+    // 전략 5: AI 스마트픽 (앙상블 투표 보너스 추가)
     // ──────────────────────────────────────────────
 
     public int[] aiPick(List<LottoResultVo> draws,
@@ -211,9 +251,7 @@ public class LottoAnalysisEngine {
         });
 
         for (int n : ALL_NUMS) {
-            hot[n] = recent(draws, n, 10) * 0.5
-                   + recent(draws, n, 30) * 0.3
-                   + recent(draws, n, 100) * 0.2;
+            hot[n]  = weightedFreq(draws, n);
             cold[n] = Math.min(absent(draws, n), 30);
 
             double pairSum = 0, recentPairSum = 0;
@@ -246,15 +284,23 @@ public class LottoAnalysisEngine {
         double[] nSection = normalize(section);
         double[] nConsec  = normalize(consec);
 
+        // 기존 AI 점수
+        double[] baseScore = new double[46];
+        for (int n : ALL_NUMS) {
+            baseScore[n] = nHot[n]     * 0.20
+                         + nCold[n]    * 0.15
+                         + nComp[n]    * 0.20
+                         + nDigit[n]   * 0.10
+                         + nSection[n] * 0.10
+                         + nConsec[n]  * 0.10
+                         + core[n]     * 0.15;
+        }
+
+        // 앙상블 투표 보너스 — 더 많은 전략에 뽑힌 번호에 가중치
         double[] score = new double[46];
         for (int n : ALL_NUMS) {
-            score[n] = nHot[n]     * 0.20
-                     + nCold[n]    * 0.15
-                     + nComp[n]    * 0.20
-                     + nDigit[n]   * 0.10
-                     + nSection[n] * 0.10
-                     + nConsec[n]  * 0.10
-                     + core[n]     * 0.15;
+            double ensembleBonus = core[n] * 4 * 0.25;  // voteCount(0~4) × 0.25 → 0~1 범위
+            score[n] = baseScore[n] * 0.7 + ensembleBonus * 0.3;
         }
 
         return topN(score, POOL_SIZE);
@@ -264,15 +310,10 @@ public class LottoAnalysisEngine {
     // 조합 생성
     // ──────────────────────────────────────────────
 
-    /**
-     * 풀에서 C(10,6)=210 조합 생성 → 필터 적용 → 점수 상위 COMBO_SIZE개 반환
-     * AI_PICK 전략은 역배 보너스 적용
-     */
     public List<List<Integer>> generateCombos(int[] pool, double[] scoreRef, boolean applyUnpopular) {
         List<int[]> candidates = new ArrayList<>();
         int len = pool.length;
 
-        // C(10,6) 전체 조합
         for (int a = 0; a < len - 5; a++)
         for (int b = a+1; b < len - 4; b++)
         for (int c = b+1; c < len - 3; c++)
@@ -284,7 +325,20 @@ public class LottoAnalysisEngine {
         }
 
         if (candidates.isEmpty()) {
-            // 필터 조건 완화해서 재시도 (구간만 체크)
+            // 강화 조건 통과 실패 시 완화 조건으로 재시도
+            for (int a = 0; a < len - 5; a++)
+            for (int b = a+1; b < len - 4; b++)
+            for (int c = b+1; c < len - 3; c++)
+            for (int d = c+1; d < len - 2; d++)
+            for (int e = d+1; e < len - 1; e++)
+            for (int f = e+1; f < len; f++) {
+                int[] combo = {pool[a], pool[b], pool[c], pool[d], pool[e], pool[f]};
+                if (passFilterRelaxed(combo)) candidates.add(combo);
+            }
+        }
+
+        if (candidates.isEmpty()) {
+            // 최후 폴백: 필터 없이 전체 추가
             for (int a = 0; a < len - 5; a++)
             for (int b = a+1; b < len - 4; b++)
             for (int c = b+1; c < len - 3; c++)
@@ -308,8 +362,9 @@ public class LottoAnalysisEngine {
                 .collect(Collectors.toList());
     }
 
+    /** 역대 당첨 통계 기반 강화된 필터 (100~175 합계, 4구간 이상, 3연속 금지) */
     private boolean passFilter(int[] combo) {
-        int sum  = 0, odd = 0, consecutive = 0;
+        int sum = 0, odd = 0;
         Set<Integer> sections = new HashSet<>();
         Arrays.sort(combo);
 
@@ -318,14 +373,40 @@ public class LottoAnalysisEngine {
             if (v % 2 != 0) odd++;
             sections.add(sectionOf(v));
         }
-        for (int i = 0; i < combo.length - 1; i++) {
-            if (combo[i+1] - combo[i] == 1) consecutive++;
+
+        int maxRun = 1, curRun = 1;
+        for (int i = 1; i < combo.length; i++) {
+            if (combo[i] - combo[i-1] == 1) curRun++;
+            else curRun = 1;
+            if (curRun > maxRun) maxRun = curRun;
         }
 
-        return sum >= 80 && sum <= 170
-            && Math.abs(odd - (6 - odd)) <= 2
+        return sum >= 100 && sum <= 175
+            && odd >= 2 && odd <= 4        // 2:4, 3:3, 4:2만 허용
+            && sections.size() >= 4        // 4구간 이상
+            && maxRun < 3;                 // 3연속 이상 금지
+    }
+
+    /** 완화 필터 (pool이 특정 구간에 편중될 때 폴백용) */
+    private boolean passFilterRelaxed(int[] combo) {
+        int sum = 0;
+        Set<Integer> sections = new HashSet<>();
+        Arrays.sort(combo);
+        for (int v : combo) {
+            sum += v;
+            sections.add(sectionOf(v));
+        }
+
+        int maxRun = 1, curRun = 1;
+        for (int i = 1; i < combo.length; i++) {
+            if (combo[i] - combo[i-1] == 1) curRun++;
+            else curRun = 1;
+            if (curRun > maxRun) maxRun = curRun;
+        }
+
+        return sum >= 80 && sum <= 175
             && sections.size() >= 3
-            && consecutive <= 2;
+            && maxRun < 3;
     }
 
     private double comboScore(int[] combo, double[] scoreRef, boolean applyUnpopular) {

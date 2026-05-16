@@ -155,8 +155,8 @@ public class LottoService {
         }
         lottoMapper.insertResult(result);
 
-        // 2. 분석 데이터 충분한지 확인 (최소 100회차)
-        List<LottoResultVo> history = lottoMapper.findRecentResults(100);
+        // 2. drawNo 이전 데이터만 사용 (백테스트 원칙: 미래 데이터 배제)
+        List<LottoResultVo> history = lottoMapper.findResultsBeforeDrawNo(drawNo);
         if (history.size() < 10) {
             log.warn("not enough draw history: {}", history.size());
             return;
@@ -290,11 +290,6 @@ public class LottoService {
         lottoMapper.insertResult(vo);
         log.info("manual result inserted: drawNo={}", drawNo);
 
-        List<LottoResultVo> history = lottoMapper.findRecentResults(100);
-        if (history.size() < 10) {
-            log.warn("not enough history for analysis: {}", history.size());
-            return;
-        }
         analyzeOnly(drawNo);
     }
 
@@ -306,9 +301,10 @@ public class LottoService {
             return;
         }
 
-        List<LottoResultVo> history = lottoMapper.findRecentResults(100);
+        // drawNo 이전 데이터만 사용 (백테스트 원칙: 미래 데이터 배제)
+        List<LottoResultVo> history = lottoMapper.findResultsBeforeDrawNo(drawNo);
         if (history.size() < 10) {
-            log.warn("analyzeOnly: not enough history ({})", history.size());
+            log.warn("analyzeOnly: not enough history ({}) for drawNo={}", history.size(), drawNo);
             return;
         }
 

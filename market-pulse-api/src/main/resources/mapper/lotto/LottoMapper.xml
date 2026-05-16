@@ -28,6 +28,14 @@
         LIMIT #{limit}
     </select>
 
+    <select id="findResultsBeforeDrawNo" resultType="LottoResultVo">
+        SELECT draw_no AS drawNo, draw_date AS drawDate,
+               no1, no2, no3, no4, no5, no6, bonus_no AS bonusNo, created_at AS createdAt
+        FROM lotto_result
+        WHERE draw_no &lt; #{drawNo}
+        ORDER BY draw_no DESC
+    </select>
+
     <select id="findAllResults" resultType="LottoResultVo">
         SELECT draw_no AS drawNo, draw_date AS drawDate,
                no1, no2, no3, no4, no5, no6, bonus_no AS bonusNo, created_at AS createdAt
