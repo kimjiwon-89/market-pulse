@@ -1,0 +1,44 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: marketpulse
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+  api:
+    image: ${DOCKER_USERNAME}/market-pulse-api:latest
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/marketpulse
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_SQL_INIT_MODE: always
+      APP_JWT_SECRET: ${JWT_SECRET}
+      APP_AUTH_USERNAME: ${ADMIN_USERNAME}
+      APP_AUTH_PASSWORD: ${ADMIN_PASSWORD}
+      EXTERNAL_API_APP_KEY: ${KIS_APP_KEY}
+      EXTERNAL_API_APP_SECRET: ${KIS_APP_SECRET}
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+
+  web:
+    image: ${DOCKER_USERNAME}/market-pulse-web:latest
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
