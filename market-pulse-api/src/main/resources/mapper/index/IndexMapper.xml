@@ -1,4 +1,45 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.marketpulse.domain.index.mapper.IndexMapper">
+
+    <insert id="upsert">
+        INSERT INTO index_snapshot
+            (snap_date, index_code, index_name, current_price, change_amount, change_rate,
+             trade_volume, trade_amount, daily_json, updated_at)
+        VALUES
+            (#{snapDate}, #{indexCode}, #{indexName}, #{currentPrice}, #{changeAmount}, #{changeRate},
+             #{tradeVolume}, #{tradeAmount}, #{dailyJson}, NOW())
+        ON CONFLICT (snap_date, index_code) DO UPDATE SET
+            index_name    = EXCLUDED.index_name,
+            current_price = EXCLUDED.current_price,
+            change_amount = EXCLUDED.change_amount,
+            change_rate   = EXCLUDED.change_rate,
+            trade_volume  = EXCLUDED.trade_volume,
+            trade_amount  = EXCLUDED.trade_amount,
+            daily_json    = EXCLUDED.daily_json,
+            updated_at    = NOW()
+    </insert>
+
+    <select id="findLatest" resultType="com.marketpulse.domain.index.vo.IndexSnapshotVo">
+        SELECT id, snap_date, index_code, index_name, current_price, change_amount, change_rate,
+               trade_volume, trade_amount, daily_json
+        FROM index_snapshot
+        WHERE index_code = #{indexCode}
+        ORDER BY snap_date DESC, updated_at DESC
+        LIMIT 1
+    </select>
+
+    <select id="findLatestByCodes" resultType="com.marketpulse.domain.index.vo.IndexSnapshotVo">
+        SELECT DISTINCT ON (index_code)
+               id, snap_date, index_code, index_name, current_price, change_amount, change_rate,
+               trade_volume, trade_amount, daily_json
+        FROM index_snapshot
+        WHERE index_code IN
+        <foreach collection="codes" item="code" open="(" separator="," close=")">
+            #{code}
+        </foreach>
+        ORDER BY index_code, snap_date DESC, updated_at DESC
+    </select>
+
 </mapper>

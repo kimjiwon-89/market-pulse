@@ -28,6 +28,56 @@ export interface InvestorMemo {
   updatedAt: string;
 }
 
+// ── 종목 상세 ──
+
+export interface StockDetail {
+  code: string;
+  name: string;
+  currentPrice: number;
+  prdyVrss: number;
+  prdyVrssSign: string;
+  changeRate: number;
+  volume: number;
+  tradingValue: number;
+  marketCap: number;
+  openPrice: number;
+  highPrice: number;
+  lowPrice: number;
+  per: number;
+  pbr: number;
+  weekHigh: number;
+  weekLow: number;
+}
+
+export interface StockChartItem {
+  date: string;
+  close: number;
+  open: number;
+  high: number;
+  low: number;
+  volume: number;
+  changeRate: number;
+}
+
+export interface StockInvestor {
+  foreignBuy: number;
+  foreignSell: number;
+  foreignNet: number;
+  institutionBuy: number;
+  institutionSell: number;
+  institutionNet: number;
+  individualBuy: number;
+  individualSell: number;
+  individualNet: number;
+}
+
+export interface StockMasterItem {
+  code: string;
+  name: string;
+  market: "KOSPI" | "KOSDAQ";
+  sector?: string;
+}
+
 // ── 로또 분석 연구소 ──
 
 export type LottoStrategy =

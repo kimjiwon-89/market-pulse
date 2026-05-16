@@ -9,6 +9,7 @@ import { NewsList } from "@/pages/NewsList";
 import { Login } from "@/pages/Login";
 import { Admin } from "@/pages/Admin";
 import { LottoAnalysis } from "@/pages/LottoAnalysis";
+import { StockDetail } from "@/pages/StockDetail";
 
 const router = createBrowserRouter([
   { path: "/login", element: <Login /> },
@@ -24,6 +25,7 @@ const router = createBrowserRouter([
       { path: "news", element: <NewsList /> },
       { path: "admin", element: <Admin /> },
       { path: "lotto", element: <LottoAnalysis /> },
+      { path: "stock/:code", element: <StockDetail /> },
     ],
   },
 ]);

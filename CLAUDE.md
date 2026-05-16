@@ -11,6 +11,9 @@
 
 **백엔드 작업 시** → 반드시 `.claude/.back/back.md` 먼저 읽고 시작
 
+**KRX API 사용 시** → `.claude/.krx/krx.md` 참조 (인증키·엔드포인트 전체 목록)
+- `.claude/.krx/krx-data-guide-summary.md` — 유료 히스토리컬 데이터 상품 목록 (추후 필요 시 참조)
+
 각 파일에는 해당 영역의 컨벤션, 디렉터리 구조, 구현 스펙, 주의사항이 정리되어 있다.
 작업 후 변경사항이 생기면 해당 md 파일도 함께 업데이트한다.
 
@@ -143,6 +146,7 @@ baseURL: 'http://localhost:8080/api'
 | `/memo` | MemoList | 공개 (메모만 인증) | 메모 모아보기 |
 | `/news` | NewsList | 공개 | 뉴스 |
 | `/stock/:code` | StockDetail | 공개 | 종목 상세 (현재가·차트·투자자동향) |
+| `/lotto` | LottoAnalysis | 공개 (조합 저장만 인증) | 로또 분석 연구소 |
 | `/admin` | Admin | ADMIN | 사용자 관리 |
 
 **디렉터리 구조**
@@ -304,7 +308,7 @@ DELETE /api/investor/memo/tag/{tagId}
 ### 스케줄러
 
 `@Scheduled(cron = "0 0 0 * * *")` — 매일 자정 stock_master 전체 갱신.
-데이터 소스: KRX에서 전달받은 형식에 따라 구현 (CSV 파싱 또는 API 호출).
+데이터 소스: KRX Open API — 아래 3개 엔드포인트 순서대로 호출 후 upsert.
 
 ### KIS API (종목 상세용)
 
@@ -470,3 +474,43 @@ POST   /api/lotto/collect?from=N&to=M -- 역대 데이터 일괄 수집 (관리�
 - `ApiResponse.failure()` 사용 — `error()` 없음
 - DB 테이블(`users`, `investor_memo`, `api_token`)은 `data.sql` 참고용, 실제 생성은 psql 직접 실행 필요
 - Maven 실행 시 Java 17 명시 필요: `JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home mvn ...`
+
+---
+
+## KRX Open API
+
+> 상세 스펙 전체: `.claude/.krx/krx.md`
+
+**인증키**: `CE1A080A2E5A480B8BB511D1386FFD0E33A33D83`
+**Base URL**: `https://data-dbg.krx.co.kr/svc/apis`
+
+**인증 방법** — 모든 API 공통
+
+```
+POST {endpoint}
+Headers:  AUTH_KEY: CE1A080A2E5A480B8BB511D1386FFD0E33A33D83
+Body:     {"basDd":"YYYYMMDD"}
+Response: {"OutBlock_1":[...]}
+```
+
+### 카테고리별 경로 요약
+
+| 카테고리 | 경로 prefix | 대표 API |
+|---------|------------|---------|
+| 지수 | `/idx/` | `krx_dd_trd`, `kosdaq_dd_trd`, `bon_dd_trd`, `drvprod_dd_trd` |
+| 주식 | `/sto/` | `stk_bydd_trd`(유가), `ksq_bydd_trd`(코스닥), `stk_isu_base_info`(기본정보) |
+| ETP | `/etp/` | `etf_bydd_trd`, `etn_bydd_trd`, `elw_bydd_trd` |
+| 채권 | `/bon/` | `kts_bydd_trd`(국채), `bnd_bydd_trd`(일반채권) |
+| 파생 | `/drv/` | `fut_bydd_trd`(선물), `opt_bydd_trd`(옵션) |
+| 일반상품 | `/gen/` | `gold_bydd_trd`(금), `oil_bydd_trd`(석유), `ets_bydd_trd`(배출권) |
+| ESG | `/esg/` | `esg_index_info`, `esg_etp_info` |
+
+### stock_master 갱신에 사용하는 API
+
+| 시장 | 엔드포인트 |
+|-----|-----------|
+| 유가증권(KOSPI) | `POST /sto/stk_isu_base_info` |
+| 코스닥 | `POST /sto/ksq_isu_base_info` |
+| 코넥스 | `POST /sto/knx_isu_base_info` |
+
+**필드 매핑**: `ISU_SRT_CD` → code(6자리), `ISU_ABBRV`(없으면 `ISU_NM`) → name, `MKT_TP_NM` → market, `SECT_TP_NM` → sector

@@ -25,6 +25,7 @@ src/
 │   ├── NetBuyingList/index.tsx
 │   ├── MemoList/index.tsx
 │   ├── NewsList/index.tsx
+│   ├── StockDetail/index.tsx   # 종목 상세 (현재가·차트·투자자동향)
 │   ├── Login/index.tsx         # 로그인 페이지 (DefaultLayout 바깥)
 │   └── Admin/index.tsx         # 사용자 관리 (ADMIN 전용)
 ├── components/
@@ -54,7 +55,7 @@ src/
 | `/net-buy` | NetBuyingList | ❌ | 완료 |
 | `/memo` | MemoList | ❌ (메모 기능만 필요) | 완료 |
 | `/news` | NewsList | ❌ | 완료 |
-| `/stock/:code` | StockDetail | ❌ | 구현 예정 |
+| `/stock/:code` | StockDetail | ❌ | 완료 |
 | `/admin` | Admin | ✅ ADMIN | 완료 |
 | `/lotto` | LottoAnalysis | ❌ (내 조합 저장만 필요) | 완료 |
 
@@ -237,15 +238,25 @@ calcRangeTotal(dates, dataMap): RangeTotal        // 조회기간 누적 합계 
 
 ---
 
-## 종목 상세 + @mention 태그 스펙 (구현 예정)
+## 종목 상세 + @mention 태그 스펙
 
-### StockDetail 페이지 (`/stock/:code`)
+### StockDetail 페이지 (`/stock/:code`) — 완료
 
 ```
 KPI 카드 (현재가 / 등락률 / 거래량 / 시가총액)
 기간 선택 칩 (1M / 3M / 1Y) + AreaChart
-투자자동향 카드 (외국인·기관 순매수)
+투자자동향 카드 (외국인·기관·개인 순매수대금/매수/매도)
+시세 정보 카드 (시가·고가·저가·52주최고/최저)
 ```
+
+**구현 파일**: `src/pages/StockDetail/index.tsx`
+
+**API**
+- `GET /api/stock/detail?code=` → `StockDetail` 타입
+- `GET /api/stock/chart?code=&period=1M|3M|1Y` → `StockChartItem[]`
+- `GET /api/stock/investor?code=` → `StockInvestor` 타입
+
+**타입** (`src/types/index.ts`): `StockDetail`, `StockChartItem`, `StockInvestor`, `StockMasterItem`
 
 - `GET /api/stock/detail?code=:code`
 - `GET /api/stock/chart?code=:code&period=1M`

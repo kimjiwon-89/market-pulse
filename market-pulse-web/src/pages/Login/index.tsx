@@ -84,6 +84,15 @@ export function Login() {
           >
             {loading ? '로그인 중...' : '로그인'}
           </button>
+
+          <button
+            type="button"
+            className="btn ghost"
+            style={{ width: '100%', marginTop: '0.25rem' }}
+            onClick={() => navigate('/')}
+          >
+            홈으로
+          </button>
         </form>
       </div>
     </div>

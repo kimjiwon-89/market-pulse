@@ -29,6 +29,7 @@ interface ColProps {
 }
 
 function InvestorCol({ title, ready = true, items, loading, tradeType }: ColProps) {
+  const navigate = useNavigate();
   const labelTrade = tradeType === "BUY" ? "순매수" : "순매도";
 
   return (
@@ -88,6 +89,7 @@ function InvestorCol({ title, ready = true, items, loading, tradeType }: ColProp
                 cursor: "pointer",
               }}
               className="clickable"
+              onClick={() => navigate(`/stock/${item.stockCode}`)}
             >
               {/* 순위 */}
               <span

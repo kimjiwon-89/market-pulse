@@ -63,3 +63,8 @@ app:
   http:
     connect-timeout: 5000
     read-timeout: 5000
+
+krx:
+  api:
+    base-url: https://data-dbg.krx.co.kr/svc/apis
+    auth-key: CE1A080A2E5A480B8BB511D1386FFD0E33A33D83

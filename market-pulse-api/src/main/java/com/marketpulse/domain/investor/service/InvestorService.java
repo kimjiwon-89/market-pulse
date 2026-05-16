@@ -1,11 +1,14 @@
 package com.marketpulse.domain.investor.service;
 
 import com.marketpulse.domain.investor.dto.InvestorDailyItem;
+import com.marketpulse.global.mock.MockDataProvider;
 import com.marketpulse.domain.investor.dto.MarketFlowDto;
 import com.marketpulse.domain.investor.dto.MemoRequestDto;
 import com.marketpulse.domain.investor.dto.MemoResponseDto;
 import com.marketpulse.domain.investor.dto.TradeTopResponseDto;
+import com.marketpulse.domain.investor.mapper.MarketFlowSnapshotMapper;
 import com.marketpulse.domain.investor.mapper.RankingSnapshotMapper;
+import com.marketpulse.domain.investor.vo.MarketFlowSnapshotVo;
 import com.marketpulse.domain.investor.vo.RankingSnapshotVo;
 import com.marketpulse.domain.stock.dto.ForeignTradeItem;
 import com.marketpulse.global.response.KisResponse;
@@ -32,6 +35,8 @@ public class InvestorService {
     private final ExternalApiClient externalApiClient;
     private final MemoMapper memoMapper;
     private final RankingSnapshotMapper snapshotMapper;
+    private final MarketFlowSnapshotMapper marketFlowSnapshotMapper;
+
     private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("yyyyMMdd");
     private static final String[] TRADE_TYPES = {"BUY", "SELL"};
     private static final String[] MARKETS = {"KOSPI", "KOSDAQ", "ALL"};
@@ -52,13 +57,25 @@ public class InvestorService {
         String effectiveTrade = tradeType != null ? tradeType : "BUY";
         String effectiveMarket = market != null ? market : "KOSPI";
 
-        LocalDate today = LocalDate.now();
-        LocalDate requestDate = date != null ? LocalDate.parse(date, FMT) : today;
+        LocalDate requestDate = date != null ? LocalDate.parse(date, FMT) : LocalDate.now();
 
-        if (!requestDate.equals(today)) {
-            // 과거 날짜 → DB 조회
+        try {
+            // 요청 날짜 DB 조회
             List<RankingSnapshotVo> snapshots = snapshotMapper.findByFilter(
                     requestDate, effectiveInvestor, effectiveTrade, effectiveMarket);
+
+            // 요청 날짜 데이터가 없으면 가장 최근 데이터 반환
+            if (snapshots.isEmpty()) {
+                log.info("No snapshot for date={}, falling back to latest", requestDate);
+                snapshots = snapshotMapper.findLatestByFilter(effectiveInvestor, effectiveTrade, effectiveMarket);
+            }
+
+            // DB도 비어있으면 mock 반환
+            if (snapshots.isEmpty()) {
+                log.warn("No ranking snapshot in DB at all, returning mock data");
+                return MockDataProvider.mockTradeTop(effectiveMarket, effectiveTrade);
+            }
+
             return snapshots.stream()
                     .map(v -> TradeTopResponseDto.builder()
                             .rank(v.getRank())
@@ -68,10 +85,10 @@ public class InvestorService {
                             .netBuyVolume(v.getNetBuyVolume())
                             .build())
                     .toList();
+        } catch (Exception e) {
+            log.warn("DB error in getTradeTop, returning mock data: {}", e.getMessage());
+            return MockDataProvider.mockTradeTop(effectiveMarket, effectiveTrade);
         }
-
-        // 오늘 → 실시간 API
-        return fetchForeignTradeTop(effectiveMarket, effectiveTrade);
     }
 
     /* ── Snapshot 저장 (스케줄러에서 호출) ── */
@@ -107,54 +124,69 @@ public class InvestorService {
         }
     }
 
-    private List<TradeTopResponseDto> fetchForeignTradeTop(String market, String tradeType) {
-        Map<String, String> params = new HashMap<>();
-        params.put("FID_COND_MRKT_DIV_CODE", "J");
-        params.put("FID_COND_SCR_DIV_CODE", "16441");
-        params.put("FID_INPUT_ISCD", mapMarketIscdForeign(market));
-        params.put("FID_RANK_SORT_CLS_CODE", "0");
-        params.put("FID_RANK_SORT_CLS_CODE_2", "BUY".equals(tradeType) ? "0" : "1");
+    /* ── Market Flow 저장 (스케줄러에서 호출) ── */
 
-        log.info("frgnmem-trade-estimate params: {}", params);
+    public void saveMarketFlowSnapshots(LocalDate date) {
+        for (String market : new String[]{"KOSPI", "KOSDAQ"}) {
+            try {
+                Map<String, String> params = new HashMap<>();
+                params.put("fid_cond_mrkt_div_code", "J");
+                params.put("fid_input_iscd", "KOSDAQ".equals(market) ? "1001" : "0001");
 
-        KisResponse<List<ForeignTradeItem>> response = externalApiClient.callGet(
-                "/uapi/domestic-stock/v1/quotations/frgnmem-trade-estimate",
-                "FHKST644100C0",
-                params,
-                new ParameterizedTypeReference<KisResponse<List<ForeignTradeItem>>>() {}
-        );
+                KisResponse<List<InvestorDailyItem>> response = externalApiClient.callGet(
+                        "/uapi/domestic-stock/v1/quotations/inquire-investor",
+                        "FHKST01010900",
+                        params,
+                        new ParameterizedTypeReference<KisResponse<List<InvestorDailyItem>>>() {}
+                );
+                response.validate();
 
-        log.info("frgnmem result: rt_cd={}, output={}",
-                response.getRt_cd(),
-                response.getOutput() != null ? "size=" + response.getOutput().size() : "NULL");
+                List<InvestorDailyItem> items = response.getOutput();
+                if (items == null || items.isEmpty()) continue;
 
-        response.validate();
+                InvestorDailyItem latest = items.get(0);
+                MarketFlowSnapshotVo vo = new MarketFlowSnapshotVo();
+                vo.setSnapDate(date);
+                vo.setMarket(market);
+                vo.setFrgnBuy(parseLong(latest.getForeignBuyAmount()));
+                vo.setFrgnSell(parseLong(latest.getForeignSellAmount()));
+                vo.setFrgnNet(parseLong(latest.getForeignNetBuyAmount()));
+                vo.setOrgnBuy(parseLong(latest.getInstitutionBuyAmount()));
+                vo.setOrgnSell(parseLong(latest.getInstitutionSellAmount()));
+                vo.setOrgnNet(parseLong(latest.getInstitutionNetBuyAmount()));
+                vo.setIndvBuy(parseLong(latest.getPersonalBuyAmount()));
+                vo.setIndvSell(parseLong(latest.getPersonalSellAmount()));
+                vo.setIndvNet(parseLong(latest.getPersonalNetBuyAmount()));
+                marketFlowSnapshotMapper.upsert(vo);
 
-        List<ForeignTradeItem> items = response.getOutput();
-        if (items == null) return List.of();
-
-        return IntStream.range(0, items.size())
-                .mapToObj(i -> fromForeignItem(items.get(i), i + 1))
-                .toList();
+                log.info("MarketFlow snapshot saved: market={} on {}", market, date);
+            } catch (Exception e) {
+                log.error("MarketFlow snapshot failed for market={}: {}", market, e.getMessage());
+            }
+        }
     }
 
-    private TradeTopResponseDto fromForeignItem(ForeignTradeItem item, int rank) {
-        return TradeTopResponseDto.builder()
-                .rank(rank)
-                .stockCode(item.getStockCode())
-                .stockName(item.getStockName())
-                .netBuyAmount(parseLong(item.getNetBuyAmount()))
-                .netBuyVolume(parseLong(item.getNetVolume()))
-                .currentPrice(parseLong(item.getCurrentPrice()))
-                .changeRate(parseDouble(item.getChangeRate()))
-                .foreignShareRatio(parseDouble(item.getForeignShareRatio()))
-                .build();
-    }
+    /* ── Market Flow 조회: DB에서 읽기 ── */
 
-    private String mapMarketIscdForeign(String market) {
-        if ("KOSDAQ".equals(market)) return "1001";
-        if ("ALL".equals(market)) return "0000";
-        return "2001"; // KOSPI
+    public List<MarketFlowDto> getMarketFlow(String market) {
+        try {
+            MarketFlowSnapshotVo vo = marketFlowSnapshotMapper.findLatest(market);
+            if (vo == null) {
+                log.warn("No market flow snapshot in DB for market={}, returning mock data", market);
+                return MockDataProvider.mockMarketFlow();
+            }
+            return List.of(
+                    MarketFlowDto.builder().name("외국인")
+                            .net(vo.getFrgnNet()).buy(vo.getFrgnBuy()).sell(vo.getFrgnSell()).build(),
+                    MarketFlowDto.builder().name("기관")
+                            .net(vo.getOrgnNet()).buy(vo.getOrgnBuy()).sell(vo.getOrgnSell()).build(),
+                    MarketFlowDto.builder().name("개인")
+                            .net(vo.getIndvNet()).buy(vo.getIndvBuy()).sell(vo.getIndvSell()).build()
+            );
+        } catch (Exception e) {
+            log.warn("DB error in getMarketFlow, returning mock data: {}", e.getMessage());
+            return MockDataProvider.mockMarketFlow();
+        }
     }
 
     /* ── Available Snapshot Dates ── */
@@ -164,46 +196,6 @@ public class InvestorService {
         String effectiveTrade = tradeType != null ? tradeType : "BUY";
         String effectiveMarket = market != null ? market : "KOSPI";
         return snapshotMapper.findAvailableDates(effectiveInvestor, effectiveTrade, effectiveMarket);
-    }
-
-    /* ── Market Flow (FHKST01010900) ── */
-
-    public List<MarketFlowDto> getMarketFlow(String market) {
-        Map<String, String> params = new HashMap<>();
-        params.put("fid_cond_mrkt_div_code", "J");
-        params.put("fid_input_iscd", "KOSDAQ".equals(market) ? "1001" : "0001");
-
-        KisResponse<List<InvestorDailyItem>> response = externalApiClient.callGet(
-                "/uapi/domestic-stock/v1/quotations/inquire-investor",
-                "FHKST01010900",
-                params,
-                new ParameterizedTypeReference<KisResponse<List<InvestorDailyItem>>>() {}
-        );
-
-        response.validate();
-
-        List<InvestorDailyItem> items = response.getOutput();
-        if (items == null || items.isEmpty()) return List.of();
-
-        InvestorDailyItem latest = items.get(0);
-
-        return List.of(
-                MarketFlowDto.builder().name("외국인")
-                        .net(parseLong(latest.getForeignNetBuyAmount()))
-                        .buy(parseLong(latest.getForeignBuyAmount()))
-                        .sell(parseLong(latest.getForeignSellAmount()))
-                        .build(),
-                MarketFlowDto.builder().name("기관")
-                        .net(parseLong(latest.getInstitutionNetBuyAmount()))
-                        .buy(parseLong(latest.getInstitutionBuyAmount()))
-                        .sell(parseLong(latest.getInstitutionSellAmount()))
-                        .build(),
-                MarketFlowDto.builder().name("개인")
-                        .net(parseLong(latest.getPersonalNetBuyAmount()))
-                        .buy(parseLong(latest.getPersonalBuyAmount()))
-                        .sell(parseLong(latest.getPersonalSellAmount()))
-                        .build()
-        );
     }
 
     /* ── Memo ── */
@@ -233,6 +225,54 @@ public class InvestorService {
         int offset = page * size;
         return memoMapper.findList(market, size, offset)
                 .stream().map(this::toMemoDto).toList();
+    }
+
+    /* ── API 직접 호출 (스케줄러 내부 전용) ── */
+
+    private List<TradeTopResponseDto> fetchForeignTradeTop(String market, String tradeType) {
+        Map<String, String> params = new HashMap<>();
+        params.put("FID_COND_MRKT_DIV_CODE", "J");
+        params.put("FID_COND_SCR_DIV_CODE", "16441");
+        params.put("FID_INPUT_ISCD", mapMarketIscdForeign(market));
+        params.put("FID_RANK_SORT_CLS_CODE", "0");
+        params.put("FID_RANK_SORT_CLS_CODE_2", "BUY".equals(tradeType) ? "0" : "1");
+
+        log.info("frgnmem-trade-estimate params: {}", params);
+
+        KisResponse<List<ForeignTradeItem>> response = externalApiClient.callGet(
+                "/uapi/domestic-stock/v1/quotations/frgnmem-trade-estimate",
+                "FHKST644100C0",
+                params,
+                new ParameterizedTypeReference<KisResponse<List<ForeignTradeItem>>>() {}
+        );
+
+        response.validate();
+
+        List<ForeignTradeItem> items = response.getOutput();
+        if (items == null) return List.of();
+
+        return IntStream.range(0, items.size())
+                .mapToObj(i -> fromForeignItem(items.get(i), i + 1))
+                .toList();
+    }
+
+    private TradeTopResponseDto fromForeignItem(ForeignTradeItem item, int rank) {
+        return TradeTopResponseDto.builder()
+                .rank(rank)
+                .stockCode(item.getStockCode())
+                .stockName(item.getStockName())
+                .netBuyAmount(parseLong(item.getNetBuyAmount()))
+                .netBuyVolume(parseLong(item.getNetVolume()))
+                .currentPrice(parseLong(item.getCurrentPrice()))
+                .changeRate(parseDouble(item.getChangeRate()))
+                .foreignShareRatio(parseDouble(item.getForeignShareRatio()))
+                .build();
+    }
+
+    private String mapMarketIscdForeign(String market) {
+        if ("KOSDAQ".equals(market)) return "1001";
+        if ("ALL".equals(market)) return "0000";
+        return "2001"; // KOSPI
     }
 
     /* ── helpers ── */

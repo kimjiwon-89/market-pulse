@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.marketpulse.domain.investor.mapper.MarketFlowSnapshotMapper">
+
+    <insert id="upsert">
+        INSERT INTO market_flow_snapshot
+            (snap_date, market, frgn_buy, frgn_sell, frgn_net,
+             orgn_buy, orgn_sell, orgn_net, indv_buy, indv_sell, indv_net, updated_at)
+        VALUES
+            (#{snapDate}, #{market}, #{frgnBuy}, #{frgnSell}, #{frgnNet},
+             #{orgnBuy}, #{orgnSell}, #{orgnNet}, #{indvBuy}, #{indvSell}, #{indvNet}, NOW())
+        ON CONFLICT (snap_date, market) DO UPDATE SET
+            frgn_buy   = EXCLUDED.frgn_buy,
+            frgn_sell  = EXCLUDED.frgn_sell,
+            frgn_net   = EXCLUDED.frgn_net,
+            orgn_buy   = EXCLUDED.orgn_buy,
+            orgn_sell  = EXCLUDED.orgn_sell,
+            orgn_net   = EXCLUDED.orgn_net,
+            indv_buy   = EXCLUDED.indv_buy,
+            indv_sell  = EXCLUDED.indv_sell,
+            indv_net   = EXCLUDED.indv_net,
+            updated_at = NOW()
+    </insert>
+
+    <select id="findLatest" resultType="com.marketpulse.domain.investor.vo.MarketFlowSnapshotVo">
+        SELECT id, snap_date, market,
+               frgn_buy, frgn_sell, frgn_net,
+               orgn_buy, orgn_sell, orgn_net,
+               indv_buy, indv_sell, indv_net
+        FROM market_flow_snapshot
+        WHERE market = #{market}
+        ORDER BY snap_date DESC, updated_at DESC
+        LIMIT 1
+    </select>
+
+</mapper>

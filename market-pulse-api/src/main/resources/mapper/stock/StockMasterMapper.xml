@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.marketpulse.domain.stock.mapper.StockMasterMapper">
+
+    <select id="searchByName" resultType="com.marketpulse.domain.stock.vo.StockMasterVo">
+        SELECT code, name, market, sector
+        FROM stock_master
+        WHERE name ILIKE CONCAT('%', #{q}, '%')
+        ORDER BY
+            CASE
+                WHEN name = #{q}                        THEN 0
+                WHEN name ILIKE CONCAT(#{q}, '%')       THEN 1
+                ELSE 2
+            END,
+            name
+        LIMIT #{limit}
+    </select>
+
+    <insert id="bulkUpsert">
+        INSERT INTO stock_master (code, name, market, sector, updated_at)
+        VALUES
+        <foreach collection="list" item="v" separator=",">
+            (#{v.code}, #{v.name}, #{v.market}, #{v.sector}, NOW())
+        </foreach>
+        ON CONFLICT (code) DO UPDATE SET
+            name       = EXCLUDED.name,
+            market     = EXCLUDED.market,
+            sector     = EXCLUDED.sector,
+            updated_at = NOW()
+    </insert>
+
+    <select id="count" resultType="int">
+        SELECT COUNT(*) FROM stock_master
+    </select>
+
+</mapper>

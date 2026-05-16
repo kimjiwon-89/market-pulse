@@ -125,6 +125,10 @@ global/auth/InitialDataRunner.java
 | lotto | GET | `/api/lotto/stats` | 완료 |
 | lotto | POST/GET/DELETE | `/api/lotto/combo` | 완료 |
 | lotto | POST | `/api/lotto/collect?from=&to=` | 완료 (관리자용 일괄 수집) |
+| stock | GET | `/api/stock/search?q=&limit=` | 완료 — stock_master 이름 부분 일치 검색 |
+| stock | GET | `/api/stock/detail?code=` | 완료 — KIS FHKST01010100 현재가 시세 |
+| stock | GET | `/api/stock/chart?code=&period=` | 완료 — KIS FHKST01010400 일자별 차트 |
+| stock | GET | `/api/stock/investor?code=` | 완료 — KIS FHKST01010900 투자자 동향 |
 
 ## 공통 응답 형식
 
@@ -133,7 +137,7 @@ global/auth/InitialDataRunner.java
 ApiResponse.success(data);
 
 // 실패
-ApiResponse.error(message);
+ApiResponse.failure(message);
 ```
 
 ## 토큰 관리 (TokenService)
@@ -365,7 +369,7 @@ app:
 
 ---
 
-## stock_master + 종목 상세 + 메모 태그 스펙 (구현 예정)
+## stock_master + 종목 상세 + 메모 태그 스펙
 
 ### stock_master 도메인
 
@@ -381,18 +385,22 @@ CREATE TABLE stock_master (
 CREATE INDEX idx_stock_master_name ON stock_master(name);
 ```
 
-#### 파일 구조
+#### 파일 구조 — 완료
 ```
 domain/stock/
-├── controller/StockController.java      # 기존 foreign-trade + 신규 검색·상세
-├── service/StockMasterService.java      # 검색, 업데이트 로직
-├── service/StockDetailService.java      # KIS API 연동 (현재가·차트·투자자)
+├── controller/StockController.java         # foreign-trade + search + detail/chart/investor
+├── service/StockMasterService.java         # 검색, KRX upsert
+├── service/StockDetailService.java         # KIS API 연동 (현재가·차트·투자자)
 ├── dto/StockSearchResultDto.java
-├── dto/StockDetailDto.java
-├── dto/StockChartDto.java
+├── dto/StockDetailDto.java                 # 현재가 응답 DTO
+├── dto/StockChartItemDto.java              # 일자별 OHLCV DTO
+├── dto/StockInvestorDto.java               # 투자자 동향 DTO
 ├── mapper/StockMasterMapper.java
 ├── vo/StockMasterVo.java
-└── scheduler/StockMasterScheduler.java  # 매일 자정 갱신
+├── vo/StockPriceVo.java                    # FHKST01010100 output 매핑
+├── vo/StockDailyPriceVo.java              # FHKST01010400 output2 item
+├── vo/KisDailyPriceResponse.java          # FHKST01010400 전용 래퍼
+└── scheduler/StockMasterScheduler.java     # 매일 자정 갱신
 resources/mapper/stock/StockMasterMapper.xml
 ```
 
@@ -412,21 +420,19 @@ GET /api/stock/investor?code=005930
 ```
 
 #### 스케줄러
-```java
-// StockMasterScheduler.java
-@Component
-@RequiredArgsConstructor
-public class StockMasterScheduler {
 
-    @Scheduled(cron = "0 0 0 * * *")  // 매일 자정
-    public void updateStockMaster() {
-        // 데이터 소스 형식에 따라 구현 (KRX CSV 파싱 또는 API 호출)
-        // ⚠️ 데이터 소스 미정 — 전달받은 형식 기준으로 구현
-    }
-}
+매일 자정 KRX Open API 3개를 순서대로 호출해 stock_master upsert.
+
+```
+KRX 호출 순서:
+1. POST /sto/stk_isu_base_info  → 유가증권(KOSPI)
+2. POST /sto/ksq_isu_base_info  → 코스닥
+3. POST /sto/knx_isu_base_info  → 코넥스
+basDd = 어제 날짜 (장 마감 후 데이터 확정 기준)
 ```
 
 > `@EnableScheduling`은 `global/config/SchedulerConfig.java`에 추가.
+> KRX API 설정: `application.yml` → `krx.api.base-url` / `krx.api.auth-key`
 
 #### KIS API (종목 상세)
 | TR ID | 경로 | 용도 |

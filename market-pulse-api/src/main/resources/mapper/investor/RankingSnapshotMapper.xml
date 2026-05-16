@@ -39,4 +39,20 @@
             net_buy_volume = EXCLUDED.net_buy_volume
     </insert>
 
+    <select id="findLatestByFilter" resultType="com.marketpulse.domain.investor.vo.RankingSnapshotVo">
+        SELECT id, snap_date, investor_type, trade_type, market, rank,
+               stock_code, stock_name, net_buy_amount, net_buy_volume
+        FROM ranking_snapshot
+        WHERE investor_type = #{investorType}
+          AND trade_type    = #{tradeType}
+          AND market        = #{market}
+          AND snap_date = (
+              SELECT MAX(snap_date) FROM ranking_snapshot
+              WHERE investor_type = #{investorType}
+                AND trade_type    = #{tradeType}
+                AND market        = #{market}
+          )
+        ORDER BY rank
+    </select>
+
 </mapper>

@@ -24,4 +24,10 @@ public interface RankingSnapshotMapper {
     );
 
     void bulkUpsert(@Param("list") List<RankingSnapshotVo> list);
+
+    List<RankingSnapshotVo> findLatestByFilter(
+            @Param("investorType") String investorType,
+            @Param("tradeType") String tradeType,
+            @Param("market") String market
+    );
 }

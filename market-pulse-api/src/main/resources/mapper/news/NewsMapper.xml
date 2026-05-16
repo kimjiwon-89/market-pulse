@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.marketpulse.domain.news.mapper.NewsMapper">
+
+    <insert id="bulkUpsert">
+        INSERT INTO news_snapshot (news_no, news_date, news_time, title, raw_json)
+        VALUES
+        <foreach collection="list" item="v" separator=",">
+            (#{v.newsNo}, #{v.newsDate}, #{v.newsTime}, #{v.title}, #{v.rawJson})
+        </foreach>
+        ON CONFLICT (news_no) DO NOTHING
+    </insert>
+
+    <select id="findLatest" resultType="com.marketpulse.domain.news.vo.NewsSnapshotVo">
+        SELECT id, news_no, news_date, news_time, title, raw_json
+        FROM news_snapshot
+        ORDER BY news_date DESC, news_time DESC
+        LIMIT #{limit}
+    </select>
+
+</mapper>
