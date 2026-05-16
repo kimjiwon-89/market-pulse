@@ -1,4 +1,19 @@
 -- =============================================
+-- 시퀀스
+-- =============================================
+
+CREATE SEQUENCE IF NOT EXISTS api_token_id_seq             AS integer;
+CREATE SEQUENCE IF NOT EXISTS users_id_seq                 AS integer;
+CREATE SEQUENCE IF NOT EXISTS investor_memo_id_seq         AS integer;
+CREATE SEQUENCE IF NOT EXISTS index_snapshot_id_seq        AS bigint;
+CREATE SEQUENCE IF NOT EXISTS news_snapshot_id_seq         AS bigint;
+CREATE SEQUENCE IF NOT EXISTS ranking_snapshot_id_seq      AS bigint;
+CREATE SEQUENCE IF NOT EXISTS market_flow_snapshot_id_seq  AS bigint;
+CREATE SEQUENCE IF NOT EXISTS lotto_analysis_pool_id_seq   AS bigint;
+CREATE SEQUENCE IF NOT EXISTS lotto_analysis_result_id_seq AS bigint;
+CREATE SEQUENCE IF NOT EXISTS lotto_user_combo_id_seq      AS bigint;
+
+-- =============================================
 -- 인프라 (KIS API 토큰 캐싱)
 -- =============================================
 
@@ -47,11 +62,11 @@ CREATE TABLE IF NOT EXISTS index_snapshot (
 -- =============================================
 
 CREATE TABLE IF NOT EXISTS news_snapshot (
-    id        BIGSERIAL    PRIMARY KEY,
-    news_no   VARCHAR(50)  NOT NULL UNIQUE,
-    news_date DATE         NOT NULL,
+    id        BIGSERIAL   PRIMARY KEY,
+    news_no   VARCHAR(50) NOT NULL UNIQUE,
+    news_date DATE        NOT NULL,
     news_time VARCHAR(10),
-    title     TEXT         NOT NULL,
+    title     TEXT        NOT NULL,
     raw_json  JSONB
 );
 CREATE INDEX IF NOT EXISTS idx_news_snapshot_date ON news_snapshot (news_date DESC);
@@ -62,7 +77,7 @@ CREATE INDEX IF NOT EXISTS idx_news_snapshot_date ON news_snapshot (news_date DE
 
 -- 메모 (날짜 + 시장 조합당 1개, upsert)
 CREATE TABLE IF NOT EXISTS investor_memo (
-    id         BIGSERIAL   PRIMARY KEY,
+    id         SERIAL      PRIMARY KEY,
     memo_date  DATE        NOT NULL,
     market     VARCHAR(10) NOT NULL,  -- KOSPI | KOSDAQ
     content    TEXT        NOT NULL,
@@ -202,7 +217,7 @@ ON CONFLICT (code) DO UPDATE SET
 -- 로또 분석 연구소
 -- =============================================
 
--- 회차별 당첨 번호
+-- 회차별 당첨 번호 (draw_no는 자연키, 시퀀스 없음)
 CREATE TABLE IF NOT EXISTS lotto_result (
     draw_no    INTEGER   PRIMARY KEY,
     draw_date  DATE      NOT NULL,
