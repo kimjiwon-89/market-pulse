@@ -50,6 +50,7 @@ app:
       - http://localhost:3000
       - http://localhost:8080
       - https://www.dhlottery.co.kr
+      - https://marketp.duckdns.org
     allowed-methods:
       - GET
       - POST
