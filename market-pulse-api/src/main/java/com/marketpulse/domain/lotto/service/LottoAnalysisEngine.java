@@ -358,16 +358,18 @@ public class LottoAnalysisEngine {
                 .collect(Collectors.toList());
     }
 
-    /** 역대 당첨 통계 기반 강화된 필터 (100~175 합계, 4구간 이상, 3연속 금지) */
+    /** 역대 당첨 통계 기반 강화된 필터 */
     private boolean passFilter(int[] combo) {
         int sum = 0, odd = 0;
-        Set<Integer> sections = new HashSet<>();
+        int[] sectionCount = new int[5];
+        int[] digitCount   = new int[10];
         Arrays.sort(combo);
 
         for (int v : combo) {
             sum += v;
             if (v % 2 != 0) odd++;
-            sections.add(sectionOf(v));
+            sectionCount[sectionOf(v)]++;
+            digitCount[v % 10]++;
         }
 
         int maxRun = 1, curRun = 1;
@@ -377,10 +379,15 @@ public class LottoAnalysisEngine {
             if (curRun > maxRun) maxRun = curRun;
         }
 
+        // 5구간 모두 1~3개씩 포함 (한 구간 비거나 4개 이상 쏠림 금지)
+        boolean sectionOk = Arrays.stream(sectionCount).allMatch(c -> c >= 1 && c <= 3);
+        boolean digitClustered = Arrays.stream(digitCount).anyMatch(c -> c >= 3);
+
         return sum >= 100 && sum <= 175
-            && odd >= 2 && odd <= 4        // 2:4, 3:3, 4:2만 허용
-            && sections.size() >= 4        // 4구간 이상
-            && maxRun < 3;                 // 3연속 이상 금지
+            && odd >= 2 && odd <= 4   // 2:4, 3:3, 4:2만 허용
+            && sectionOk              // 5구간 각 1~3개
+            && maxRun < 3             // 3연속 이상 금지
+            && !digitClustered;       // 같은 끝수 3개 이상 금지
     }
 
     /** 완화 필터 (pool이 특정 구간에 편중될 때 폴백용) */
