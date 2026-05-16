@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.marketpulse.domain.lotto.mapper.LottoCommentMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO lotto_comment (draw_no, username, content, image_url)
+        VALUES (#{drawNo}, #{username}, #{content}, #{imageUrl})
+    </insert>
+
+    <select id="findByDrawNo" resultType="LottoCommentVo">
+        SELECT id,
+               draw_no    AS drawNo,
+               username,
+               content,
+               image_url  AS imageUrl,
+               is_deleted AS isDeleted,
+               created_at AS createdAt,
+               updated_at AS updatedAt
+        FROM lotto_comment
+        WHERE draw_no = #{drawNo} AND is_deleted = false
+        ORDER BY created_at ASC
+    </select>
+
+    <select id="findById" resultType="LottoCommentVo">
+        SELECT id,
+               draw_no    AS drawNo,
+               username,
+               content,
+               image_url  AS imageUrl,
+               is_deleted AS isDeleted,
+               created_at AS createdAt,
+               updated_at AS updatedAt
+        FROM lotto_comment
+        WHERE id = #{id}
+    </select>
+
+    <update id="update">
+        UPDATE lotto_comment
+        SET content    = #{content},
+            image_url  = #{imageUrl},
+            updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <update id="softDelete">
+        UPDATE lotto_comment
+        SET is_deleted = true,
+            updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+</mapper>

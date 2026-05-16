@@ -31,6 +31,9 @@ public class SecurityConfig {
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers("/api/investor/memo/**").authenticated()
+                .requestMatchers(HttpMethod.POST,   "/api/lotto/comment/**").authenticated()
+                .requestMatchers(HttpMethod.PATCH,  "/api/lotto/comment/**").authenticated()
+                .requestMatchers(HttpMethod.DELETE, "/api/lotto/comment/**").authenticated()
                 .anyRequest().permitAll()
             )
             .exceptionHandling(ex -> ex
