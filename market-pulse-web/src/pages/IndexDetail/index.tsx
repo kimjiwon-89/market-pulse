@@ -185,7 +185,7 @@ export function IndexDetail() {
                       fontFamily: "var(--font-mono)",
                     }}
                     labelStyle={{ color: "var(--text-3)" }}
-                    formatter={(v: number) => [v.toLocaleString(), detail.name]}
+                    formatter={(v: number | undefined) => [(v ?? 0).toLocaleString(), detail.name]}
                   />
                   <Area
                     type="monotone"
