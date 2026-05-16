@@ -27,6 +27,10 @@ services:
       APP_AUTH_PASSWORD: ${ADMIN_PASSWORD}
       EXTERNAL_API_APP_KEY: ${KIS_APP_KEY}
       EXTERNAL_API_APP_SECRET: ${KIS_APP_SECRET}
+      AWS_ACCESS_KEY: ${AWS_ACCESS_KEY}
+      AWS_SECRET_KEY: ${AWS_SECRET_KEY}
+      AWS_S3_REGION: ${AWS_S3_REGION:-ap-northeast-2}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET}
     depends_on:
       - db
       - redis
