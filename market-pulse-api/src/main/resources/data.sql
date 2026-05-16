@@ -24,6 +24,39 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 -- =============================================
+-- 업종 지수 스냅샷
+-- =============================================
+
+CREATE TABLE IF NOT EXISTS index_snapshot (
+    id            BIGSERIAL     PRIMARY KEY,
+    snap_date     DATE          NOT NULL,
+    index_code    VARCHAR(20)   NOT NULL,
+    index_name    VARCHAR(100)  NOT NULL,
+    current_price DECIMAL(18,2) NOT NULL DEFAULT 0,
+    change_amount DECIMAL(18,2) NOT NULL DEFAULT 0,
+    change_rate   DECIMAL(8,2)  NOT NULL DEFAULT 0,
+    trade_volume  BIGINT        NOT NULL DEFAULT 0,
+    trade_amount  BIGINT        NOT NULL DEFAULT 0,
+    daily_json    JSONB,
+    updated_at    TIMESTAMP              DEFAULT NOW(),
+    CONSTRAINT uq_index_snapshot UNIQUE (snap_date, index_code)
+);
+
+-- =============================================
+-- 뉴스 스냅샷
+-- =============================================
+
+CREATE TABLE IF NOT EXISTS news_snapshot (
+    id        BIGSERIAL    PRIMARY KEY,
+    news_no   VARCHAR(50)  NOT NULL UNIQUE,
+    news_date DATE         NOT NULL,
+    news_time VARCHAR(10),
+    title     TEXT         NOT NULL,
+    raw_json  JSONB
+);
+CREATE INDEX IF NOT EXISTS idx_news_snapshot_date ON news_snapshot (news_date DESC);
+
+-- =============================================
 -- 투자자 매매동향
 -- =============================================
 
