@@ -21,9 +21,7 @@ CREATE TABLE IF NOT EXISTS api_token (
     id           SERIAL    PRIMARY KEY,
     access_token TEXT      NOT NULL,
     expired_at   TIMESTAMP NOT NULL,
-    singleton    BOOLEAN   NOT NULL DEFAULT TRUE,  -- 항상 1행 유지
-    created_at   TIMESTAMP          DEFAULT NOW(),
-    UNIQUE (singleton)
+    created_at   TIMESTAMP          DEFAULT CURRENT_TIMESTAMP
 );
 
 -- =============================================
@@ -54,7 +52,7 @@ CREATE TABLE IF NOT EXISTS index_snapshot (
     trade_amount  BIGINT        NOT NULL DEFAULT 0,
     daily_json    JSONB,
     updated_at    TIMESTAMP              DEFAULT NOW(),
-    CONSTRAINT uq_index_snapshot UNIQUE (snap_date, index_code)
+    UNIQUE (snap_date, index_code)
 );
 
 -- =============================================
@@ -69,7 +67,7 @@ CREATE TABLE IF NOT EXISTS news_snapshot (
     title     TEXT        NOT NULL,
     raw_json  JSONB
 );
-CREATE INDEX IF NOT EXISTS idx_news_snapshot_date ON news_snapshot (news_date DESC);
+CREATE INDEX IF NOT EXISTS idx_news_snapshot_date ON news_snapshot (news_date DESC, news_time DESC);
 
 -- =============================================
 -- 투자자 매매동향
@@ -117,7 +115,7 @@ CREATE TABLE IF NOT EXISTS market_flow_snapshot (
     indv_sell  BIGINT      NOT NULL DEFAULT 0,
     indv_net   BIGINT      NOT NULL DEFAULT 0,
     updated_at TIMESTAMP            DEFAULT NOW(),
-    CONSTRAINT uq_market_flow_snapshot UNIQUE (snap_date, market)
+    UNIQUE (snap_date, market)
 );
 
 -- =============================================
