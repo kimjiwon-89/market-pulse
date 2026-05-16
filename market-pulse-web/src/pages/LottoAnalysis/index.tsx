@@ -8,6 +8,7 @@ import type {
   LottoUserCombo,
   LottoStrategy,
 } from "@/types";
+import { LottoDiscussion } from "./LottoDiscussion";
 
 const STRATEGY_COLOR: Record<LottoStrategy, string> = {
   MOMENTUM:  "#d62828",
@@ -30,7 +31,7 @@ export function LottoAnalysis() {
   const [rounds, setRounds] = useState<LottoResultDto[]>([]);
   const [stats, setStats] = useState<LottoStatsDto[]>([]);
   const [selectedRound, setSelectedRound] = useState<number | null>(null);
-  const [tab, setTab] = useState<"analysis" | "stats" | "mycombo">("analysis");
+  const [tab, setTab] = useState<"analysis" | "stats" | "mycombo" | "discussion">("analysis");
   const [myComboNums, setMyComboNums] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -116,22 +117,58 @@ export function LottoAnalysis() {
             5가지 통계 전략 기반 번호 분석 · 전략별 누적 성적 추적
           </p>
         </div>
-        <select
-          value={selectedRound ?? ""}
-          onChange={handleRoundChange}
-          style={{
-            padding: "6px 12px", borderRadius: "var(--radius)",
-            border: "1px solid var(--border)", background: "var(--bg-input)",
-            color: "var(--text)", fontSize: 13, cursor: "pointer",
-          }}
-        >
-          <option value="" disabled>회차 선택</option>
-          {rounds.map(r => (
-            <option key={r.drawNo} value={r.drawNo}>
-              {r.drawNo}회 ({r.drawDate})
-            </option>
-          ))}
-        </select>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {/* Prev 버튼 — rounds는 DESC 정렬이므로 idx+1이 이전 회차 */}
+          {(() => {
+            const idx = rounds.findIndex(r => r.drawNo === selectedRound);
+            const prevRound = idx < rounds.length - 1 ? rounds[idx + 1].drawNo : null;
+            const nextRound = idx > 0 ? rounds[idx - 1].drawNo : null;
+            return (
+              <>
+                <button
+                  disabled={prevRound === null}
+                  onClick={() => prevRound && fetchAnalysis(prevRound)}
+                  style={{
+                    padding: "6px 10px", borderRadius: "var(--radius)",
+                    border: "1px solid var(--border)", background: "var(--bg-alt)",
+                    color: prevRound === null ? "var(--text-4)" : "var(--text)",
+                    fontSize: 12, cursor: prevRound === null ? "default" : "pointer",
+                  }}
+                >
+                  ◀ Prev
+                </button>
+                <select
+                  value={selectedRound ?? ""}
+                  onChange={handleRoundChange}
+                  style={{
+                    padding: "6px 12px", borderRadius: "var(--radius)",
+                    border: "1px solid var(--border)", background: "var(--bg-input)",
+                    color: "var(--text)", fontSize: 13, cursor: "pointer",
+                  }}
+                >
+                  <option value="" disabled>회차 선택</option>
+                  {rounds.map(r => (
+                    <option key={r.drawNo} value={r.drawNo}>
+                      {r.drawNo}회 ({r.drawDate})
+                    </option>
+                  ))}
+                </select>
+                <button
+                  disabled={nextRound === null}
+                  onClick={() => nextRound && fetchAnalysis(nextRound)}
+                  style={{
+                    padding: "6px 10px", borderRadius: "var(--radius)",
+                    border: "1px solid var(--border)", background: "var(--bg-alt)",
+                    color: nextRound === null ? "var(--text-4)" : "var(--text)",
+                    fontSize: 12, cursor: nextRound === null ? "default" : "pointer",
+                  }}
+                >
+                  Next ▶
+                </button>
+              </>
+            );
+          })()}
+        </div>
       </div>
 
       {/* 당첨번호 카드 */}
@@ -154,14 +191,14 @@ export function LottoAnalysis() {
 
       {/* 탭 */}
       <div className="seg-tabs" role="tablist" style={{ marginBottom: 20 }}>
-        {(["analysis", "stats", "mycombo"] as const).map(t => (
+        {(["analysis", "stats", "mycombo", "discussion"] as const).map(t => (
           <button
             key={t}
             role="tab"
             aria-selected={tab === t}
             onClick={() => setTab(t)}
           >
-            {t === "analysis" ? "전략 분석" : t === "stats" ? "성적 통계" : "내 조합"}
+            {t === "analysis" ? "전략 분석" : t === "stats" ? "성적 통계" : t === "mycombo" ? "내 조합" : "토론장"}
           </button>
         ))}
       </div>
@@ -266,6 +303,11 @@ export function LottoAnalysis() {
             fetchAnalysis(selectedRound ?? undefined);
           }}
         />
+      )}
+
+      {/* 토론장 탭 */}
+      {tab === "discussion" && selectedRound && (
+        <LottoDiscussion drawNo={selectedRound} />
       )}
     </div>
   );

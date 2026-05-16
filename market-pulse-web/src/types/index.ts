@@ -138,3 +138,14 @@ export interface LottoStatsDto {
   totalDraws: number;
   history: LottoDrawHit[];
 }
+
+export interface LottoComment {
+  id: number;
+  drawNo: number;
+  username: string;
+  content: string;
+  imageUrl: string | null;
+  isOwner: boolean;
+  createdAt: string;
+  updatedAt: string;
+}

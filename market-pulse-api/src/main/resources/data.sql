@@ -251,6 +251,19 @@ CREATE TABLE IF NOT EXISTS lotto_analysis_result (
     UNIQUE (draw_no, strategy)
 );
 
+-- 토론장 댓글
+CREATE TABLE IF NOT EXISTS lotto_comment (
+    id         BIGSERIAL    PRIMARY KEY,
+    draw_no    INTEGER      NOT NULL,
+    username   VARCHAR(50)  NOT NULL,
+    content    TEXT         NOT NULL,
+    image_url  VARCHAR(500),
+    is_deleted BOOLEAN      NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP    DEFAULT NOW(),
+    updated_at TIMESTAMP    DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_lotto_comment_draw_no ON lotto_comment(draw_no);
+
 -- 사용자 저장 조합
 CREATE TABLE IF NOT EXISTS lotto_user_combo (
     id         BIGSERIAL PRIMARY KEY,
