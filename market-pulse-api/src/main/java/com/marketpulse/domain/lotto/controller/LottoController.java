@@ -76,4 +76,34 @@ public class LottoController {
         lottoService.collectHistorical(from, to);
         return ApiResponse.success("수집 완료: " + from + "~" + to);
     }
+
+    @Operation(summary = "당첨번호 대량 저장 (브라우저 수집 → bulk import)")
+    @PostMapping("/bulk-results")
+    public ApiResponse<String> bulkResults(@RequestBody List<LottoResultRawDto> items) {
+        int saved = lottoService.bulkInsertResults(items);
+        return ApiResponse.success("저장 완료: " + saved + "건, 분석은 /analyze-all 호출");
+    }
+
+    @Operation(summary = "DB에 있는 미분석 회차 전체 일괄 분석")
+    @PostMapping("/analyze-all")
+    public ApiResponse<String> analyzeAll() {
+        int count = lottoService.analyzeAll();
+        return ApiResponse.success("분석 완료: " + count + "회차");
+    }
+
+    @Operation(summary = "당첨번호 수동 입력 + 분석 실행 (동행복권 봇차단 우회용)")
+    @PostMapping("/result")
+    public ApiResponse<String> insertResult(
+            @RequestParam int drawNo,
+            @RequestParam String drawDate,
+            @RequestParam int no1,
+            @RequestParam int no2,
+            @RequestParam int no3,
+            @RequestParam int no4,
+            @RequestParam int no5,
+            @RequestParam int no6,
+            @RequestParam int bonusNo) {
+        lottoService.insertResultManual(drawNo, drawDate, no1, no2, no3, no4, no5, no6, bonusNo);
+        return ApiResponse.success("입력 + 분석 완료: " + drawNo + "회");
+    }
 }

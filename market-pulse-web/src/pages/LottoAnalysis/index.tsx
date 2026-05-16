@@ -153,11 +153,12 @@ export function LottoAnalysis() {
       )}
 
       {/* 탭 */}
-      <div className="seg-tabs" style={{ marginBottom: 20 }}>
+      <div className="seg-tabs" role="tablist" style={{ marginBottom: 20 }}>
         {(["analysis", "stats", "mycombo"] as const).map(t => (
           <button
             key={t}
-            className={tab === t ? "active" : ""}
+            role="tab"
+            aria-selected={tab === t}
             onClick={() => setTab(t)}
           >
             {t === "analysis" ? "전략 분석" : t === "stats" ? "성적 통계" : "내 조합"}

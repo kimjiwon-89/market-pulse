@@ -22,6 +22,7 @@ public interface LottoMapper {
     // lotto_analysis_pool
     void upsertPool(LottoAnalysisPoolVo vo);
     List<LottoAnalysisPoolVo> findPoolsByDrawNo(@Param("drawNo") int drawNo);
+    List<LottoAnalysisPoolVo> findAllPools();
 
     // lotto_analysis_result
     void upsertAnalysisResult(LottoAnalysisResultVo vo);

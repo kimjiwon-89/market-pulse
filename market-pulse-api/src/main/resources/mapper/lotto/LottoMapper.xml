@@ -71,6 +71,15 @@
         <result property="createdAt"   column="createdAt"/>
     </resultMap>
 
+    <select id="findAllPools" resultMap="poolResultMap">
+        SELECT id, draw_no AS drawNo, strategy,
+               pool_numbers AS poolNumbers,
+               combos::text AS combos,
+               created_at AS createdAt
+        FROM lotto_analysis_pool
+        ORDER BY draw_no DESC
+    </select>
+
     <!-- ── lotto_analysis_result ── -->
 
     <insert id="upsertAnalysisResult">

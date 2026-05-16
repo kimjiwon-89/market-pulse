@@ -2,6 +2,8 @@ package com.marketpulse.domain.lotto.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.marketpulse.domain.lotto.dto.LottoResultRawDto;
+import java.time.LocalDate;
 import com.marketpulse.domain.lotto.dto.*;
 import com.marketpulse.domain.lotto.mapper.LottoMapper;
 import com.marketpulse.domain.lotto.vo.*;
@@ -228,6 +230,72 @@ public class LottoService {
                 });
 
         log.info("lotto analysis done, drawNo={}", drawNo);
+    }
+
+    /** 브라우저 수집 데이터 bulk 저장 (분석은 analyzeAll()로 별도 실행) */
+    public int bulkInsertResults(List<LottoResultRawDto> items) {
+        int count = 0;
+        for (LottoResultRawDto dto : items) {
+            try {
+                LottoResultVo vo = new LottoResultVo();
+                vo.setDrawNo(dto.getDrwNo());
+                vo.setDrawDate(LocalDate.parse(dto.getDrwNoDate()));
+                vo.setNo1(dto.getDrwtNo1()); vo.setNo2(dto.getDrwtNo2()); vo.setNo3(dto.getDrwtNo3());
+                vo.setNo4(dto.getDrwtNo4()); vo.setNo5(dto.getDrwtNo5()); vo.setNo6(dto.getDrwtNo6());
+                vo.setBonusNo(dto.getBnusNo());
+                lottoMapper.insertResult(vo);
+                count++;
+            } catch (Exception e) {
+                log.warn("bulkInsert skip drawNo={}: {}", dto.getDrwNo(), e.getMessage());
+            }
+        }
+        log.info("bulkInsertResults done: {}/{} saved", count, items.size());
+        return count;
+    }
+
+    /** DB에 결과는 있지만 분석이 없는 회차 전체 일괄 분석 */
+    public int analyzeAll() {
+        List<LottoResultVo> allResults = lottoMapper.findAllResults();
+        List<LottoAnalysisPoolVo> allPools = lottoMapper.findAllPools();
+        java.util.Set<Integer> analyzed = allPools.stream()
+                .map(LottoAnalysisPoolVo::getDrawNo)
+                .collect(java.util.stream.Collectors.toSet());
+
+        List<Integer> toAnalyze = allResults.stream()
+                .map(LottoResultVo::getDrawNo)
+                .filter(no -> !analyzed.contains(no))
+                .sorted()
+                .collect(Collectors.toList());
+
+        log.info("analyzeAll: {} rounds to analyze", toAnalyze.size());
+        for (Integer drawNo : toAnalyze) {
+            try {
+                analyzeOnly(drawNo);
+            } catch (Exception e) {
+                log.warn("analyzeAll skip drawNo={}: {}", drawNo, e.getMessage());
+            }
+        }
+        return toAnalyze.size();
+    }
+
+    /** 당첨번호 직접 입력 후 분석 실행 (동행복권 봇차단 우회) */
+    public void insertResultManual(int drawNo, String drawDate,
+            int no1, int no2, int no3, int no4, int no5, int no6, int bonusNo) {
+        LottoResultVo vo = new LottoResultVo();
+        vo.setDrawNo(drawNo);
+        vo.setDrawDate(LocalDate.parse(drawDate));
+        vo.setNo1(no1); vo.setNo2(no2); vo.setNo3(no3);
+        vo.setNo4(no4); vo.setNo5(no5); vo.setNo6(no6);
+        vo.setBonusNo(bonusNo);
+        lottoMapper.insertResult(vo);
+        log.info("manual result inserted: drawNo={}", drawNo);
+
+        List<LottoResultVo> history = lottoMapper.findRecentResults(100);
+        if (history.size() < 10) {
+            log.warn("not enough history for analysis: {}", history.size());
+            return;
+        }
+        analyzeOnly(drawNo);
     }
 
     /** DB에 이미 있는 데이터로 분석만 실행 (동행복권 수집 없이) */

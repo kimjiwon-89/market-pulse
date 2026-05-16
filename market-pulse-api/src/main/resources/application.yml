@@ -49,6 +49,7 @@ app:
     allowed-origins:
       - http://localhost:3000
       - http://localhost:8080
+      - https://www.dhlottery.co.kr
     allowed-methods:
       - GET
       - POST
