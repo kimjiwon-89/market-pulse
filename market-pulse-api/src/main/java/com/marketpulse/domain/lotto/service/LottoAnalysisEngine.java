@@ -86,7 +86,7 @@ public class LottoAnalysisEngine {
         return indices.get(0) / avgInterval;
     }
 
-    /** 전체 기간 동반 출현 비율 */
+    /** 전체 기간 동반 출현 비율 — 페어 관계는 장기 데이터가 안정적 */
     private double pairRate(List<LottoResultVo> draws, int a, int b) {
         long co = draws.stream()
                 .filter(d -> contains(d.getNumbers(), a) && contains(d.getNumbers(), b))
@@ -234,7 +234,6 @@ public class LottoAnalysisEngine {
                         int[] networkPool,  int[] patternPool) {
 
         double[] hot     = new double[46];
-        double[] cold    = new double[46];
         double[] compRaw = new double[46];
         double[] digit   = new double[46];
         double[] section = new double[46];
@@ -251,8 +250,7 @@ public class LottoAnalysisEngine {
         });
 
         for (int n : ALL_NUMS) {
-            hot[n]  = weightedFreq(draws, n);
-            cold[n] = Math.min(absent(draws, n), 30);
+            hot[n] = weightedFreq(draws, n);
 
             double pairSum = 0, recentPairSum = 0;
             for (int x : ALL_NUMS) {
@@ -269,37 +267,35 @@ public class LottoAnalysisEngine {
             int next = (n < 45) ? recent(draws, n + 1, 30) : 0;
             consec[n] = prev + next;
 
-            int included = 0;
-            if (contains(momentumPool, n)) included++;
-            if (contains(submarinePool, n)) included++;
-            if (contains(networkPool, n)) included++;
-            if (contains(patternPool, n)) included++;
-            core[n] = (double) included / 4.0;
+            // SUBMARINE 제외 — 랜덤 이하 성적으로 앙상블 품질 저하 방지
+            int voteCount = 0;
+            if (contains(momentumPool, n)) voteCount++;
+            if (contains(networkPool, n))  voteCount++;
+            if (contains(patternPool, n))  voteCount++;
+            core[n] = (double) voteCount / 3.0;  // 3개 전략 기준
         }
 
         double[] nHot     = normalize(hot);
-        double[] nCold    = normalize(cold);
         double[] nComp    = normalize(compRaw);
         double[] nDigit   = normalize(digit);
         double[] nSection = normalize(section);
         double[] nConsec  = normalize(consec);
 
-        // 기존 AI 점수
+        // MOMENTUM 성적이 가장 우수해 HOT 비중 상향, COLD 제거
         double[] baseScore = new double[46];
         for (int n : ALL_NUMS) {
-            baseScore[n] = nHot[n]     * 0.20
-                         + nCold[n]    * 0.15
-                         + nComp[n]    * 0.20
+            baseScore[n] = nHot[n]     * 0.35
+                         + nComp[n]    * 0.25
                          + nDigit[n]   * 0.10
                          + nSection[n] * 0.10
-                         + nConsec[n]  * 0.10
+                         + nConsec[n]  * 0.05
                          + core[n]     * 0.15;
         }
 
-        // 앙상블 투표 보너스 — 더 많은 전략에 뽑힌 번호에 가중치
+        // 앙상블 투표 보너스 (3개 전략 중 몇 개에 뽑혔나)
         double[] score = new double[46];
         for (int n : ALL_NUMS) {
-            double ensembleBonus = core[n] * 4 * 0.25;  // voteCount(0~4) × 0.25 → 0~1 범위
+            double ensembleBonus = core[n];  // 이미 0~1 범위
             score[n] = baseScore[n] * 0.7 + ensembleBonus * 0.3;
         }
 

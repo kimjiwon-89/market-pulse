@@ -18,6 +18,19 @@
 
 ---
 
+## ⚠️ Git 브랜치 전략 (중요)
+
+**main 브랜치에 직접 커밋 금지** — main은 배포 브랜치.  
+작업 시 반드시 feature 브랜치를 따서 작업 후 PR로 머지.
+
+```bash
+git checkout -b feature/작업명   # 브랜치 생성
+git push -u origin feature/작업명
+# 작업 완료 후 PR → main 머지
+```
+
+---
+
 ## 작업 전 필독 규칙
 
 **프론트엔드 작업 시** → 반드시 아래 두 파일 먼저 읽고 시작
