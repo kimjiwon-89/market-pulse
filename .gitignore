@@ -18,8 +18,9 @@ logs
 .env
 .env.local
 
-# AWS 키 (절대 커밋 금지)
+# AWS 키 / 서버 접속 정보 (절대 커밋 금지)
 secrets/
+.secret/
 *.pem
 
 # OS

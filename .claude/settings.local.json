@@ -116,7 +116,10 @@
       "Bash(mkdir -p ~/.claude/agents)",
       "Bash(curl -s \"https://raw.githubusercontent.com/JuliusBrussee/caveman/main/agents/cavecrew-investigator.md\" -o ~/.claude/agents/cavecrew-investigator.md)",
       "Bash(curl -s \"https://raw.githubusercontent.com/JuliusBrussee/caveman/main/agents/cavecrew-builder.md\" -o ~/.claude/agents/cavecrew-builder.md)",
-      "Bash(curl -s \"https://raw.githubusercontent.com/JuliusBrussee/caveman/main/agents/cavecrew-reviewer.md\" -o ~/.claude/agents/cavecrew-reviewer.md)"
+      "Bash(curl -s \"https://raw.githubusercontent.com/JuliusBrussee/caveman/main/agents/cavecrew-reviewer.md\" -o ~/.claude/agents/cavecrew-reviewer.md)",
+      "Bash(psql -d marketpulse -c \"DELETE FROM lotto_analysis_result; DELETE FROM lotto_analysis_pool;\")",
+      "Bash(psql -d marketpulse -c \"DELETE FROM lotto_analysis_pool;\")",
+      "Bash(curl -s -X POST http://localhost:8080/api/lotto/analyze-all)"
     ],
     "additionalDirectories": [
       "/Users/gim-yeong-ug/dev/market-pulse/.claude/.lotto",
