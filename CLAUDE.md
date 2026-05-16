@@ -20,14 +20,27 @@
 
 ## ⚠️ Git 브랜치 전략 (중요)
 
-**main 브랜치에 직접 커밋 금지** — main은 배포 브랜치.  
-작업 시 반드시 feature 브랜치를 따서 작업 후 PR로 머지.
+**main 브랜치에 직접 커밋 금지** — main은 배포 브랜치.
+
+### 개발자별 고정 브랜치
+
+기능별 브랜치 대신 개발자별 고정 브랜치를 사용한다.
+
+| 브랜치 | 담당 | 설명 |
+|--------|------|------|
+| `feature/kyw` | kyw (이 세션) | Claude Code 작업 시 여기에 커밋 |
+| `feature/jwkim` | jwkim | jwkim 계정 작업 브랜치 |
 
 ```bash
-git checkout -b feature/작업명   # 브랜치 생성
-git push -u origin feature/작업명
-# 작업 완료 후 PR → main 머지
+# kyw 브랜치에서 작업
+git checkout feature/kyw
+# ... 작업 ...
+git push origin feature/kyw
+
+# 기능 완성 후 main으로 PR 머지
 ```
+
+> Claude Code로 작업할 때는 항상 `feature/kyw` 브랜치에서 커밋.
 
 ---
 
