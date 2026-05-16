@@ -205,7 +205,7 @@ export function StockDetail() {
                   borderRadius: "var(--radius-sm)",
                   fontSize: 12,
                 }}
-                formatter={(val: number) => [fmtNum(val), "종가"]}
+                formatter={(val: number | undefined) => [fmtNum(val ?? 0), "종가"]}
                 labelFormatter={label => fmtDate8(label)}
               />
               <Area
