@@ -18,5 +18,9 @@ logs
 .env
 .env.local
 
+# AWS 키 (절대 커밋 금지)
+secrets/
+*.pem
+
 # OS
 Thumbs.db
