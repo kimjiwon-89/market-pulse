@@ -20,27 +20,45 @@
 
 ## ⚠️ Git 브랜치 전략 (중요)
 
-**main 브랜치에 직접 커밋 금지** — main은 배포 브랜치.
+**main 브랜치에 직접 커밋 금지** — main 머지 즉시 자동 배포.
 
-### 기능별 브랜치
-
-기능 단위로 브랜치를 만들고, 완성 후 main으로 PR 머지한다.
+### 3단계 브랜치 구조
 
 ```
-feature/기능명        # 신규 기능 (예: feature/lotto-analysis)
-fix/버그명            # 버그 수정 (예: fix/api-proxy-local)
-refactor/대상         # 리팩터링
+main                    # 배포 브랜치 — 머지 즉시 운영 배포
+  └── develop           # 통합 테스트 브랜치 — 기능 브랜치들이 여기로 머지
+        ├── feature/기능명    # 신규 기능
+        ├── fix/버그명        # 버그 수정
+        ├── refactor/대상     # 리팩터링
+        └── docs/내용         # 문서·md 파일만 변경하는 경우
 ```
+
+### 작업 흐름
 
 ```bash
-# 새 기능 작업 시
-git checkout main && git pull
+# 1. 새 작업 시작 — develop 기준으로 브랜치 생성
+git checkout develop && git pull origin develop
 git checkout -b feature/기능명
 
-# 작업 후
+# 2. 작업 후 develop으로 PR
 git push origin feature/기능명
-# → GitHub에서 main으로 PR 생성
+# → GitHub에서 develop으로 PR 생성 & 머지
+
+# 3. develop에서 테스트 완료 후 main으로 PR
+# → GitHub에서 develop → main PR 생성 & 머지 → 자동 배포
 ```
+
+### 브랜치 용도 구분
+
+| 브랜치 | 용도 | main 직접 머지 |
+|--------|------|--------------|
+| `feature/기능명` | 신규 기능 | ❌ develop 경유 |
+| `fix/버그명` | 버그 수정 | ❌ develop 경유 |
+| `refactor/대상` | 리팩터링 | ❌ develop 경유 |
+| `docs/내용` | md·문서 파일만 변경 | ❌ develop 경유 |
+| `hotfix/긴급수정` | 운영 긴급 수정 | ✅ main 직접 (예외) |
+
+> 코드를 건드리지 않는 md 파일 변경도 `docs/` 브랜치로 만들어 develop 경유.
 
 ---
 
