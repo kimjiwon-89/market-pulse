@@ -76,15 +76,6 @@ function getWeekdays(start: string, end: string): string[] {
   return result;
 }
 
-function nWeekdaysBefore(n: number, from: string): string {
-  const d = toDate(from);
-  let count = 0;
-  while (count < n) {
-    d.setDate(d.getDate() - 1);
-    if (isWeekday(d)) count++;
-  }
-  return fromDate(d);
-}
 
 function getMondayOf(dateStr: string): Date {
   const d = toDate(dateStr);
