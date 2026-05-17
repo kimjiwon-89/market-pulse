@@ -67,6 +67,7 @@ export function Nav() {
 
   return (
     <aside
+      className="hidden lg:flex flex-col"
       style={{
         width: "var(--sidebar-w)",
         flexShrink: 0,
@@ -76,8 +77,6 @@ export function Nav() {
         top: "var(--header-h)",
         height: "calc(100vh - var(--header-h))",
         overflowY: "auto",
-        display: "flex",
-        flexDirection: "column",
         padding: "12px 8px",
         gap: 2,
       }}

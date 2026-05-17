@@ -1,25 +1,27 @@
 import { Outlet } from "react-router-dom";
 import { Header } from "./Header";
 import { Nav } from "./Nav";
+import { BottomNav } from "./BottomNav";
 
 export function DefaultLayout() {
   return (
-    <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+    <div className="flex flex-col min-h-screen">
       <Header />
-      <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
+      <div className="flex flex-1 min-h-0">
         <Nav />
         <main
+          className="flex-1 min-w-0 overflow-y-auto pb-24 lg:pb-0"
           style={{
-            flex: 1,
-            padding: "var(--pad-pg)",
+            paddingTop: "var(--pad-pg)",
+            paddingLeft: "var(--pad-pg)",
+            paddingRight: "var(--pad-pg)",
             background: "var(--bg)",
-            minWidth: 0,
-            overflowY: "auto",
           }}
         >
           <Outlet />
         </main>
       </div>
+      <BottomNav />
     </div>
   );
 }

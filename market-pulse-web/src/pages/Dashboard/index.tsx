@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { LineChart, Line, ResponsiveContainer } from "recharts";
 import { apiClient } from "@/services/apiClient";
 import { dirCls, triangle, fmtPct, fmtAmount } from "@/utils/format";
+import { LiveBadge } from "@/components/common/LiveBadge";
 
 /* ── 타입 ── */
 interface IndexInfo {
@@ -183,15 +184,15 @@ export function Dashboard() {
 
   return (
     <div className="stack">
-      {/* ── 1행: 지수 + 뉴스 ── */}
-      <div className="grid-12">
+      {/* ── 1행: 지수+업종 (왼쪽) + 뉴스 (오른쪽/모바일 하단) ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-5">
         {/* 왼쪽: 지수 카드 + 업종 테이블 */}
         <div className="stack">
           {/* 지수 카드 */}
           <div className="card">
             <div className="card-head">
               <div className="card-title">시장 지수</div>
-              <span className="tag">실시간</span>
+              <LiveBadge />
             </div>
             {indicesLoading ? (
               <div className="grid-3">
@@ -242,37 +243,39 @@ export function Dashboard() {
                 업종 데이터를 불러올 수 없습니다
               </div>
             ) : (
-              <table className="t">
-                <thead>
-                  <tr>
-                    <th style={{ paddingLeft: "var(--pad-card)" }}>업종명</th>
-                    <th className="num">현재가</th>
-                    <th className="num">등락률</th>
-                    <th className="num">거래대금</th>
-                    <th className="num" style={{ paddingRight: "var(--pad-card)", width: 80 }}>5일추이</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sectors.map(s => (
-                    <tr key={s.code} className="clickable" onClick={() => navigate(`/index/${s.code}`)}>
-                      <td className="ticker" style={{ paddingLeft: "var(--pad-card)" }}>{s.name}</td>
-                      <td className="num mono">{s.price.toLocaleString()}</td>
-                      <td className={`num pct ${dirCls(s.pct)}`}>{triangle(s.pct)} {fmtPct(s.pct)}</td>
-                      <td className="num">{s.vol}</td>
-                      <td style={{ paddingRight: "var(--pad-card)" }}>
-                        {s.hist?.length > 0 && <Sparkline data={s.hist} color={`var(--${dirCls(s.pct)})`} />}
-                      </td>
+              <div className="overflow-x-auto">
+                <table className="t" style={{ minWidth: 480 }}>
+                  <thead>
+                    <tr>
+                      <th style={{ paddingLeft: "var(--pad-card)" }}>업종명</th>
+                      <th className="num">현재가</th>
+                      <th className="num">등락률</th>
+                      <th className="num">거래대금</th>
+                      <th className="num" style={{ paddingRight: "var(--pad-card)", width: 80 }}>5일추이</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {sectors.map(s => (
+                      <tr key={s.code} className="clickable" onClick={() => navigate(`/index/${s.code}`)}>
+                        <td className="ticker" style={{ paddingLeft: "var(--pad-card)" }}>{s.name}</td>
+                        <td className="num mono">{s.price.toLocaleString()}</td>
+                        <td className={`num pct ${dirCls(s.pct)}`}>{triangle(s.pct)} {fmtPct(s.pct)}</td>
+                        <td className="num">{s.vol}</td>
+                        <td style={{ paddingRight: "var(--pad-card)" }}>
+                          {s.hist?.length > 0 && <Sparkline data={s.hist} color={`var(--${dirCls(s.pct)})`} />}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </div>
 
-        {/* 오른쪽: 뉴스 카드 — 왼쪽 컬럼이 행 높이를 결정, 뉴스는 맞춰 늘어남 */}
-        <div style={{ position: "relative", minHeight: 0 }}>
-          <div className="card" style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column" }}>
+        {/* 오른쪽: 뉴스 카드 — 데스크톱: 왼쪽 컬럼 높이 채우기, 모바일: 일반 카드 */}
+        <div className="lg:relative lg:min-h-0">
+          <div className="card flex flex-col lg:absolute lg:inset-0">
             <div className="card-head">
               <div className="card-title">최신 뉴스</div>
               <button className="btn ghost sm" onClick={() => navigate("/news")}>더 보기</button>
@@ -291,7 +294,7 @@ export function Dashboard() {
                 뉴스를 불러올 수 없습니다
               </div>
             ) : (
-              <div className="news-list" style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+              <div className="news-list flex-1 min-h-0 overflow-y-auto max-h-64 lg:max-h-none">
                 {news.map(item => (
                   <div key={item.id} className="news-item">
                     <div className="news-title">{item.title}</div>
@@ -307,36 +310,31 @@ export function Dashboard() {
       </div>
 
       {/* ── 2행: FlowDirCard + 투자자 동향 ── */}
-      <div className="grid-12">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-5">
         {/* 왼쪽: FlowDirCard */}
         <div className="card">
           <div className="card-head">
             <div className="card-title">순매수도 동향</div>
-            <button
-              className="btn ghost sm"
-              onClick={() => navigate("/investor")}
-            >
-              상세 보기
-            </button>
+            <button className="btn ghost sm" onClick={() => navigate("/investor")}>상세 보기</button>
           </div>
 
-          {/* 필터 탭 */}
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
-            <div className="seg-tabs" role="tablist">
+          {/* 필터 탭 — 모바일에서 가로 스크롤 */}
+          <div className="flex gap-2 overflow-x-auto pb-1 mb-4" style={{ scrollbarWidth: "none" }}>
+            <div className="seg-tabs flex-shrink-0" role="tablist">
               {(["FOREIGN", "INSTITUTION"] as FlowInvestor[]).map(v => (
                 <button key={v} role="tab" aria-selected={flowInvestor === v} onClick={() => setFlowInvestor(v)}>
                   {v === "FOREIGN" ? "외국인" : "기관"}
                 </button>
               ))}
             </div>
-            <div className="seg-tabs" role="tablist">
+            <div className="seg-tabs flex-shrink-0" role="tablist">
               {(["BUY", "SELL"] as FlowTrade[]).map(v => (
                 <button key={v} role="tab" aria-selected={flowTrade === v} onClick={() => setFlowTrade(v)}>
                   {v === "BUY" ? "순매수" : "순매도"}
                 </button>
               ))}
             </div>
-            <div className="seg-tabs" role="tablist">
+            <div className="seg-tabs flex-shrink-0" role="tablist">
               {(["KOSPI", "KOSDAQ", "ALL"] as FlowMarket[]).map(v => (
                 <button key={v} role="tab" aria-selected={flowMarket === v} onClick={() => setFlowMarket(v)}>
                   {v === "ALL" ? "전체" : v}
@@ -383,7 +381,7 @@ export function Dashboard() {
           )}
         </div>
 
-        {/* 오른쪽: 투자자 동향 (외국인/기관/개인 순매수 합계) */}
+        {/* 오른쪽: 투자자 동향 */}
         <div className="card">
           <div className="card-head">
             <div className="card-title">투자자 동향</div>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { apiClient } from "@/services/apiClient";
+import { LiveBadge } from "@/components/common/LiveBadge";
 
 interface NewsItem {
   id: string;
@@ -44,7 +45,7 @@ export function NewsList() {
       <div className="card">
         <div className="card-head">
           <div className="card-title">국내 주요 뉴스</div>
-          <span className="tag">실시간</span>
+          <LiveBadge />
         </div>
       </div>
 

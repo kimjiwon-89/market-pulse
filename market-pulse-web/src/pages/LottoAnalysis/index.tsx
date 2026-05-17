@@ -106,9 +106,9 @@ export function LottoAnalysis() {
   };
 
   return (
-    <div style={{ padding: "24px 28px", maxWidth: 1100, margin: "0 auto" }}>
-      {/* 헤더 */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
+    <div className="max-w-[1100px] mx-auto" style={{ padding: "0" }}>
+      {/* 헤더 — 모바일: 세로 스택, 데스크톱: 가로 */}
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-6">
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 700, color: "var(--text)", margin: 0 }}>
             로또 분석 연구소
@@ -117,7 +117,7 @@ export function LottoAnalysis() {
             5가지 통계 전략 기반 번호 분석 · 전략별 누적 성적 추적
           </p>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <div className="flex items-center gap-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
           {/* Prev 버튼 — rounds는 DESC 정렬이므로 idx+1이 이전 회차 */}
           {(() => {
             const idx = rounds.findIndex(r => r.drawNo === selectedRound);
@@ -189,18 +189,21 @@ export function LottoAnalysis() {
         </div>
       )}
 
-      {/* 탭 */}
-      <div className="seg-tabs" role="tablist" style={{ marginBottom: 20 }}>
-        {(["analysis", "stats", "mycombo", "discussion"] as const).map(t => (
-          <button
-            key={t}
-            role="tab"
-            aria-selected={tab === t}
-            onClick={() => setTab(t)}
-          >
-            {t === "analysis" ? "전략 분석" : t === "stats" ? "성적 통계" : t === "mycombo" ? "내 조합" : "토론장"}
-          </button>
-        ))}
+      {/* 탭 — 모바일: 가로 스크롤 */}
+      <div className="overflow-x-auto mb-5" style={{ scrollbarWidth: "none" }}>
+        <div className="seg-tabs w-full" role="tablist">
+          {(["analysis", "stats", "mycombo", "discussion"] as const).map(t => (
+            <button
+              key={t}
+              role="tab"
+              aria-selected={tab === t}
+              onClick={() => setTab(t)}
+              style={{ whiteSpace: "nowrap" }}
+            >
+              {t === "analysis" ? "전략 분석" : t === "stats" ? "성적 통계" : t === "mycombo" ? "내 조합" : "토론장"}
+            </button>
+          ))}
+        </div>
       </div>
 
       {loading && <div className="sk" style={{ height: 200, borderRadius: "var(--radius)" }} />}

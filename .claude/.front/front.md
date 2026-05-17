@@ -146,9 +146,9 @@ const res = await apiClient.get('/investor/trade-top', { params: { market: 'KOSP
 [← 이전주]  [시작일 input]  ~  [종료일 input]  [다음주 →]  [오늘]
 ```
 
-- 기본 범위: 오늘 기준 최근 10영업일 (9영업일 전 ~ 오늘)
-- `[← 이전주]` / `[다음주 →]`: 시작·종료 날짜를 동시에 5영업일씩 이동 (주말 자동 스킵)
-- `[오늘]`: 종료일을 오늘로 고정, 기간 폭(영업일 수) 유지
+- 기본 범위: 이번주 월요일 ~ min(오늘, 금요일) — `getThisWeekBounds(today)` 사용
+- `[← 이전주]` / `[다음주 →]`: 현재 시작일 월요일 기준 ±7일 이동 → 항상 월~금 full week 표시
+- `[오늘]`: 이번주 월~min(오늘, 금)으로 리셋 — `getThisWeekBounds(today)` 재호출
 - 날짜 범위 변경 시 범위 내 모든 영업일 자동 생성 → 날짜별 API 병렬 호출
 
 ### 시계열 테이블 (항상 타임라인 뷰)
@@ -157,14 +157,17 @@ const res = await apiClient.get('/investor/trade-top', { params: { market: 'KOSP
 
 **고정(sticky) 컬럼 구조**
 
-| 위치 | 컬럼 | 너비 |
-|------|------|------|
-| 좌측 고정 | 순위 | 44px |
-| 우측 고정 | 합계 — 종목명 / 대금(억) / 수량 | 110+78+68px |
+| 위치 | 컬럼 | 너비(데스크톱) | 너비(모바일) |
+|------|------|--------------|------------|
+| 좌측 고정 | 순위 | 44px | 44px |
+| 우측 고정 | 합계 종목명 | 110px | 100px |
+| 우측 고정 | 합계 대금(억) | 78px | 숨김 |
+| 우측 고정 | 합계 수량(만주) | 68px | 숨김 |
 
 - 날짜 컬럼은 가로 스크롤
 - `borderCollapse: "separate", borderSpacing: 0` 필수 (sticky 동작 조건)
 - 합계 컬럼 좌측에 그림자 구분선 (`box-shadow: -4px 0 6px -4px rgba(0,0,0,0.3)`)
+- **모바일**: 합계 열은 종목명만 표시, 날짜별 컬럼 폭도 축소 (`M_NAME_W=100, M_AMT_W=70, M_VOL_W=56`)
 
 **합계(조회기간 누적) 컬럼**
 
@@ -176,22 +179,30 @@ const res = await apiClient.get('/investor/trade-top', { params: { market: 'KOSP
 
 ```
 [날짜 헤더]
-종목명 | 대금(억) | 수량
+종목명 | 대금(억) | 수량(만주)
 ```
 
-- 날짜 헤더에 상태 인디케이터: `실시간` (오늘) / `저장됨` (스냅샷 있음) / `미저장` (과거+스냅샷 없음)
-- 빈 상태: 오늘+데이터 없음 → "집계 전 또는 휴장일" / 과거+스냅샷 없음 → "스냅샷 없음"
+- 날짜 헤더에 상태 인디케이터: `<LiveBadge>` (오늘) / `저장됨` / `미저장`
+- **오늘 컬럼 강조**: 헤더 날짜 대신 "오늘" 텍스트, 배경 `--accent-soft`, 텍스트 `--accent`, bold
+- 테이블 셀에 단위 미표시 — 헤더에 `(억)`, `(만주)` 표기로 충분
+- **비거래일 컬럼 자동 숨김**: 전체 날짜 로딩 완료 후 items 빈 날짜(공휴일·비거래일) 컬럼 제거
+  - `allLoaded`: 전체 날짜 로딩 완료 여부 useMemo
+  - `visibleDates`: `allLoaded` 후 빈 날짜 필터링 (`dates`에서 파생, 오늘·에러 날짜는 유지)
+  - 합계 누적·minWidth·필터 카운트 모두 `visibleDates` 기준
 
 **sticky 컬럼 right offset 상수**
 
 ```ts
-const RANK_W = 44;   // 좌측 순위 컬럼
-const NAME_W = 110;  // 합계 종목명
-const AMT_W  = 78;   // 합계 대금
-const VOL_W  = 68;   // 합계 수량
-// 합계 종목명 right: AMT_W + VOL_W
-// 합계 대금   right: VOL_W
-// 합계 수량   right: 0
+// 데스크톱
+const RANK_W = 44;   const NAME_W = 110;  const AMT_W = 78;   const VOL_W = 68;
+// 모바일
+const M_NAME_W = 100; const M_AMT_W = 70;  const M_VOL_W = 56;
+
+// 컴포넌트 내에서 반응형 선택
+const nameW = isMobile ? M_NAME_W : NAME_W;
+const amtW  = isMobile ? M_AMT_W  : AMT_W;
+const volW  = isMobile ? M_VOL_W  : VOL_W;
+const groupW = isMobile ? M_GROUP_W : GROUP_W;
 ```
 
 ### 종목 상세 모달 (`StockModal`)
@@ -227,13 +238,13 @@ InvestorTrend와 동일한 구조 — 날짜+시장 기준, 로그인 필요.
 ### 핵심 유틸 함수
 
 ```ts
-isWeekday(d: Date): boolean                      // 토/일 제외
-getWeekdays(start: string, end: string): string[] // YYYYMMDD 범위 내 영업일 목록
-nWeekdaysBefore(n: number, from: string): string  // n영업일 이전 날짜
-nWeekdaysAfter(n: number, from: string): string   // n영업일 이후 날짜
-shiftWeek(delta: 1|-1): void                      // 시작+종료 동시 5영업일 이동
-resetToToday(): void                              // 종료일→오늘, 기간 폭 유지
-calcRangeTotal(dates, dataMap): RangeTotal        // 조회기간 누적 합계 TOP20
+isWeekday(d: Date): boolean                           // 토/일 제외
+getWeekdays(start: string, end: string): string[]     // YYYYMMDD 범위 내 영업일 목록
+getMondayOf(dateStr: string): Date                    // 해당 날짜가 속한 주의 월요일
+getThisWeekBounds(today: string): {start, end}        // 이번주 월~min(오늘,금) 범위
+shiftWeek(delta: 1|-1): void                          // ±7일(월 기준) 이동, 항상 월-금
+resetToToday(): void                                  // 이번주 월~min(오늘, 금)으로 리셋
+calcRangeTotal(visibleDates, dataMap): RangeTotal      // 조회기간 누적 합계 TOP20
 ```
 
 ---
@@ -306,16 +317,27 @@ interface MemoStockTag {
 
 방식: **프론트 폴링 (`setInterval`)** — 추가 인프라 없이 가장 단순·안정적
 
-### 장중 여부 판단 헬퍼 (공통 유틸로 추가 예정)
+### 장중 여부 훅 — `useIsMarketOpen` (구현 완료)
 
 ```ts
-// src/utils/market.ts
-export function isMarketOpen(): boolean {
-  const now = new Date();
-  const minutes = now.getHours() * 60 + now.getMinutes();
-  return minutes >= 540 && minutes < 930; // 09:00 ~ 15:30 (KST)
-}
+// src/hooks/index.ts
+export function useIsMarketOpen(): boolean
+// 평일 09:00 ~ 15:30 KST 기준, 1분마다 갱신
 ```
+
+### LiveBadge 컴포넌트 — `src/components/common/LiveBadge.tsx` (구현 완료)
+
+장중/종가 상태를 시각적으로 표시. `실시간` 표시가 필요한 모든 곳에 사용.
+
+```tsx
+import { LiveBadge } from "@/components/common/LiveBadge";
+
+// 장중: 초록 펄스 점 + "실시간" (초록)
+// 장 마감: "종가" (흐린 회색)
+<LiveBadge size={11} />  // size 기본값 11px
+```
+
+적용 위치: `Header`, `Dashboard` 시장지수 카드, `InvestorTrend` 열 헤더, `NetBuyingList` 오늘 날짜 컬럼
 
 ### 폴링 간격 기준
 
@@ -341,8 +363,67 @@ useEffect(() => {
 
 ---
 
+## 반응형 (모바일) 작업 가이드
+
+> 상세 변환 규칙·컴포넌트 패턴: `design-guide.md` → "모바일 컴포넌트 변환 규칙" 섹션
+
+### 기본 방침
+
+- **모바일 퍼스트** — 기본 스타일이 모바일, `lg:` prefix로 데스크톱 추가
+- **브레이크포인트**: `768px`(md) / `1024px`(lg) — Tailwind 4 기본값 그대로
+- **Sidebar** → 모바일에서 숨기고 하단 Bottom Nav로 대체
+- **테이블** → 모바일에서 카드 리스트로 변환 (NetBuyingList 제외 — 가로 스크롤 유지)
+
+### 레이아웃 컴포넌트 대응
+
+| 컴포넌트 | 데스크톱 | 모바일 |
+|----------|----------|--------|
+| `Nav.tsx` (사이드바) | `lg:flex` — 왼쪽 고정 | `hidden lg:flex` |
+| `BottomNav.tsx` (신규) | `hidden` | `fixed bottom-0, flex` |
+| `Header.tsx` | 60px, brand + 검색 + 상태 | 52px, brand만 |
+| `DefaultLayout.tsx` | `ml-[224px]` 오프셋 | 오프셋 없음, `pb-16` (BottomNav 여백) |
+
+### 새 공통 컴포넌트 추가 시
+
+```
+src/components/common/
+├── BottomNav.tsx     # 모바일 하단 네비게이션 (신규)
+└── MobileCard.tsx   # 테이블 row → 카드 변환용 (필요 시)
+```
+
+### `useIsMobile` 훅
+
+화면 크기 판단이 필요한 컴포넌트에서 사용 (차트 높이, 조건부 렌더링 등).
+
+```ts
+// src/hooks/index.ts에 추가
+export function useIsMobile(breakpoint = 768) {
+  const [isMobile, setIsMobile] = useState(window.innerWidth < breakpoint);
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < breakpoint);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, [breakpoint]);
+  return isMobile;
+}
+```
+
+### 페이지별 작업 우선순위
+
+| 우선순위 | 페이지 | 주요 작업 |
+|----------|--------|-----------|
+| 1 | DefaultLayout + Nav + BottomNav | 공통 레이아웃 — 전 페이지 영향 |
+| 2 | Dashboard | stat-grid 2×2, grid-12 → 단일 컬럼 |
+| 3 | InvestorTrend | 필터 탭 스크롤, 테이블 → 카드 |
+| 4 | StockDetail | KPI 2×2, 차트 높이 축소 |
+| 5 | NetBuyingList | 가로 스크롤, 날짜 선택기 모바일 레이아웃 |
+| 6 | 나머지 페이지 | 단일 컬럼 스택, 패딩 조정 |
+
+---
+
 ## 주의사항
 
 - `@/` 경로 alias 사용 가능 (vite.config.ts에 설정됨)
 - `public/` 폴더에는 favicon.svg만 존재
 - Nav에 새 링크 추가 시 `end` prop 처리 여부 확인 (`/`는 반드시 `end` 필요)
+- 모바일 Nav 추가 시 `BottomNav.tsx`도 동시에 업데이트

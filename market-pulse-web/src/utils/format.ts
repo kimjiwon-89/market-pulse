@@ -17,11 +17,26 @@ export function fmtAmount(n: number): string {
   return `${sign}${eok.toLocaleString()}억`;
 }
 
+/** 단위 없이 억 수치만 반환 (테이블 셀용 — 헤더에 "(억)" 표기) */
+export function fmtAmountNum(n: number): string {
+  const eok = Math.round(Math.abs(n) / 1e8);
+  const sign = n < 0 ? "-" : "";
+  return `${sign}${eok.toLocaleString()}`;
+}
+
 export function fmtVolume(n: number): string {
   const abs = Math.abs(n);
   const sign = n < 0 ? "-" : "";
   if (abs >= 10000) return `${sign}${Math.round(abs / 10000).toLocaleString()}만주`;
   return `${sign}${abs.toLocaleString()}주`;
+}
+
+/** 단위 없이 만주 수치만 반환 (테이블 셀용 — 헤더에 "(만주)" 표기) */
+export function fmtVolumeNum(n: number): string {
+  const abs = Math.abs(n);
+  const sign = n < 0 ? "-" : "";
+  if (abs >= 10000) return `${sign}${Math.round(abs / 10000).toLocaleString()}`;
+  return `${sign}${abs.toLocaleString()}`;
 }
 
 export function fmtNum(n: number, opts?: { sign?: boolean; compact?: boolean }): string {

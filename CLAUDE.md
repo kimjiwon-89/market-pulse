@@ -22,25 +22,25 @@
 
 **main 브랜치에 직접 커밋 금지** — main은 배포 브랜치.
 
-### 개발자별 고정 브랜치
+### 기능별 브랜치
 
-기능별 브랜치 대신 개발자별 고정 브랜치를 사용한다.
+기능 단위로 브랜치를 만들고, 완성 후 main으로 PR 머지한다.
 
-| 브랜치 | 담당 | 설명 |
-|--------|------|------|
-| `feature/kyw` | kyw (이 세션) | Claude Code 작업 시 여기에 커밋 |
-| `feature/jwkim` | jwkim | jwkim 계정 작업 브랜치 |
-
-```bash
-# kyw 브랜치에서 작업
-git checkout feature/kyw
-# ... 작업 ...
-git push origin feature/kyw
-
-# 기능 완성 후 main으로 PR 머지
+```
+feature/기능명        # 신규 기능 (예: feature/lotto-analysis)
+fix/버그명            # 버그 수정 (예: fix/api-proxy-local)
+refactor/대상         # 리팩터링
 ```
 
-> Claude Code로 작업할 때는 항상 `feature/kyw` 브랜치에서 커밋.
+```bash
+# 새 기능 작업 시
+git checkout main && git pull
+git checkout -b feature/기능명
+
+# 작업 후
+git push origin feature/기능명
+# → GitHub에서 main으로 PR 생성
+```
 
 ---
 
