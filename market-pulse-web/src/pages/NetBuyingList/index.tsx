@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback, useMemo, Fragment } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiClient, getToken } from "@/services/apiClient";
-import { dirCls, triangle, fmtPct, fmtAmount, fmtVolume } from "@/utils/format";
+import { dirCls, triangle, fmtPct, fmtAmount, fmtAmountNum, fmtVolume, fmtVolumeNum } from "@/utils/format";
+import { useIsMobile } from "@/hooks";
+import { LiveBadge } from "@/components/common/LiveBadge";
 
 type InvestorType = "FOREIGN" | "INSTITUTION" | "ALL";
 type TradeType = "BUY" | "SELL";
@@ -84,14 +86,19 @@ function nWeekdaysBefore(n: number, from: string): string {
   return fromDate(d);
 }
 
-function nWeekdaysAfter(n: number, from: string): string {
-  const d = toDate(from);
-  let count = 0;
-  while (count < n) {
-    d.setDate(d.getDate() + 1);
-    if (isWeekday(d)) count++;
-  }
-  return fromDate(d);
+function getMondayOf(dateStr: string): Date {
+  const d = toDate(dateStr);
+  const dow = d.getDay();
+  d.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1));
+  return d;
+}
+
+function getThisWeekBounds(todayStr: string): { start: string; end: string } {
+  const mon = getMondayOf(todayStr);
+  const fri = new Date(mon);
+  fri.setDate(mon.getDate() + 4);
+  const friStr = fromDate(fri);
+  return { start: fromDate(mon), end: todayStr <= friStr ? todayStr : friStr };
 }
 
 /* ── 전체 기간 합계 (조회된 모든 날짜 합산 → 대금순 TOP 20) ── */
@@ -128,14 +135,20 @@ function calcRangeTotal(dates: string[], dataMap: Map<string, DateRecord>): {
 const INVESTOR_OPTS: [InvestorType, string][] = [["FOREIGN", "외국인"], ["INSTITUTION", "기관"], ["ALL", "전체"]];
 const TRADE_OPTS: [TradeType, string][] = [["BUY", "순매수"], ["SELL", "순매도"]];
 const MARKET_OPTS: [MarketType, string][] = [["KOSPI", "코스피"], ["KOSDAQ", "코스닥"], ["ALL", "전체"]];
-const WEEK_SHIFT = 5; // 평일 5일 = 1주
 
-/* sticky 컬럼 폭 */
+/* sticky 컬럼 폭 — 데스크톱 */
 const RANK_W = 44;
 const NAME_W = 110;
 const AMT_W = 78;
 const VOL_W = 68;
-const GROUP_W = NAME_W + AMT_W + VOL_W;
+const GROUP_W = NAME_W + AMT_W + VOL_W; // 256
+
+/* 모바일용 컬럼 폭 (375px 화면 기준 1개 그룹 온전히 표시: 375-32-44-110=189 → 226 목표) */
+const M_NAME_W = 100;
+const M_AMT_W = 70;
+const M_VOL_W = 56;
+const M_GROUP_W = M_NAME_W + M_AMT_W + M_VOL_W; // 226
+
 const SUMMARY_BG = "var(--accent-soft)";
 
 /* ── 종목 상세 모달 ── */
@@ -361,14 +374,19 @@ function StockModal({ cell, investorType, tradeType, market: marketProp, onClose
 export function NetBuyingList() {
   const navigate = useNavigate();
   const isAuthed = !!getToken();
+  const isMobile = useIsMobile();
+  const nameW = isMobile ? M_NAME_W : NAME_W;
+  const amtW = isMobile ? M_AMT_W : AMT_W;
+  const volW = isMobile ? M_VOL_W : VOL_W;
+  const groupW = isMobile ? M_GROUP_W : GROUP_W;
 
   const [investorType, setInvestorType] = useState<InvestorType>("FOREIGN");
   const [tradeType, setTradeType] = useState<TradeType>("BUY");
   const [market, setMarket] = useState<MarketType>("KOSPI");
 
   const today = todayStr();
-  const [endDate, setEndDate] = useState(today);
-  const [startDate, setStartDate] = useState(() => nWeekdaysBefore(9, today));
+  const [endDate, setEndDate] = useState(() => getThisWeekBounds(today).end);
+  const [startDate, setStartDate] = useState(() => getThisWeekBounds(today).start);
 
   const dates = useMemo(() => getWeekdays(startDate, endDate), [startDate, endDate]);
 
@@ -382,7 +400,22 @@ export function NetBuyingList() {
   const [memoLoading, setMemoLoading] = useState(false);
   const [memoSaving, setMemoSaving] = useState(false);
 
-  const summary = useMemo(() => calcRangeTotal(dates, dataMap), [dates, dataMap]);
+  const allLoaded = useMemo(
+    () => dates.every(d => { const r = dataMap.get(d); return r && !r.loading; }),
+    [dates, dataMap],
+  );
+
+  const visibleDates = useMemo(() => {
+    if (!allLoaded) return dates;
+    return dates.filter(d => {
+      if (d === today) return true;
+      const record = dataMap.get(d);
+      if (!record || record.error) return true;
+      return record.items.length > 0;
+    });
+  }, [dates, dataMap, today, allLoaded]);
+
+  const summary = useMemo(() => calcRangeTotal(visibleDates, dataMap), [visibleDates, dataMap]);
 
   const fetchForDate = useCallback(async (date: string, iType: InvestorType, tType: TradeType, mkt: MarketType) => {
     if (iType === "INSTITUTION") {
@@ -449,20 +482,22 @@ export function NetBuyingList() {
   }
 
   function shiftWeek(delta: number) {
-    const shift = delta < 0 ? nWeekdaysBefore : nWeekdaysAfter;
-    setStartDate(shift(WEEK_SHIFT, startDate));
-    setEndDate(shift(WEEK_SHIFT, endDate));
+    const mon = getMondayOf(startDate);
+    mon.setDate(mon.getDate() + delta * 7);
+    const fri = new Date(mon);
+    fri.setDate(mon.getDate() + 4);
+    setStartDate(fromDate(mon));
+    setEndDate(fromDate(fri));
   }
 
   function resetToToday() {
-    const end = today;
-    const start = nWeekdaysBefore(dates.length - 1, end);
-    setEndDate(end);
+    const { start, end } = getThisWeekBounds(today);
     setStartDate(start);
+    setEndDate(end);
   }
 
-  function dateStatusLabel(date: string): { text: string; color: string } {
-    if (date === today) return { text: "실시간", color: "var(--accent)" };
+  function dateStatusLabel(date: string): { text: string; color: string } | null {
+    if (date === today) return null;
     if (snapshotDates.has(date)) return { text: "저장됨", color: "var(--text-3)" };
     return { text: "미저장", color: "var(--text-4)" };
   }
@@ -482,40 +517,45 @@ export function NetBuyingList() {
     borderRight: "1px solid var(--border)",
   };
 
-  /* sticky 합계 컬럼 — colSpan=3 헤더 (1, 2행) */
+  /* 모바일: 합계 = 종목명만 / 데스크톱: 합계 = 종목명+대금+수량 */
+  const sumColSpan = isMobile ? 1 : 3;
+  const sumNameRight = isMobile ? 0 : amtW + volW;
+
+  /* sticky 합계 헤더 — 1·2행 */
   const sumHead123Span: React.CSSProperties = {
     position: "sticky", right: 0, zIndex: 4,
     background: SUMMARY_BG, borderLeft: "2px solid var(--border-strong)",
     boxShadow: "-4px 0 6px -4px rgba(0,0,0,0.12)",
   };
-  /* sticky 합계 컬럼 — 3행 (종목명/대금/수량) */
+  /* sticky 합계 헤더 — 3행 (종목명) */
   const sumHeadName: React.CSSProperties = {
-    position: "sticky", right: AMT_W + VOL_W, zIndex: 4,
-    background: SUMMARY_BG, minWidth: NAME_W, width: NAME_W,
+    position: "sticky", right: sumNameRight, zIndex: 4,
+    background: SUMMARY_BG, minWidth: nameW, width: nameW,
     borderLeft: "2px solid var(--border-strong)",
   };
   const sumHeadAmt: React.CSSProperties = {
-    position: "sticky", right: VOL_W, zIndex: 4,
-    background: SUMMARY_BG, minWidth: AMT_W, width: AMT_W,
+    position: "sticky", right: volW, zIndex: 4,
+    background: SUMMARY_BG, minWidth: amtW, width: amtW,
   };
   const sumHeadVol: React.CSSProperties = {
     position: "sticky", right: 0, zIndex: 4,
-    background: SUMMARY_BG, minWidth: VOL_W, width: VOL_W,
+    background: SUMMARY_BG, minWidth: volW, width: volW,
     boxShadow: "-4px 0 6px -4px rgba(0,0,0,0.12)",
   };
-  /* sticky 합계 컬럼 — 바디 셀 */
+  /* sticky 합계 바디 셀 */
   const sumBodyName: React.CSSProperties = {
-    position: "sticky", right: AMT_W + VOL_W, zIndex: 2,
-    background: SUMMARY_BG, width: NAME_W,
+    position: "sticky", right: sumNameRight, zIndex: 2,
+    background: SUMMARY_BG, width: nameW,
     borderLeft: "2px solid var(--border-strong)",
+    boxShadow: isMobile ? "-4px 0 6px -4px rgba(0,0,0,0.12)" : undefined,
   };
   const sumBodyAmt: React.CSSProperties = {
-    position: "sticky", right: VOL_W, zIndex: 2,
-    background: SUMMARY_BG, width: AMT_W,
+    position: "sticky", right: volW, zIndex: 2,
+    background: SUMMARY_BG, width: amtW,
   };
   const sumBodyVol: React.CSSProperties = {
     position: "sticky", right: 0, zIndex: 2,
-    background: SUMMARY_BG, width: VOL_W,
+    background: SUMMARY_BG, width: volW,
     boxShadow: "-4px 0 6px -4px rgba(0,0,0,0.12)",
   };
 
@@ -538,14 +578,15 @@ export function NetBuyingList() {
             <div className="card-title">순매수도 순위</div>
             <span className="tag">KRX 기준</span>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
+          <div className="flex flex-col gap-4">
+            {/* 필터 칩 그룹 — 모바일: 가로 스크롤 */}
+            <div className="flex gap-4 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
               {[
                 { label: "투자자", opts: INVESTOR_OPTS, val: investorType, set: setInvestorType as (v: string) => void },
                 { label: "거래유형", opts: TRADE_OPTS, val: tradeType, set: setTradeType as (v: string) => void },
                 { label: "시장", opts: MARKET_OPTS, val: market, set: setMarket as (v: string) => void },
               ].map(({ label, opts, val, set }) => (
-                <div key={label} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <div key={label} className="flex flex-col gap-1.5 flex-shrink-0">
                   <span style={{ fontSize: 11, color: "var(--text-4)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
                     {label}
                   </span>
@@ -560,37 +601,32 @@ export function NetBuyingList() {
               ))}
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-              <div className="date-nav" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <button
-                  className="date-nav-btn"
-                  onClick={() => shiftWeek(-1)}
-                  title="1주 이전"
-                >
-                  ←
-                </button>
+            {/* 날짜 선택기 — 모바일: 2행, 데스크톱: 1행 */}
+            <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
+              {/* 날짜 입력 행 */}
+              <div className="flex items-center gap-2">
                 <input
                   type="date"
                   value={apiToInput(startDate)}
                   onChange={e => { if (e.target.value) setStartDate(e.target.value.replace(/-/g, "")); }}
+                  className="flex-1 md:flex-none"
                 />
                 <span style={{ color: "var(--text-4)", fontSize: 13 }}>~</span>
                 <input
                   type="date"
                   value={apiToInput(endDate)}
                   onChange={e => { if (e.target.value) setEndDate(e.target.value.replace(/-/g, "")); }}
+                  className="flex-1 md:flex-none"
                 />
-                <button
-                  className="date-nav-btn"
-                  onClick={() => shiftWeek(1)}
-                  title="1주 다음"
-                >
-                  →
-                </button>
-                <button className="btn sm" onClick={resetToToday}>오늘</button>
               </div>
-              <span style={{ fontSize: 12, color: "var(--text-4)", marginLeft: 4 }}>
-                {dates.length}일 · 평일만 표시
+              {/* 이전/다음/오늘 버튼 행 */}
+              <div className="flex items-center gap-2">
+                <button className="btn sm flex-1 md:flex-none" onClick={() => shiftWeek(-1)}>← 이전주</button>
+                <button className="btn sm flex-1 md:flex-none" onClick={resetToToday}>오늘</button>
+                <button className="btn sm flex-1 md:flex-none" onClick={() => shiftWeek(1)}>다음주 →</button>
+              </div>
+              <span style={{ fontSize: 12, color: "var(--text-4)" }}>
+                {visibleDates.length}일 · 거래일만 표시
               </span>
             </div>
           </div>
@@ -614,7 +650,7 @@ export function NetBuyingList() {
             <table
               className="t"
               style={{
-                minWidth: `${RANK_W + dates.length * GROUP_W + GROUP_W}px`,
+                minWidth: `${RANK_W + visibleDates.length * groupW + (isMobile ? nameW : groupW)}px`,
                 borderCollapse: "separate",
                 borderSpacing: 0,
               }}
@@ -622,7 +658,8 @@ export function NetBuyingList() {
               <thead>
                 <tr>
                   <th rowSpan={3} style={rankStickyHead}>순위</th>
-                  {dates.map(d => {
+                  {visibleDates.map(d => {
+                    const isToday = d === today;
                     const status = dateStatusLabel(d);
                     return (
                       <th
@@ -631,59 +668,65 @@ export function NetBuyingList() {
                         style={{
                           textAlign: "center", whiteSpace: "nowrap",
                           borderLeft: "2px solid var(--border-strong)",
-                          background: "var(--bg-alt)", color: "var(--text-3)",
-                          fontWeight: 500, letterSpacing: "0.02em",
+                          background: isToday ? "var(--accent-soft)" : "var(--bg-alt)",
+                          color: isToday ? "var(--accent)" : "var(--text-3)",
+                          fontWeight: isToday ? 700 : 500,
+                          letterSpacing: "0.02em",
                         }}
                       >
-                        {dispDate(d)}
-                        <span style={{ display: "block", fontSize: 10, fontWeight: 400, marginTop: 2, color: status.color }}>
-                          {status.text}
+                        {isToday ? "오늘" : dispDate(d)}
+                        <span style={{ display: "block", fontSize: 10, fontWeight: 400, marginTop: 2 }}>
+                          {status === null
+                            ? <LiveBadge size={10} />
+                            : <span style={{ color: status.color }}>{status.text}</span>
+                          }
                         </span>
                       </th>
                     );
                   })}
-                  <th colSpan={3} style={{ ...sumHead123Span, textAlign: "center", whiteSpace: "nowrap", color: "var(--text)", fontWeight: 700 }}>
+                  <th colSpan={sumColSpan} style={{ ...sumHead123Span, textAlign: "center", whiteSpace: "nowrap", color: "var(--text)", fontWeight: 700 }}>
                     합계
                     <span style={{ display: "block", fontSize: 10, fontWeight: 400, marginTop: 2, color: "var(--text-4)" }}>
-                      {dates.length}일 누적
+                      {visibleDates.length}일 누적
                     </span>
                   </th>
                 </tr>
                 <tr>
-                  {dates.map(d => (
+                  {visibleDates.map(d => (
                     <th
                       key={d}
                       colSpan={3}
                       style={{
                         textAlign: "center", fontSize: 11, color: "var(--text-4)",
                         borderLeft: "2px solid var(--border-strong)",
-                        background: "var(--bg-alt)", whiteSpace: "nowrap",
+                        background: d === today ? "var(--accent-soft)" : "var(--bg-alt)",
+                        whiteSpace: "nowrap",
                       }}
                     >
                       {labelTrade}
                     </th>
                   ))}
-                  <th colSpan={3} style={{ ...sumHead123Span, textAlign: "center", fontSize: 11, color: "var(--text-3)", whiteSpace: "nowrap" }}>
+                  <th colSpan={sumColSpan} style={{ ...sumHead123Span, textAlign: "center", fontSize: 11, color: "var(--text-3)", whiteSpace: "nowrap" }}>
                     {labelTrade}
                   </th>
                 </tr>
                 <tr>
-                  {dates.map(d => (
+                  {visibleDates.map(d => (
                     <Fragment key={d}>
-                      <th style={{ borderLeft: "2px solid var(--border-strong)", background: "var(--bg-alt)", minWidth: NAME_W, width: NAME_W }}>
+                      <th style={{ borderLeft: "2px solid var(--border-strong)", background: d === today ? "var(--accent-soft)" : "var(--bg-alt)", minWidth: nameW, width: nameW }}>
                         종목명
                       </th>
-                      <th className="num" style={{ background: "var(--bg-alt)", minWidth: AMT_W, width: AMT_W }}>
+                      <th className="num" style={{ background: d === today ? "var(--accent-soft)" : "var(--bg-alt)", minWidth: amtW, width: amtW }}>
                         대금(억)
                       </th>
-                      <th className="num" style={{ background: "var(--bg-alt)", minWidth: VOL_W, width: VOL_W }}>
-                        수량
+                      <th className="num" style={{ background: d === today ? "var(--accent-soft)" : "var(--bg-alt)", minWidth: volW, width: volW }}>
+                        수량(만주)
                       </th>
                     </Fragment>
                   ))}
                   <th style={sumHeadName}>종목명</th>
-                  <th className="num" style={sumHeadAmt}>대금(억)</th>
-                  <th className="num" style={sumHeadVol}>수량</th>
+                  {!isMobile && <th className="num" style={sumHeadAmt}>대금(억)</th>}
+                  {!isMobile && <th className="num" style={sumHeadVol}>수량</th>}
                 </tr>
               </thead>
               <tbody>
@@ -691,7 +734,7 @@ export function NetBuyingList() {
                   <tr key={ri}>
                     <td className="rank" style={rankStickyBody}>{ri + 1}</td>
 
-                    {dates.map(d => {
+                    {visibleDates.map(d => {
                       const record = dataMap.get(d) ?? { items: [], loading: true, error: false };
                       const item = record.items[ri];
                       const borderLeft = "2px solid var(--border-strong)";
@@ -711,7 +754,7 @@ export function NetBuyingList() {
                           <td
                             style={{
                               borderLeft, fontWeight: 600, color: "var(--text)",
-                              fontSize: 12, maxWidth: NAME_W, width: NAME_W,
+                              fontSize: 12, maxWidth: nameW, width: nameW,
                               overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                               cursor: item ? "pointer" : "default",
                             }}
@@ -720,11 +763,11 @@ export function NetBuyingList() {
                           >
                             {item?.stockName ?? <span style={{ color: "var(--text-4)", fontWeight: 400 }}>-</span>}
                           </td>
-                          <td className="num" style={{ fontSize: 12, width: AMT_W }}>
-                            {item ? fmtAmount(item.netBuyAmount) : <span style={{ color: "var(--text-4)" }}>-</span>}
+                          <td className="num" style={{ fontSize: 12, width: amtW }}>
+                            {item ? fmtAmountNum(item.netBuyAmount) : <span style={{ color: "var(--text-4)" }}>-</span>}
                           </td>
-                          <td className="num" style={{ fontSize: 12, width: VOL_W }}>
-                            {item ? fmtVolume(item.netBuyVolume) : <span style={{ color: "var(--text-4)" }}>-</span>}
+                          <td className="num" style={{ fontSize: 12, width: volW }}>
+                            {item ? fmtVolumeNum(item.netBuyVolume) : <span style={{ color: "var(--text-4)" }}>-</span>}
                           </td>
                         </Fragment>
                       );
@@ -737,8 +780,8 @@ export function NetBuyingList() {
                         return (
                           <>
                             <td style={sumBodyName}><div className="sk short" style={{ margin: "0 4px" }} /></td>
-                            <td className="num" style={sumBodyAmt}><div className="sk short" style={{ margin: "0 4px" }} /></td>
-                            <td className="num" style={sumBodyVol}><div className="sk short" style={{ margin: "0 4px" }} /></td>
+                            {!isMobile && <td className="num" style={sumBodyAmt}><div className="sk short" style={{ margin: "0 4px" }} /></td>}
+                            {!isMobile && <td className="num" style={sumBodyVol}><div className="sk short" style={{ margin: "0 4px" }} /></td>}
                           </>
                         );
                       }
@@ -753,12 +796,16 @@ export function NetBuyingList() {
                           >
                             {sItem?.stockName ?? <span style={{ color: "var(--text-4)", fontWeight: 400 }}>-</span>}
                           </td>
-                          <td className="num" style={{ ...sumBodyAmt, fontSize: 12, fontWeight: 600 }}>
-                            {sItem ? fmtAmount(sItem.netBuyAmount) : <span style={{ color: "var(--text-4)" }}>-</span>}
-                          </td>
-                          <td className="num" style={{ ...sumBodyVol, fontSize: 12, fontWeight: 600 }}>
-                            {sItem ? fmtVolume(sItem.netBuyVolume) : <span style={{ color: "var(--text-4)" }}>-</span>}
-                          </td>
+                          {!isMobile && (
+                            <td className="num" style={{ ...sumBodyAmt, fontSize: 12, fontWeight: 600 }}>
+                              {sItem ? fmtAmountNum(sItem.netBuyAmount) : <span style={{ color: "var(--text-4)" }}>-</span>}
+                            </td>
+                          )}
+                          {!isMobile && (
+                            <td className="num" style={{ ...sumBodyVol, fontSize: 12, fontWeight: 600 }}>
+                              {sItem ? fmtVolumeNum(sItem.netBuyVolume) : <span style={{ color: "var(--text-4)" }}>-</span>}
+                            </td>
+                          )}
                         </>
                       );
                     })()}

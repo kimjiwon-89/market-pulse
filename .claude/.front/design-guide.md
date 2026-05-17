@@ -108,6 +108,7 @@
 
 ### 앱 전체 구조
 
+**데스크톱 (1024px+)**
 ```
 ┌─────────────────────────────────────────────┐
 │  Header (60px, sticky, z-index:30)          │
@@ -118,6 +119,37 @@
 │ sticky   │                                  │
 │          │                                  │
 └──────────┴──────────────────────────────────┘
+```
+
+**모바일 (768px 미만)**
+```
+┌─────────────────────────────────────────────┐
+│  Header (52px) — 햄버거 없음, brand만       │
+├─────────────────────────────────────────────┤
+│                                             │
+│  main.page                                  │
+│  padding: 16px                              │
+│                                             │
+│                                             │
+├─────────────────────────────────────────────┤
+│  Bottom Nav (56px, fixed, z-index:30)          │
+│  [대시보드] [순매수도] [투자자] [메모] [로또]  │
+└─────────────────────────────────────────────┘
+```
+
+### 브레이크포인트
+
+Tailwind 4 기본 브레이크포인트 사용. 모바일 퍼스트로 작성.
+
+| 변수 | 범위 | 대상 |
+|------|------|------|
+| (base) | 0 ~ 767px | 모바일 |
+| `md:` | 768px ~ 1023px | 태블릿 |
+| `lg:` | 1024px+ | 데스크톱 |
+
+```tsx
+// 예시: 모바일 단일 컬럼 → 데스크톱 2컬럼
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 ```
 
 ### 레이아웃 토큰
@@ -134,6 +166,12 @@
 --radius-lg: 12px     /* 카드에 사용 */
 ```
 
+모바일에서는 Tailwind 클래스로 직접 오버라이드:
+```tsx
+className="p-4 lg:p-8"   /* --pad-pg 대체 */
+className="p-4 lg:p-6"   /* --pad-card 대체 */
+```
+
 ### 그리드 헬퍼 클래스
 
 ```css
@@ -143,6 +181,21 @@
 .grid-12  /* 8fr 4fr  (메인:사이드 비율) */
 .stack    /* flex-column, gap: --gap-card */
 .stat-grid /* grid 4열 */
+```
+
+모바일에서 위 헬퍼 클래스는 Tailwind 반응형 클래스로 대체:
+```tsx
+// .grid-2 반응형 대체
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+// .grid-12 반응형 대체
+<div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-5">
+  <div>{/* 메인 */}</div>
+  <div className="lg:w-80">{/* 사이드 */}</div>
+</div>
+
+// stat-grid 반응형 대체
+<div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
 ```
 
 ---
@@ -281,6 +334,10 @@
 ```ts
 fmtNum(n, opts)     // 숫자 포맷 (sign: true → +/−, compact: 억 단위)
 fmtPct(p)           // 퍼센트 (+0.45%, −0.37%)
+fmtAmount(n)        // "8,234억" — 단위 포함 (모달·독립 표시용)
+fmtAmountNum(n)     // "8,234" — 단위 없음 (테이블 셀, 헤더에 "(억)" 표기할 때)
+fmtVolume(n)        // "4,523만주" — 단위 포함
+fmtVolumeNum(n)     // "4,523" — 단위 없음 (테이블 셀, 헤더에 "(만주)" 표기할 때)
 dirCls(n)           // "up" | "down" | "flat"  → className에 사용
 triangle(n)         // "▲" | "▼" | "▬"
 ```
@@ -407,9 +464,14 @@ FlowChart (09:00~15:30, 5분봉, 외국인/기관/개인 3선)
 | dashboard | 대시보드 | `M3 12 12 4l9 8M5 11v9h5v-6h4v6h5v-9` |
 | sector | 업종 상세 | `M3 21h18M5 21V8l7-4 7 4v13M9 21v-7h6v7` |
 | flow | 순매수도 | `M3 17l6-6 4 4 8-8M14 7h7v7` |
+| investor | 투자자 | `M3 3v18h18M7 14l4-4 4 3 5-7` |
 | memo | 메모 | `M9 3h6l5 5v11a2 2 0 0 1-2 2H6...` |
 | news | 뉴스 | `M4 5h12a2 2 0 0 1 2 2v10...` |
+| lotto | 로또 | `M12 2l2.7 8.2H23l-7 5.1 2.7 8.2-7-5.1-7 5.1 2.7-8.2-7-5.1h8.3z` |
 | trends | 동향 | `M3 3v18h18M7 14l4-4 4 3 5-7` |
+
+**BottomNav 5개 항목 (모바일)**: 대시보드 / 순매수도 / 투자자 / 메모 / 로또
+- 뉴스는 데스크톱 사이드바에서만 접근 (BottomNav 공간 제약)
 
 ---
 
@@ -426,11 +488,115 @@ FLOW_SERIES // { t, foreign, inst, retail }[]
 
 ---
 
+## 모바일 컴포넌트 변환 규칙
+
+데이터가 많은 UI는 크기만 줄이면 모바일에서 깨진다. 컴포넌트별 변환 전략:
+
+### 테이블 → 카드 리스트
+
+```tsx
+{/* 데스크톱: .t 테이블 */}
+<div className="hidden lg:block">
+  <table className="t">...</table>
+</div>
+
+{/* 모바일: 카드 리스트 */}
+<div className="lg:hidden space-y-2">
+  {items.map(item => (
+    <div key={item.code} className="card p-4 flex justify-between items-center">
+      <div>
+        <div className="font-semibold">{item.name}</div>
+        <div className="text-xs text-[var(--text-3)]">{item.code}</div>
+      </div>
+      <div className="text-right">
+        <div className={`mono text-sm ${dirCls(item.net)}`}>{fmtNum(item.net, { sign: true })}</div>
+        <div className={`mono text-xs ${dirCls(item.pct)}`}>{fmtPct(item.pct)}</div>
+      </div>
+    </div>
+  ))}
+</div>
+```
+
+### 필터 탭 — 모바일 스크롤
+
+```tsx
+{/* 좁은 화면에서 가로 스크롤 허용 */}
+<div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+  <button className="chip whitespace-nowrap">...</button>
+</div>
+```
+
+### 차트 — 높이/여백 조정
+
+```tsx
+<ResponsiveContainer width="100%" height={isMobile ? 160 : 240}>
+  <AreaChart margin={isMobile ? { left: 0, right: 0 } : { left: 16, right: 16 }}>
+    {!isMobile && <XAxis tick={{ fontSize: 11 }} />}
+  </AreaChart>
+</ResponsiveContainer>
+```
+
+`isMobile` 판단: `window.innerWidth < 768` 또는 `useMediaQuery('(max-width: 767px)')` 훅 사용.
+
+### 날짜 선택기 — 모바일 레이아웃
+
+```tsx
+{/* 데스크톱: 가로 배치 */}
+<div className="hidden md:flex items-center gap-2">
+  <button>← 이전주</button>
+  <input type="date" /> ~ <input type="date" />
+  <button>다음주 →</button>
+  <button>오늘</button>
+</div>
+
+{/* 모바일: 날짜 input 2개 + 이전/다음 버튼만 */}
+<div className="md:hidden">
+  <div className="flex gap-2 mb-2">
+    <input className="flex-1" type="date" />
+    <span>~</span>
+    <input className="flex-1" type="date" />
+  </div>
+  <div className="flex gap-2">
+    <button className="btn flex-1">← 이전주</button>
+    <button className="btn flex-1">오늘</button>
+    <button className="btn flex-1">다음주 →</button>
+  </div>
+</div>
+```
+
+### KPI stat-cell — 2×2 그리드
+
+```tsx
+<div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+  <div className="stat-cell">...</div>
+</div>
+```
+
+---
+
+## 페이지별 모바일 UI 요약
+
+| 페이지 | 데스크톱 | 모바일 변환 |
+|--------|----------|-------------|
+| Dashboard | grid-12 (8:4) 2단 | 단일 컬럼 스택 |
+| IndexDetail | stat-grid 4열 + grid-2 | stat-grid 2×2 + 단일 컬럼 |
+| InvestorTrend | 테이블 + 메모 | 카드 리스트 + 메모 (하단) |
+| NetBuyingList | sticky 멀티컬럼 테이블 | 가로 스크롤 유지 (테이블 구조 유지, overflow-x-auto) |
+| StockDetail | 4 KPI + 차트 + 2단 | 2×2 KPI + 차트(축소) + 단일 컬럼 |
+| MemoList | 목록 | 동일 (단일 컬럼) |
+| NewsList | 목록 | 동일 |
+| LottoAnalysis | 5전략 그리드 | 전략별 세로 스택 |
+
+> NetBuyingList의 sticky 멀티컬럼 테이블은 구조가 복잡해 그대로 가로 스크롤로 처리.
+> 나머지 페이지는 카드/단일 컬럼으로 변환.
+
+---
+
 ## 구현 시 주의사항
 
 1. **수치는 반드시 IBM Plex Mono** — `.mono` 클래스 또는 `font-family: var(--font-mono)`
 2. **상승/하락 색상** — `dirCls(n)` → `"up"` | `"down"` | `"flat"` className으로 처리
-3. **min-width: 1180px** — 이 앱은 데스크톱 전용
+3. **반응형 우선** — `min-width: 1180px` 제한 삭제. 모바일 퍼스트 (`lg:` 브레이크포인트로 데스크톱 추가)
 4. **카드 패딩** — `var(--pad-card)` 사용, 하드코딩 금지
 5. **`aria-pressed`** — 칩 토글에 사용 (접근성)
 6. **`aria-selected`** — seg-tabs, tab에 사용
@@ -438,3 +604,7 @@ FLOW_SERIES // { t, foreign, inst, retail }[]
 8. **sessionStorage** — 페이지 간 상태 전달 (`mp:flow:initDate`, `mp:flow:initMarket`)
 9. **localStorage** — 메모 저장 (`mp:memo:{date}:{market}`)
 10. **`white-space: nowrap`** — 칩, 헤더 우측 요소, 카드 제목에 적용
+11. **`overflow-x-auto`** — 복잡한 테이블(NetBuyingList)은 가로 스크롤 허용
+12. **터치 타겟** — 모바일 버튼 최소 높이 44px (`min-h-[44px]`)
+13. **`padding` 단축속성 금지 (BottomNav 여백 필요한 컨테이너)** — `style={{ padding: "..." }}`은 Tailwind `pb-*` 클래스를 덮어씀. `paddingTop/Left/Right`를 개별 지정하고 bottom은 Tailwind 클래스로 처리
+14. **`LiveBadge`** — 장중/종가 상태 표시가 필요한 모든 곳에 `<span className="tag">실시간</span>` 대신 `<LiveBadge />` 사용

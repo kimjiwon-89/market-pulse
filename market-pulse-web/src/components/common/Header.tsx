@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { getUsername, getToken, clearAuth, apiClient } from "@/services/apiClient";
 import type { StockMasterItem } from "@/types";
+import { LiveBadge } from "./LiveBadge";
 
 export function Header() {
   const username = getUsername();
@@ -79,18 +80,10 @@ export function Header() {
         flexShrink: 0,
       }}
     >
-      {/* 브랜드 영역 (사이드바 너비와 동일) */}
+      {/* 브랜드 영역 (데스크톱: 사이드바 너비 고정 + 우측 구분선) */}
       <div
-        style={{
-          width: "var(--sidebar-w)",
-          flexShrink: 0,
-          paddingLeft: 20,
-          paddingRight: 20,
-          borderRight: "1px solid var(--border)",
-          height: "100%",
-          display: "flex",
-          alignItems: "center",
-        }}
+        className="flex items-center h-full lg:w-[224px] lg:border-r border-[var(--border)]"
+        style={{ flexShrink: 0, paddingLeft: 20, paddingRight: 20 }}
       >
         <Link
           to="/"
@@ -107,10 +100,11 @@ export function Header() {
         </Link>
       </div>
 
-      {/* 검색 영역 */}
+      {/* 검색 영역 — 모바일 숨김 */}
       <div
         ref={wrapperRef}
-        style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 24px", position: "relative" }}
+        className="hidden md:flex"
+        style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: "0 24px", position: "relative" }}
       >
         <div style={{ position: "relative", width: "100%", maxWidth: 360 }}>
           <input
@@ -195,36 +189,23 @@ export function Header() {
 
       {/* 우측 영역 */}
       <div
-        style={{
-          flexShrink: 0,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "flex-end",
-          paddingRight: 24,
-          gap: 12,
-        }}
+        className="ml-auto flex items-center"
+        style={{ flexShrink: 0, justifyContent: "flex-end", paddingRight: 24, gap: 12 }}
       >
+        {/* 모바일 숨김 — 데스크톱에서만 표시 */}
         <span
-          style={{
-            fontSize: 11.5,
-            color: "var(--text-4)",
-            fontFamily: "var(--font-mono)",
-            whiteSpace: "nowrap",
-          }}
+          className="hidden md:inline"
+          style={{ fontSize: 11.5, color: "var(--text-4)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}
         >
           KRX 기준
         </span>
-        <span className="tag">실시간</span>
+        <span className="hidden md:inline"><LiveBadge /></span>
 
         {isAuthed ? (
           <>
             <span
-              style={{
-                fontSize: 12,
-                color: "var(--text-3)",
-                fontFamily: "var(--font-mono)",
-                marginLeft: 4,
-              }}
+              className="hidden md:inline"
+              style={{ fontSize: 12, color: "var(--text-3)", fontFamily: "var(--font-mono)", marginLeft: 4 }}
             >
               {username}
             </span>
@@ -232,7 +213,8 @@ export function Header() {
               onClick={handleLogout}
               style={{
                 padding: "0 10px",
-                height: 26,
+                height: 32,
+                minHeight: 32,
                 borderRadius: 6,
                 border: "1px solid var(--border)",
                 background: "transparent",
@@ -249,7 +231,8 @@ export function Header() {
             onClick={() => navigate("/login")}
             style={{
               padding: "0 12px",
-              height: 26,
+              height: 32,
+              minHeight: 32,
               borderRadius: 6,
               border: "1px solid var(--border)",
               background: "var(--accent)",

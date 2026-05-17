@@ -6,6 +6,7 @@ import {
 import { apiClient } from "@/services/apiClient";
 import type { StockDetail, StockChartItem, StockInvestor } from "@/types";
 import { dirCls, triangle, fmtNum, fmtPct, fmtAmount } from "@/utils/format";
+import { useIsMobile } from "@/hooks";
 
 type Period = "1M" | "3M" | "1Y";
 
@@ -23,6 +24,7 @@ export function StockDetail() {
   const { code } = useParams<{ code: string }>();
   const navigate = useNavigate();
 
+  const isMobile = useIsMobile();
   const [period, setPeriod] = useState<Period>("3M");
   const [detail, setDetail] = useState<StockDetail | null>(null);
   const [chart, setChart] = useState<StockChartItem[]>([]);
@@ -103,9 +105,9 @@ export function StockDetail() {
         </span>
       </div>
 
-      {/* KPI stat-grid */}
+      {/* KPI stat-grid — 모바일: 2×2 */}
       <div className="card">
-        <div className="stat-grid">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="stat-cell">
             <div className="stat-label">현재가</div>
             <div className={`stat-value ${dir}`}>
@@ -168,14 +170,14 @@ export function StockDetail() {
         </div>
 
         {chartLoading ? (
-          <div className="sk tall" style={{ height: 220 }} />
+          <div className="sk tall" style={{ height: isMobile ? 160 : 220 }} />
         ) : chart.length === 0 ? (
           <p style={{ color: "var(--text-3)", textAlign: "center", padding: "40px 0" }}>
             차트 데이터 없음
           </p>
         ) : (
-          <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={chart} margin={{ top: 8, right: 0, left: 0, bottom: 0 }}>
+          <ResponsiveContainer width="100%" height={isMobile ? 160 : 220}>
+            <AreaChart data={chart} margin={{ top: 8, right: 0, left: isMobile ? 0 : 8, bottom: 0 }}>
               <defs>
                 <linearGradient id="stockGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor={color} stopOpacity={0.15} />
@@ -190,14 +192,16 @@ export function StockDetail() {
                 axisLine={false}
                 interval="preserveStartEnd"
               />
-              <YAxis
-                domain={["auto", "auto"]}
-                tick={{ fontSize: 11, fill: "var(--text-3)", fontFamily: "var(--font-mono)" }}
-                tickLine={false}
-                axisLine={false}
-                width={60}
-                tickFormatter={v => fmtNum(v, { compact: true })}
-              />
+              {!isMobile && (
+                <YAxis
+                  domain={["auto", "auto"]}
+                  tick={{ fontSize: 11, fill: "var(--text-3)", fontFamily: "var(--font-mono)" }}
+                  tickLine={false}
+                  axisLine={false}
+                  width={60}
+                  tickFormatter={v => fmtNum(v, { compact: true })}
+                />
+              )}
               <Tooltip
                 contentStyle={{
                   background: "var(--bg-panel)",
@@ -221,8 +225,8 @@ export function StockDetail() {
         )}
       </div>
 
-      {/* 하단 2열 */}
-      <div className="grid-2">
+      {/* 하단 2열 — 모바일: 단일 컬럼 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
         {/* 시세 정보 */}
         <div className="card">

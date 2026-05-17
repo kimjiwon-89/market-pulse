@@ -94,13 +94,13 @@ export function IndexDetail() {
 
   return (
     <div className="stack">
-      {/* 업종 선택 칩 */}
+      {/* 업종 선택 칩 — 모바일: 가로 스크롤 */}
       <div className="card" style={{ paddingTop: 16, paddingBottom: 16 }}>
-        <div className="chips">
+        <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
           {SECTORS.map(s => (
             <button
               key={s.code}
-              className="chip"
+              className="chip flex-shrink-0"
               aria-pressed={id === s.code}
               onClick={() => navigate(`/index/${s.code}`)}
             >
@@ -124,8 +124,8 @@ export function IndexDetail() {
         </div>
       ) : (
         <>
-          {/* KPI */}
-          <div className="stat-grid">
+          {/* KPI — 모바일: 2×2, 데스크톱: 4열 */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
               { label: "지수", value: detail.value.toLocaleString(), cls: dirCls(detail.pct) },
               { label: "등락률", value: `${triangle(detail.pct)} ${fmtPct(detail.pct)}`, cls: dirCls(detail.pct) },

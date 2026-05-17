@@ -59,21 +59,24 @@ public class InvestorService {
 
         LocalDate requestDate = date != null ? LocalDate.parse(date, FMT) : LocalDate.now();
 
+        // 오늘 → KIS API 실시간 호출
+        if (requestDate.equals(LocalDate.now())) {
+            try {
+                return fetchForeignTradeTop(effectiveMarket, effectiveTrade);
+            } catch (Exception e) {
+                log.warn("Live KIS call failed for today, date={}: {}", requestDate, e.getMessage());
+                return List.of();
+            }
+        }
+
+        // 과거 날짜 → DB 스냅샷만 사용, 없으면 빈 배열 (fallback 없음)
         try {
-            // 요청 날짜 DB 조회
             List<RankingSnapshotVo> snapshots = snapshotMapper.findByFilter(
                     requestDate, effectiveInvestor, effectiveTrade, effectiveMarket);
 
-            // 요청 날짜 데이터가 없으면 가장 최근 데이터 반환
             if (snapshots.isEmpty()) {
-                log.info("No snapshot for date={}, falling back to latest", requestDate);
-                snapshots = snapshotMapper.findLatestByFilter(effectiveInvestor, effectiveTrade, effectiveMarket);
-            }
-
-            // DB도 비어있으면 mock 반환
-            if (snapshots.isEmpty()) {
-                log.warn("No ranking snapshot in DB at all, returning mock data");
-                return MockDataProvider.mockTradeTop(effectiveMarket, effectiveTrade);
+                log.info("No snapshot for date={}, returning empty", requestDate);
+                return List.of();
             }
 
             return snapshots.stream()
@@ -86,8 +89,8 @@ public class InvestorService {
                             .build())
                     .toList();
         } catch (Exception e) {
-            log.warn("DB error in getTradeTop, returning mock data: {}", e.getMessage());
-            return MockDataProvider.mockTradeTop(effectiveMarket, effectiveTrade);
+            log.warn("DB error in getTradeTop for date={}: {}", requestDate, e.getMessage());
+            return List.of();
         }
     }
 

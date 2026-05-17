@@ -114,7 +114,21 @@ html {
   color: var(--text);
   font-family: var(--font-sans);
   font-feature-settings: "tnum" on;
-  min-width: 1180px;
+}
+
+/* ─────────────────────────────────────────────
+   모바일 레이아웃 변수 오버라이드
+───────────────────────────────────────────── */
+@media (max-width: 767px) {
+  :root {
+    --pad-pg:   16px;
+    --pad-card: 16px;
+    --gap-card: 12px;
+    --num-hero: 24px;
+    --num-lg:   20px;
+    --num-md:   17px;
+    --row-h:    40px;
+  }
 }
 
 body {
@@ -634,24 +648,16 @@ textarea:focus {
 .news-item {
   padding: 14px 0;
   border-bottom: 1px solid var(--divider);
-  cursor: pointer;
-  transition: background 0.1s;
-  overflow: hidden;
 }
 
 .news-item:last-child {
   border-bottom: none;
 }
 
-.news-item:hover {
-  background: var(--bg-hover);
-}
-
 .news-item .news-title {
   font-size: 13px;
   font-weight: 500;
   color: var(--text);
-  margin-bottom: 4px;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -665,6 +671,13 @@ textarea:focus {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  margin-top: 4px;
+}
+
+@media (max-width: 767px) {
+  .news-item .news-meta {
+    display: none;
+  }
 }
 
 /* ─────────────────────────────────────────────

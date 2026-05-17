@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { apiClient, getToken } from "@/services/apiClient";
 import type { TradeTopItem, InvestorMemo } from "@/types";
 import { dirCls, triangle, fmtPct, fmtAmount } from "@/utils/format";
+import { LiveBadge } from "@/components/common/LiveBadge";
 
 type Market = "KOSPI" | "KOSDAQ";
 type TradeType = "BUY" | "SELL";
@@ -45,11 +46,7 @@ function InvestorCol({ title, ready = true, items, loading, tradeType }: ColProp
         }}
       >
         <span style={{ fontWeight: 700, fontSize: 14, color: "var(--text)" }}>{title}</span>
-        {ready ? (
-          <span style={{ fontSize: 11, color: "var(--text-4)" }}>실시간</span>
-        ) : (
-          <span className="tag">준비 중</span>
-        )}
+        {ready ? <LiveBadge size={11} /> : <span className="tag">준비 중</span>}
       </div>
 
       {/* 컨텐츠 */}
@@ -167,6 +164,7 @@ export function InvestorTrend() {
   const [date, setDate] = useState(
     searchParams.get("date") ?? todayStr()
   );
+  const [investorTab, setInvestorTab] = useState<"FOREIGN" | "INSTITUTION" | "INDIVIDUAL">("FOREIGN");
 
   const [foreignItems, setForeignItems] = useState<TradeTopItem[]>([]);
   const [foreignLoading, setForeignLoading] = useState(false);
@@ -239,62 +237,80 @@ export function InvestorTrend() {
           <div className="card-title">투자자 동향</div>
           <span className="tag">KRX 기준</span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <div className="seg-tabs" role="tablist">
-            {(["KOSPI", "KOSDAQ"] as Market[]).map((m) => (
-              <button key={m} role="tab" aria-selected={market === m} onClick={() => setMarket(m)}>
-                {m === "KOSPI" ? "코스피" : "코스닥"}
-              </button>
+        <div className="flex flex-col gap-4">
+          {/* 필터 칩 그룹 */}
+          <div className="flex gap-4 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+            {([
+              { label: "시장",   opts: [["KOSPI", "코스피"], ["KOSDAQ", "코스닥"]] as [string, string][], val: market,     set: (v: string) => setMarket(v as Market) },
+              { label: "거래유형", opts: [["BUY", "순매수"], ["SELL", "순매도"]] as [string, string][],   val: tradeType, set: (v: string) => setTradeType(v as TradeType) },
+            ]).map(({ label, opts, val, set }) => (
+              <div key={label} className="flex flex-col gap-1.5 flex-shrink-0">
+                <span style={{ fontSize: 11, color: "var(--text-4)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                  {label}
+                </span>
+                <div className="chips">
+                  {opts.map(([v, lbl]) => (
+                    <button key={v} className="chip" aria-pressed={val === v} onClick={() => set(v)}>
+                      {lbl}
+                    </button>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
 
-          <div className="seg-tabs" role="tablist">
-            {([["BUY", "순매수"], ["SELL", "순매도"]] as [TradeType, string][]).map(([v, lbl]) => (
-              <button key={v} role="tab" aria-selected={tradeType === v} onClick={() => setTradeType(v)}>
-                {lbl}
-              </button>
-            ))}
-          </div>
-
-          <div className="date-nav">
-            <button className="date-nav-btn" onClick={() => setDate((d) => shiftDay(d, -1))}>←</button>
+          {/* 날짜 선택 */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <button className="btn sm" onClick={() => setDate((d) => shiftDay(d, -1))}>← 이전일</button>
             <input
               type="date"
               value={apiToInput(date)}
               onChange={(e) => { if (e.target.value) setDate(e.target.value.replace(/-/g, "")); }}
             />
-            <button className="date-nav-btn" onClick={() => setDate((d) => shiftDay(d, 1))}>→</button>
+            <button className="btn sm" onClick={() => setDate((d) => shiftDay(d, 1))}>다음일 →</button>
             <button className="btn sm" onClick={() => setDate(todayStr())}>오늘</button>
+            <span style={{ fontSize: 12, color: "var(--text-4)" }}>{dispDate(date)}</span>
           </div>
 
-          <span style={{ fontSize: 12, color: "var(--text-4)", marginLeft: "auto" }}>
-            {labelMarket} · {dispDate(date)}
-          </span>
+          {/* 투자자 탭 — 모바일 전용 */}
+          <div className="flex gap-2 lg:hidden">
+            {([ ["FOREIGN", "외국인"], ["INSTITUTION", "기관"], ["INDIVIDUAL", "개인"] ] as const).map(([v, lbl]) => (
+              <button key={v} className="chip flex-1" aria-pressed={investorTab === v} onClick={() => setInvestorTab(v)}>
+                {lbl}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* 3열 투자자 열 */}
-      <div className="grid-3">
-        <InvestorCol
-          title="외국인"
-          items={foreignItems}
-          loading={foreignLoading}
-          tradeType={tradeType}
-        />
-        <InvestorCol
-          title="기관"
-          ready={false}
-          items={[]}
-          loading={false}
-          tradeType={tradeType}
-        />
-        <InvestorCol
-          title="개인"
-          ready={false}
-          items={[]}
-          loading={false}
-          tradeType={tradeType}
-        />
+      {/* 투자자 열 — 모바일: 탭 선택 1개, 데스크톱: 3열 */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <div className={investorTab === "FOREIGN" ? "block" : "hidden lg:block"}>
+          <InvestorCol
+            title="외국인"
+            items={foreignItems}
+            loading={foreignLoading}
+            tradeType={tradeType}
+          />
+        </div>
+        <div className={investorTab === "INSTITUTION" ? "block" : "hidden lg:block"}>
+          <InvestorCol
+            title="기관"
+            ready={false}
+            items={[]}
+            loading={false}
+            tradeType={tradeType}
+          />
+        </div>
+        <div className={investorTab === "INDIVIDUAL" ? "block" : "hidden lg:block"}>
+          <InvestorCol
+            title="개인"
+            ready={false}
+            items={[]}
+            loading={false}
+            tradeType={tradeType}
+          />
+        </div>
       </div>
 
       {/* 메모 카드 */}
