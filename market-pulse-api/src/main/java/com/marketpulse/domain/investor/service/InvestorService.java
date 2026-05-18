@@ -1,7 +1,6 @@
 package com.marketpulse.domain.investor.service;
 
 import com.marketpulse.domain.investor.dto.InvestorDailyItem;
-import com.marketpulse.global.mock.MockDataProvider;
 import com.marketpulse.domain.investor.dto.MarketFlowDto;
 import com.marketpulse.domain.investor.dto.MemoRequestDto;
 import com.marketpulse.domain.investor.dto.MemoResponseDto;
@@ -175,8 +174,13 @@ public class InvestorService {
         try {
             MarketFlowSnapshotVo vo = marketFlowSnapshotMapper.findLatest(market);
             if (vo == null) {
-                log.warn("No market flow snapshot in DB for market={}, returning mock data", market);
-                return MockDataProvider.mockMarketFlow();
+                log.info("No market flow snapshot in DB for market={}, fetching from KIS API", market);
+                saveMarketFlowSnapshots(LocalDate.now());
+                vo = marketFlowSnapshotMapper.findLatest(market);
+            }
+            if (vo == null) {
+                log.warn("No market flow data available for market={}", market);
+                return List.of();
             }
             return List.of(
                     MarketFlowDto.builder().name("외국인")
@@ -187,8 +191,8 @@ public class InvestorService {
                             .net(vo.getIndvNet()).buy(vo.getIndvBuy()).sell(vo.getIndvSell()).build()
             );
         } catch (Exception e) {
-            log.warn("DB error in getMarketFlow, returning mock data: {}", e.getMessage());
-            return MockDataProvider.mockMarketFlow();
+            log.error("Error in getMarketFlow market={}: {}", market, e.getMessage());
+            return List.of();
         }
     }
 
