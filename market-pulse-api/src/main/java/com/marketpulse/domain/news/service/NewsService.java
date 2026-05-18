@@ -3,7 +3,6 @@ package com.marketpulse.domain.news.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.marketpulse.domain.news.dto.NewsReqDto;
 import com.marketpulse.domain.news.dto.NewsRespDto;
-import com.marketpulse.global.mock.MockDataProvider;
 import com.marketpulse.domain.news.mapper.NewsMapper;
 import com.marketpulse.domain.news.vo.NewsSnapshotVo;
 import com.marketpulse.external.client.ExternalApiClient;
@@ -37,6 +36,11 @@ public class NewsService {
         int limit = (request.getLimit() != null && request.getLimit() > 0) ? request.getLimit() : 20;
         try {
             List<NewsSnapshotVo> vos = newsMapper.findLatest(limit);
+            if (vos.isEmpty()) {
+                log.info("No news in DB, fetching from KIS API");
+                fetchAndSave();
+                vos = newsMapper.findLatest(limit);
+            }
             List<NewsRespDto> result = new ArrayList<>();
             for (NewsSnapshotVo vo : vos) {
                 try {
@@ -46,13 +50,13 @@ public class NewsService {
                 }
             }
             if (result.isEmpty()) {
-                log.warn("No news in DB, returning mock data");
-                return MockDataProvider.mockNews();
+                log.warn("No news data available after fetch attempt");
+                return List.of();
             }
             return result;
         } catch (Exception e) {
-            log.warn("DB error in callIndex (news), returning mock data: {}", e.getMessage());
-            return MockDataProvider.mockNews();
+            log.error("Error in callIndex (news): {}", e.getMessage());
+            return List.of();
         }
     }
 

@@ -8,7 +8,6 @@ import com.marketpulse.domain.stock.vo.KisDailyPriceResponse;
 import com.marketpulse.domain.stock.vo.StockDailyPriceVo;
 import com.marketpulse.domain.stock.vo.StockPriceVo;
 import com.marketpulse.external.client.ExternalApiClient;
-import com.marketpulse.global.mock.MockDataProvider;
 import com.marketpulse.global.response.KisResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -50,8 +49,8 @@ public class StockDetailService {
 
             StockPriceVo v = response.getOutput();
             if (v == null || v.getCurrentPrice() == null || v.getCurrentPrice().isBlank()) {
-                log.warn("KIS detail empty for {}, returning mock data", code);
-                return MockDataProvider.mockDetail(code);
+                log.warn("KIS detail empty for code={}", code);
+                return null;
             }
             return StockDetailDto.builder()
                     .code(code)
@@ -72,8 +71,8 @@ public class StockDetailService {
                     .weekLow(parseLong(v.getWeekLow()))
                     .build();
         } catch (Exception e) {
-            log.warn("KIS detail API failed for {}, returning mock data: {}", code, e.getMessage());
-            return MockDataProvider.mockDetail(code);
+            log.error("KIS detail API failed for code={}: {}", code, e.getMessage());
+            return null;
         }
     }
 
@@ -103,8 +102,8 @@ public class StockDetailService {
 
             List<StockDailyPriceVo> items = response.getOutput2();
             if (items == null || items.isEmpty()) {
-                log.warn("KIS chart empty for {}, returning mock data", code);
-                return MockDataProvider.mockChart(code, period);
+                log.warn("KIS chart empty for code={}", code);
+                return List.of();
             }
 
             return items.stream()
@@ -119,16 +118,16 @@ public class StockDetailService {
                             .build())
                     .toList();
         } catch (Exception e) {
-            log.warn("KIS chart API failed for {}, returning mock data: {}", code, e.getMessage());
-            return MockDataProvider.mockChart(code, period);
+            log.error("KIS chart API failed for code={}: {}", code, e.getMessage());
+            return List.of();
         }
     }
 
     public StockInvestorDto getInvestor(String code) {
         try {
             Map<String, String> params = new HashMap<>();
-            params.put("fid_cond_mrkt_div_code", "J");
-            params.put("fid_input_iscd", code);
+            params.put("FID_COND_MRKT_DIV_CODE", "J");
+            params.put("FID_INPUT_ISCD", code);
 
             KisResponse<List<InvestorDailyItem>> response = externalApiClient.callGet(
                     PATH_INVESTOR,
@@ -140,8 +139,8 @@ public class StockDetailService {
 
             List<InvestorDailyItem> items = response.getOutput();
             if (items == null || items.isEmpty()) {
-                log.warn("KIS investor empty for {}, returning mock data", code);
-                return MockDataProvider.mockInvestor();
+                log.warn("KIS investor empty for code={}", code);
+                return StockInvestorDto.builder().build();
             }
 
             InvestorDailyItem latest = items.get(0);
@@ -157,8 +156,8 @@ public class StockDetailService {
                     .individualNet(parseLong(latest.getPersonalNetBuyAmount()))
                     .build();
         } catch (Exception e) {
-            log.warn("KIS investor API failed for {}, returning mock data: {}", code, e.getMessage());
-            return MockDataProvider.mockInvestor();
+            log.error("KIS investor API failed for code={}: {}", code, e.getMessage());
+            return StockInvestorDto.builder().build();
         }
     }
 

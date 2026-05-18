@@ -73,9 +73,11 @@ public class LottoService {
     public LottoAnalysisDto getLatest() {
         Integer latest = lottoMapper.findLatestDrawNo();
         if (latest == null) {
-            // DB 비어있으면 동행복권에서 최신 회차 탐색 후 수집
-            latest = dhlotteryClient.findLatestDrawNo();
-            collectAndAnalyze(latest);
+            return null;  // DB 비어있음 — 동행복권 서버호출은 봇 차단으로 불가
+        }
+        List<LottoAnalysisPoolVo> pools = lottoMapper.findPoolsByDrawNo(latest);
+        if (pools.isEmpty()) {
+            analyzeOnly(latest);
         }
         return getAnalysis(latest);
     }
