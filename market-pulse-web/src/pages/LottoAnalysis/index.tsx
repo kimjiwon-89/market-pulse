@@ -209,13 +209,24 @@ export function LottoAnalysis() {
       {loading && <div className="sk" style={{ height: 200, borderRadius: "var(--radius)" }} />}
       {error && <div style={{ color: "var(--text-3)", padding: 40, textAlign: "center" }}>{error}</div>}
 
-      {/* 전략 분석 탭 */}
+      {/* 전략 분석 탭 — DB 비어있음 */}
+      {!loading && !error && tab === "analysis" && !analysis && (
+        <div style={{ padding: 40, textAlign: "center", color: "var(--text-3)" }}>
+          당첨번호 데이터가 없습니다.
+          <br />
+          <span style={{ fontSize: 12, color: "var(--text-4)" }}>
+            psql로 lotto_result 테이블에 데이터를 먼저 입력해 주세요.
+          </span>
+        </div>
+      )}
+
+      {/* 전략 분석 탭 — 분석 결과 없음 */}
       {!loading && !error && tab === "analysis" && analysis && analysis.strategies.length === 0 && (
         <div style={{ padding: 40, textAlign: "center", color: "var(--text-3)" }}>
           분석 데이터가 없습니다.
           <br />
           <span style={{ fontSize: 12, color: "var(--text-4)" }}>
-            10회 이상의 당첨번호 데이터가 필요합니다. Swagger에서 /api/lotto/analyze-all 을 실행해 주세요.
+            10회 이상의 당첨번호 데이터가 필요합니다.
           </span>
         </div>
       )}
