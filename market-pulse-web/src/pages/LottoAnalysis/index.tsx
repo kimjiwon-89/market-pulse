@@ -210,7 +210,16 @@ export function LottoAnalysis() {
       {error && <div style={{ color: "var(--text-3)", padding: 40, textAlign: "center" }}>{error}</div>}
 
       {/* 전략 분석 탭 */}
-      {!loading && !error && tab === "analysis" && analysis && (
+      {!loading && !error && tab === "analysis" && analysis && analysis.strategies.length === 0 && (
+        <div style={{ padding: 40, textAlign: "center", color: "var(--text-3)" }}>
+          분석 데이터가 없습니다.
+          <br />
+          <span style={{ fontSize: 12, color: "var(--text-4)" }}>
+            10회 이상의 당첨번호 데이터가 필요합니다. Swagger에서 /api/lotto/analyze-all 을 실행해 주세요.
+          </span>
+        </div>
+      )}
+      {!loading && !error && tab === "analysis" && analysis && analysis.strategies.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {analysis.strategies.map(s => (
             <StrategyCard

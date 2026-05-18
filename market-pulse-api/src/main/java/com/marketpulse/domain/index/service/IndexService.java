@@ -105,11 +105,11 @@ public class IndexService {
             String monthAgo = LocalDate.now().minusDays(30).format(FMT);
 
             Map<String, String> params = new HashMap<>();
-            params.put("fid_cond_mrkt_div_code", "U");
-            params.put("fid_input_iscd", indexCode);
-            params.put("fid_input_date_1", monthAgo);
-            params.put("fid_input_date_2", today);
-            params.put("fid_period_div_code", "D");
+            params.put("FID_COND_MRKT_DIV_CODE", "U");
+            params.put("FID_INPUT_ISCD", indexCode);
+            params.put("FID_INPUT_DATE_1", monthAgo);
+            params.put("FID_INPUT_DATE_2", today);
+            params.put("FID_PERIOD_DIV_CODE", "D");
 
             IndexResponse response = externalApiClient.callGet(
                     "/uapi/domestic-stock/v1/quotations/inquire-daily-indexchartprice",

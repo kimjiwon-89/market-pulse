@@ -126,8 +126,8 @@ public class StockDetailService {
     public StockInvestorDto getInvestor(String code) {
         try {
             Map<String, String> params = new HashMap<>();
-            params.put("fid_cond_mrkt_div_code", "J");
-            params.put("fid_input_iscd", code);
+            params.put("FID_COND_MRKT_DIV_CODE", "J");
+            params.put("FID_INPUT_ISCD", code);
 
             KisResponse<List<InvestorDailyItem>> response = externalApiClient.callGet(
                     PATH_INVESTOR,

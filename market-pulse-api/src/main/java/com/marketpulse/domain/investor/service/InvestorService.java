@@ -132,8 +132,8 @@ public class InvestorService {
         for (String market : new String[]{"KOSPI", "KOSDAQ"}) {
             try {
                 Map<String, String> params = new HashMap<>();
-                params.put("fid_cond_mrkt_div_code", "J");
-                params.put("fid_input_iscd", "KOSDAQ".equals(market) ? "1001" : "0001");
+                params.put("FID_COND_MRKT_DIV_CODE", "J");
+                params.put("FID_INPUT_ISCD", "KOSDAQ".equals(market) ? "1001" : "0001");
 
                 KisResponse<List<InvestorDailyItem>> response = externalApiClient.callGet(
                         "/uapi/domestic-stock/v1/quotations/inquire-investor",
