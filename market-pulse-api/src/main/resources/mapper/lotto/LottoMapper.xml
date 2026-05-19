@@ -119,13 +119,14 @@
     <!-- ── lotto_user_combo ── -->
 
     <insert id="insertUserCombo" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO lotto_user_combo (draw_no, numbers)
-        VALUES (#{drawNo},
+        INSERT INTO lotto_user_combo (draw_no, username, numbers)
+        VALUES (#{drawNo}, #{username},
                 #{numbers, typeHandler=com.marketpulse.domain.lotto.mapper.IntArrayTypeHandler}::integer[])
     </insert>
 
     <select id="findUserCombos" resultMap="userComboResultMap">
         SELECT id, draw_no AS drawNo,
+               username,
                numbers,
                hit_count AS hitCount,
                created_at AS createdAt
@@ -133,9 +134,33 @@
         ORDER BY created_at DESC
     </select>
 
+    <select id="findUserCombosByUsername" resultMap="userComboResultMap">
+        SELECT id, draw_no AS drawNo,
+               username,
+               numbers,
+               hit_count AS hitCount,
+               created_at AS createdAt
+        FROM lotto_user_combo
+        WHERE username = #{username}
+        ORDER BY created_at DESC
+    </select>
+
+    <select id="findUserCombosByDrawNoAndUsername" resultMap="userComboResultMap">
+        SELECT id, draw_no AS drawNo,
+               username,
+               numbers,
+               hit_count AS hitCount,
+               created_at AS createdAt
+        FROM lotto_user_combo
+        WHERE draw_no = #{drawNo}
+          AND username = #{username}
+        ORDER BY created_at DESC
+    </select>
+
     <resultMap id="userComboResultMap" type="LottoUserComboVo">
         <id     property="id"        column="id"/>
         <result property="drawNo"    column="drawNo"/>
+        <result property="username"  column="username"/>
         <result property="numbers"   column="numbers"
                 typeHandler="com.marketpulse.domain.lotto.mapper.IntArrayTypeHandler"/>
         <result property="hitCount"  column="hitCount"/>
@@ -147,7 +172,9 @@
     </update>
 
     <delete id="deleteUserCombo">
-        DELETE FROM lotto_user_combo WHERE id = #{id}
+        DELETE FROM lotto_user_combo
+        WHERE id = #{id}
+          AND username = #{username}
     </delete>
 
 </mapper>

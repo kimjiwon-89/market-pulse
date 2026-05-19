@@ -123,11 +123,12 @@ global/auth/InitialDataRunner.java
 | lotto | GET | `/api/lotto/rounds` | 완료 |
 | lotto | GET | `/api/lotto/analysis?round=` | 완료 |
 | lotto | GET | `/api/lotto/stats` | 완료 |
-| lotto | POST/GET/DELETE | `/api/lotto/combo` | 완료 |
-| lotto | POST | `/api/lotto/collect?from=&to=` | 완료 (관리자용 일괄 수집) |
-| lotto | POST | `/api/lotto/bulk-results` | 완료 — body: LottoResultRawDto[] 일괄 저장 |
-| lotto | POST | `/api/lotto/analyze-all` | 완료 — 분석 미완료 회차 전체 일괄 분석 |
-| lotto | POST | `/api/lotto/result` | 완료 — 단일 회차 수동 등록 (쿼리 파라미터) |
+| lotto | POST/GET/DELETE | `/api/lotto/combo` | 완료 — 로그인 사용자별 내 조합 |
+| lotto | POST | `/api/lotto/analyze?round=` | 완료 — ADMIN 전용 분석 실행 |
+| lotto | POST | `/api/lotto/collect?from=&to=` | 완료 — ADMIN 전용 일괄 수집 |
+| lotto | POST | `/api/lotto/bulk-results` | 완료 — ADMIN 전용, body: LottoResultRawDto[] 일괄 저장 |
+| lotto | POST | `/api/lotto/analyze-all` | 완료 — ADMIN 전용, 분석 미완료 회차 전체 일괄 분석 |
+| lotto | POST | `/api/lotto/result` | 완료 — ADMIN 전용, 단일 회차 수동 등록 |
 | stock | GET | `/api/stock/search?q=&limit=` | 완료 — stock_master 이름 부분 일치 검색 |
 | stock | GET | `/api/stock/detail?code=` | 완료 — KIS FHKST01010100 현재가 시세 |
 | stock | GET | `/api/stock/chart?code=&period=` | 완료 — KIS FHKST01010400 일자별 차트 |
