@@ -3,6 +3,28 @@
 주식 시장 데이터를 시각화하는 풀스택 웹 애플리케이션.
 한국투자증권 Open API(KIS)에서 데이터를 받아 대시보드로 보여준다.
 
+## 작업 원칙
+
+- **불확실하면 먼저 물어봐라** — 가정하고 달려가지 말 것. 요청이 모호하거나 해석이 2가지 이상이면 구현 전에 명시적으로 물어봐라.
+- **불일치·트레이드오프는 표면화해라** — 코드에서 불일치나 숨겨진 문제를 발견하면 조용히 넘기지 말고 언급해라. 선택지가 있으면 장단점을 제시해라.
+- **내가 만든 dead code는 내가 정리해라** — 내 변경으로 인해 불필요해진 import·변수·함수는 직접 제거해라. 단, 내 작업과 무관한 기존 dead code는 건드리지 마라.
+- **사용자가 읽을 문서는 HTML로 만들어라** — 기획안·비교표·코드리뷰·분석 보고서 등 사용자가 직접 읽는 결과물은 마크다운 대신 HTML 파일로 출력해라. 탭·색상·테이블·차트로 시각화하면 마크다운 텍스트 나열보다 훨씬 파악하기 쉽다. 단, 대화 중 짧은 설명은 텍스트로 충분하다.
+
+---
+
+## 파일 포맷 규칙
+
+| 포맷 | 용도 | 이유 |
+|------|------|------|
+| `.md` | 에이전트가 읽는 파일 (spec, status, back.md, front.md, logs 등) | 태그 오버헤드 없음 → 토큰 절약, 파싱 빠름 |
+| `.html` | 유저가 시각적으로 보는 파일 (기획서, 디자인 가이드, 작업 현황 등) | 브라우저에서 렌더링, 가독성 높음 |
+
+**판단 기준: "에이전트가 읽는가?" → `.md` / "유저가 브라우저에서 보는가?" → `.html`**
+
+> **HTML 생성 규칙:** HTML 파일은 유저가 명시적으로 요청할 때만 생성하거나 기존 파일을 수정한다. 작업 흐름 중 자동으로 생성하지 않는다.
+
+---
+
 ## Claude Code 서브에이전트 (cavecrew)
 
 긴 세션에서 컨텍스트 절감을 위해 cavecrew 에이전트를 사용한다.  
@@ -18,29 +40,92 @@
 
 ---
 
+## ⚠️ 기능 개발 파이프라인 (필수)
+
+**모든 기능 개발은 반드시 아래 4단계 흐름으로 진행한다.**
+
+```
+workation-planner  →  [유저 검토 & 승인]  →  workation-back / workation-front  →  workation-verifier
+        ↑                                                                                  │
+        └──────────────────── FAIL 시 재기획 ──────────────────────────────────────────────┘
+```
+
+### 에이전트 목록 (전역 설치: `~/.claude/agents/`)
+
+| 에이전트 | 역할 |
+|----------|------|
+| `workation-planner` | 기능 기획 — HTML 기획서(유저 검토용) + spec.md(코드 에이전트용) 생성 |
+| `workation-back` | 백엔드 구현 — spec.md 기반, `market-pulse-api/` 경로 내에서만 작업 |
+| `workation-front` | 프론트엔드 구현 — spec.md 기반, `market-pulse-web/` 경로 내에서만 작업 |
+| `workation-verifier` | 검증 — spec.md AC 기준으로 PASS/FAIL 판정 |
+
+### 워크플로우 규칙
+
+1. **기획 먼저** — 코드 작업은 반드시 `workation-planner`가 생성한 spec.md 기반으로 진행
+2. **유저 승인 후 코드 시작** — 기획서를 유저가 검토·승인하기 전까지 코드 에이전트는 작업 불가
+3. **검증 필수** — 구현 후 반드시 `workation-verifier` 실행
+4. **FAIL → 재기획** — 검증에서 하나라도 FAIL이면 `workation-planner`로 돌아가 재기획
+
+### 에이전트 소통 채널 (`.claude/status/`)
+
+| 파일 | 작성 에이전트 | 내용 |
+|------|--------------|------|
+| `active-plan.md` | planner | 현재 활성 플랜 포인터 |
+| `back-report.md` | back | 백엔드 구현 완료 보고 |
+| `front-report.md` | front | 프론트엔드 구현 완료 보고 |
+| `verify-report.md` | verifier | 검증 결과 (PASS/FAIL) |
+| `plan-questions.md` | back/front | 기획 에이전트에게 보내는 질문 |
+
+### 기획 산출물 (`.claude/plans/`)
+
+| 파일 | 용도 |
+|------|------|
+| `YYYY-MM-DD_<feature>.html` | 유저 검토용 HTML 기획서 |
+| `YYYY-MM-DD_<feature>-spec.md` | 코드 에이전트용 구조화 명세 (AC 포함) |
+
+---
+
 ## ⚠️ Git 브랜치 전략 (중요)
 
-**main 브랜치에 직접 커밋 금지** — main은 배포 브랜치.
+**main 브랜치에 직접 커밋 금지** — main 머지 즉시 자동 배포.
 
-### 기능별 브랜치
-
-기능 단위로 브랜치를 만들고, 완성 후 main으로 PR 머지한다.
+### 3단계 브랜치 구조
 
 ```
-feature/기능명        # 신규 기능 (예: feature/lotto-analysis)
-fix/버그명            # 버그 수정 (예: fix/api-proxy-local)
-refactor/대상         # 리팩터링
+main                    # 배포 브랜치 — 머지 즉시 운영 배포
+  └── develop           # 통합 테스트 브랜치 — 기능 브랜치들이 여기로 머지
+        ├── feature/기능명    # 신규 기능
+        ├── fix/버그명        # 버그 수정
+        ├── refactor/대상     # 리팩터링
+        └── docs/내용         # 문서·md 파일만 변경하는 경우
 ```
+
+### 작업 흐름
 
 ```bash
-# 새 기능 작업 시
-git checkout main && git pull
+# 1. 새 작업 시작 — develop 기준으로 브랜치 생성
+git checkout develop && git pull origin develop
 git checkout -b feature/기능명
 
-# 작업 후
+# 2. 작업 후 develop으로 PR
 git push origin feature/기능명
-# → GitHub에서 main으로 PR 생성
+# → GitHub에서 develop으로 PR 생성 & 머지
+
+# 3. develop에서 테스트 완료 후 main으로 PR
+# → GitHub에서 develop → main PR 생성 & 머지 → 자동 배포
 ```
+
+### 브랜치 용도 구분
+
+| 브랜치 | 용도 | main 직접 머지 |
+|--------|------|--------------|
+| `feature/기능명` | 신규 기능 | ❌ develop 경유 |
+| `fix/버그명` | 버그 수정 | ❌ develop 경유 |
+| `refactor/대상` | 리팩터링 | ❌ develop 경유 |
+| `docs/내용` | md·문서 파일만 변경 | ❌ develop 경유 |
+| `hotfix/긴급수정` | 운영 긴급 수정 | ✅ main 직접 (예외) |
+
+> 코드를 건드리지 않는 md 파일 변경도 `docs/` 브랜치로 만들어 develop 경유.
 
 ---
 
@@ -70,7 +155,9 @@ market-pulse/
     ├── .front/front.md         # 프론트엔드 작업 가이드
     ├── .front/design-guide.md  # 디자인 시스템 (CSS 토큰, 컴포넌트, 페이지 스펙)
     ├── .back/back.md           # 백엔드 작업 가이드
-    └── .logs/          # 날짜별 작업 로그 (YYYY-MM-DD-log.md)
+    ├── .logs/                  # 날짜별 작업 로그 (YYYY-MM-DD-log.md)
+    ├── plans/                  # workation-planner 산출물 (html + spec.md)
+    └── status/                 # 에이전트 간 소통 채널 (active-plan, reports)
 ```
 
 ## 백엔드 (market-pulse-api)

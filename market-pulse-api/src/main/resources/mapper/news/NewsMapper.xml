@@ -7,7 +7,7 @@
         INSERT INTO news_snapshot (news_no, news_date, news_time, title, raw_json)
         VALUES
         <foreach collection="list" item="v" separator=",">
-            (#{v.newsNo}, #{v.newsDate}, #{v.newsTime}, #{v.title}, #{v.rawJson})
+            (#{v.newsNo}, #{v.newsDate}, #{v.newsTime}, #{v.title}, #{v.rawJson}::jsonb)
         </foreach>
         ON CONFLICT (news_no) DO NOTHING
     </insert>

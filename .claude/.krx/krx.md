@@ -1,6 +1,6 @@
 # KRX Open API
 
-**인증키**: `CE1A080A2E5A480B8BB511D1386FFD0E33A33D83`
+**인증키**: `FE777EB1987B49C8A5501FCB889DD28B4633AA33`
 **Base URL**: `https://data-dbg.krx.co.kr/svc/apis`
 
 ## 인증 방법
@@ -10,7 +10,7 @@
 ```
 POST https://data-dbg.krx.co.kr/svc/apis/{path}
 Headers:
-  AUTH_KEY: CE1A080A2E5A480B8BB511D1386FFD0E33A33D83
+  AUTH_KEY: FE777EB1987B49C8A5501FCB889DD28B4633AA33
   Content-Type: application/json
 Body:
   {"basDd":"YYYYMMDD"}
@@ -48,6 +48,7 @@ Response:
 | API명 | 엔드포인트 | 데이터 시작 | 주요 추가 필드 |
 |-------|-----------|------------|----------------|
 | KRX 시리즈 일별시세 | `/idx/krx_dd_trd` | 2010-01-04 | `IDX_CLSS`(계열구분), `IDX_NM`, `CLSPRC_IDX`, `MKTCAP` |
+| KOSPI 시리즈 일별시세 | `/idx/kospi_dd_trd` | 2010-01-04 | 동일 |
 | KOSDAQ 시리즈 일별시세 | `/idx/kosdaq_dd_trd` | 2010-01-04 | 동일 |
 | 채권지수 시세 | `/idx/bon_dd_trd` | 2010-01-04 | `BND_IDX_GRP_NM`, `TOT_EARNG_IDX`, `NETPRC_IDX`, `AVG_DURATION`, `BND_IDX_AVG_YD`(YTM) |
 | 파생상품지수 시세 | `/idx/drvprod_dd_trd` | 2010-01-04 | `IDX_CLSS`, `IDX_NM`, `CLSPRC_IDX`, `FLUC_RT` |

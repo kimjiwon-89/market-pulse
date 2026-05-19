@@ -3,7 +3,6 @@ package com.marketpulse.domain.index.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.marketpulse.domain.index.dto.*;
-import com.marketpulse.global.mock.MockDataProvider;
 import com.marketpulse.domain.index.mapper.IndexMapper;
 import com.marketpulse.domain.index.vo.IndexSnapshotVo;
 import com.marketpulse.external.client.ExternalApiClient;
@@ -52,13 +51,18 @@ public class IndexService {
         try {
             IndexSnapshotVo vo = indexMapper.findLatest(indexCode);
             if (vo == null) {
-                log.warn("No index snapshot in DB for code={}, returning mock data", indexCode);
-                return MockDataProvider.mockIndexResponse(indexCode);
+                log.info("No index snapshot in DB for code={}, fetching from KIS API", indexCode);
+                fetchAndSave(indexCode);
+                vo = indexMapper.findLatest(indexCode);
+            }
+            if (vo == null) {
+                log.warn("No index data available for code={}", indexCode);
+                return emptyIndexResponse();
             }
             return toIndexResponse(vo);
         } catch (Exception e) {
-            log.warn("DB error in callIndex code={}, returning mock data: {}", indexCode, e.getMessage());
-            return MockDataProvider.mockIndexResponse(indexCode);
+            log.error("Error in callIndex code={}: {}", indexCode, e.getMessage());
+            return emptyIndexResponse();
         }
     }
 
@@ -67,13 +71,14 @@ public class IndexService {
         List<IndexSnapshotVo> snapshots;
         try {
             snapshots = indexMapper.findLatestByCodes(codes);
+            if (snapshots.isEmpty()) {
+                log.info("No sector snapshots in DB, fetching from KIS API");
+                fetchAndSaveAll();
+                snapshots = indexMapper.findLatestByCodes(codes);
+            }
         } catch (Exception e) {
-            log.warn("DB error in getTopSectors, returning mock data: {}", e.getMessage());
-            return MockDataProvider.mockTopSectors();
-        }
-        if (snapshots.isEmpty()) {
-            log.warn("No sector snapshots in DB, returning mock data");
-            return MockDataProvider.mockTopSectors();
+            log.error("Error in getTopSectors: {}", e.getMessage());
+            return List.of();
         }
         return snapshots.stream()
                 .map(this::toTopSectorItem)
@@ -100,11 +105,11 @@ public class IndexService {
             String monthAgo = LocalDate.now().minusDays(30).format(FMT);
 
             Map<String, String> params = new HashMap<>();
-            params.put("fid_cond_mrkt_div_code", "U");
-            params.put("fid_input_iscd", indexCode);
-            params.put("fid_input_date_1", monthAgo);
-            params.put("fid_input_date_2", today);
-            params.put("fid_period_div_code", "D");
+            params.put("FID_COND_MRKT_DIV_CODE", "U");
+            params.put("FID_INPUT_ISCD", indexCode);
+            params.put("FID_INPUT_DATE_1", monthAgo);
+            params.put("FID_INPUT_DATE_2", today);
+            params.put("FID_PERIOD_DIV_CODE", "D");
 
             IndexResponse response = externalApiClient.callGet(
                     "/uapi/domestic-stock/v1/quotations/inquire-daily-indexchartprice",
@@ -141,6 +146,13 @@ public class IndexService {
     }
 
     /* ── 변환 헬퍼 ── */
+
+    private IndexResponse emptyIndexResponse() {
+        IndexResponse resp = new IndexResponse();
+        resp.setRt_cd("0");
+        resp.setOutput2(List.of());
+        return resp;
+    }
 
     private IndexResponse toIndexResponse(IndexSnapshotVo vo) {
         IndexCurrentItem current = new IndexCurrentItem();
