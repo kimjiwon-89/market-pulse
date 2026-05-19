@@ -19,14 +19,26 @@ public class RedisTokenRepository {
     private final RedisTemplate<String, ApiToken> redisTemplate;
 
     public ApiToken find() {
-        return redisTemplate.opsForValue().get(KEY);
+        try {
+            return redisTemplate.opsForValue().get(KEY);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     public void save(ApiToken token) {
-        redisTemplate.opsForValue().set(KEY, token);
+        try {
+            redisTemplate.opsForValue().set(KEY, token);
+        } catch (Exception e) {
+            // Redis 미실행 시 무시 — DB 저장으로 대체
+        }
     }
 
     public void delete() {
-        redisTemplate.delete(KEY);
+        try {
+            redisTemplate.delete(KEY);
+        } catch (Exception e) {
+            // ignore
+        }
     }
 }

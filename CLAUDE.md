@@ -12,6 +12,19 @@
 
 ---
 
+## 파일 포맷 규칙
+
+| 포맷 | 용도 | 이유 |
+|------|------|------|
+| `.md` | 에이전트가 읽는 파일 (spec, status, back.md, front.md, logs 등) | 태그 오버헤드 없음 → 토큰 절약, 파싱 빠름 |
+| `.html` | 유저가 시각적으로 보는 파일 (기획서, 디자인 가이드, 작업 현황 등) | 브라우저에서 렌더링, 가독성 높음 |
+
+**판단 기준: "에이전트가 읽는가?" → `.md` / "유저가 브라우저에서 보는가?" → `.html`**
+
+> **HTML 생성 규칙:** HTML 파일은 유저가 명시적으로 요청할 때만 생성하거나 기존 파일을 수정한다. 작업 흐름 중 자동으로 생성하지 않는다.
+
+---
+
 ## Claude Code 서브에이전트 (cavecrew)
 
 긴 세션에서 컨텍스트 절감을 위해 cavecrew 에이전트를 사용한다.  
@@ -24,6 +37,51 @@
 | `cavecrew-reviewer` | diff·파일 리뷰 | 버그·문제 탐지, 심각도별 정리 |
 
 > 새 환경 설치 시: `.claude/.logs/2026-05-16-log.md` → "cavecrew 서브에이전트 설치" 섹션 참조
+
+---
+
+## ⚠️ 기능 개발 파이프라인 (필수)
+
+**모든 기능 개발은 반드시 아래 4단계 흐름으로 진행한다.**
+
+```
+workation-planner  →  [유저 검토 & 승인]  →  workation-back / workation-front  →  workation-verifier
+        ↑                                                                                  │
+        └──────────────────── FAIL 시 재기획 ──────────────────────────────────────────────┘
+```
+
+### 에이전트 목록 (전역 설치: `~/.claude/agents/`)
+
+| 에이전트 | 역할 |
+|----------|------|
+| `workation-planner` | 기능 기획 — HTML 기획서(유저 검토용) + spec.md(코드 에이전트용) 생성 |
+| `workation-back` | 백엔드 구현 — spec.md 기반, `market-pulse-api/` 경로 내에서만 작업 |
+| `workation-front` | 프론트엔드 구현 — spec.md 기반, `market-pulse-web/` 경로 내에서만 작업 |
+| `workation-verifier` | 검증 — spec.md AC 기준으로 PASS/FAIL 판정 |
+
+### 워크플로우 규칙
+
+1. **기획 먼저** — 코드 작업은 반드시 `workation-planner`가 생성한 spec.md 기반으로 진행
+2. **유저 승인 후 코드 시작** — 기획서를 유저가 검토·승인하기 전까지 코드 에이전트는 작업 불가
+3. **검증 필수** — 구현 후 반드시 `workation-verifier` 실행
+4. **FAIL → 재기획** — 검증에서 하나라도 FAIL이면 `workation-planner`로 돌아가 재기획
+
+### 에이전트 소통 채널 (`.claude/status/`)
+
+| 파일 | 작성 에이전트 | 내용 |
+|------|--------------|------|
+| `active-plan.md` | planner | 현재 활성 플랜 포인터 |
+| `back-report.md` | back | 백엔드 구현 완료 보고 |
+| `front-report.md` | front | 프론트엔드 구현 완료 보고 |
+| `verify-report.md` | verifier | 검증 결과 (PASS/FAIL) |
+| `plan-questions.md` | back/front | 기획 에이전트에게 보내는 질문 |
+
+### 기획 산출물 (`.claude/plans/`)
+
+| 파일 | 용도 |
+|------|------|
+| `YYYY-MM-DD_<feature>.html` | 유저 검토용 HTML 기획서 |
+| `YYYY-MM-DD_<feature>-spec.md` | 코드 에이전트용 구조화 명세 (AC 포함) |
 
 ---
 
@@ -97,7 +155,9 @@ market-pulse/
     ├── .front/front.md         # 프론트엔드 작업 가이드
     ├── .front/design-guide.md  # 디자인 시스템 (CSS 토큰, 컴포넌트, 페이지 스펙)
     ├── .back/back.md           # 백엔드 작업 가이드
-    └── .logs/          # 날짜별 작업 로그 (YYYY-MM-DD-log.md)
+    ├── .logs/                  # 날짜별 작업 로그 (YYYY-MM-DD-log.md)
+    ├── plans/                  # workation-planner 산출물 (html + spec.md)
+    └── status/                 # 에이전트 간 소통 채널 (active-plan, reports)
 ```
 
 ## 백엔드 (market-pulse-api)

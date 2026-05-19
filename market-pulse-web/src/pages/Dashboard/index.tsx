@@ -209,7 +209,7 @@ export function Dashboard() {
                 {(indices.length > 0 ? indices : INDEX_CODES.map(c => ({
                   code: c.code, name: c.name, value: 0, change: 0, pct: 0, hist: []
                 }))).map((idx, i) => (
-                  <div key={idx.code ?? i} className="stat-cell" style={{ cursor: "pointer" }} onClick={() => navigate(`/index/${idx.code}`)}>
+                  <div key={idx.code || i} className="stat-cell" style={{ cursor: "pointer" }} onClick={() => navigate(`/index/${idx.code}`)}>
                     <div className="stat-label">{idx.name ?? INDEX_CODES[i]?.name}</div>
                     <div className={`stat-value ${dirCls(idx.pct)}`}>
                       {idx.value ? idx.value.toLocaleString() : "—"}
@@ -255,8 +255,8 @@ export function Dashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {sectors.map(s => (
-                      <tr key={s.code} className="clickable" onClick={() => navigate(`/index/${s.code}`)}>
+                    {sectors.map((s, i) => (
+                      <tr key={s.code || i} className="clickable" onClick={() => navigate(`/index/${s.code}`)}>
                         <td className="ticker" style={{ paddingLeft: "var(--pad-card)" }}>{s.name}</td>
                         <td className="num mono">{s.price.toLocaleString()}</td>
                         <td className={`num pct ${dirCls(s.pct)}`}>{triangle(s.pct)} {fmtPct(s.pct)}</td>
@@ -359,8 +359,8 @@ export function Dashboard() {
                 </tr>
               </thead>
               <tbody>
-                {flowItems.slice(0, 5).map(item => (
-                  <tr key={item.stockCode} className="clickable" onClick={() => navigate("/investor")}>
+                {flowItems.slice(0, 5).map((item, i) => (
+                  <tr key={item.stockCode || i} className="clickable" onClick={() => navigate("/investor")}>
                     <td className="rank">{item.rank}</td>
                     <td className="ticker">{item.stockName}</td>
                     <td className="num">{fmtAmount(item.netBuyAmount)}</td>

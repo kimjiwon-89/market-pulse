@@ -495,6 +495,7 @@ export function NetBuyingList() {
 
   const labelTrade = tradeType === "BUY" ? "순매수" : "순매도";
   const labelMarket = market === "KOSPI" ? "코스피" : market === "KOSDAQ" ? "코스닥" : "전체";
+  const tradeColor = tradeType === "BUY" ? "var(--up)" : "var(--down)";
 
   /* sticky 헤더 — 순위(왼쪽) / 합계(오른쪽) */
   const rankStickyHead: React.CSSProperties = {
@@ -754,10 +755,10 @@ export function NetBuyingList() {
                           >
                             {item?.stockName ?? <span style={{ color: "var(--text-4)", fontWeight: 400 }}>-</span>}
                           </td>
-                          <td className="num" style={{ fontSize: 12, width: amtW }}>
+                          <td className="num" style={{ fontSize: 12, width: amtW, color: item ? tradeColor : undefined }}>
                             {item ? fmtAmountNum(item.netBuyAmount) : <span style={{ color: "var(--text-4)" }}>-</span>}
                           </td>
-                          <td className="num" style={{ fontSize: 12, width: volW }}>
+                          <td className="num" style={{ fontSize: 12, width: volW, color: item ? tradeColor : undefined }}>
                             {item ? fmtVolumeNum(item.netBuyVolume) : <span style={{ color: "var(--text-4)" }}>-</span>}
                           </td>
                         </Fragment>
@@ -788,12 +789,12 @@ export function NetBuyingList() {
                             {sItem?.stockName ?? <span style={{ color: "var(--text-4)", fontWeight: 400 }}>-</span>}
                           </td>
                           {!isMobile && (
-                            <td className="num" style={{ ...sumBodyAmt, fontSize: 12, fontWeight: 600 }}>
+                            <td className="num" style={{ ...sumBodyAmt, fontSize: 12, fontWeight: 600, color: sItem ? tradeColor : undefined }}>
                               {sItem ? fmtAmountNum(sItem.netBuyAmount) : <span style={{ color: "var(--text-4)" }}>-</span>}
                             </td>
                           )}
                           {!isMobile && (
-                            <td className="num" style={{ ...sumBodyVol, fontSize: 12, fontWeight: 600 }}>
+                            <td className="num" style={{ ...sumBodyVol, fontSize: 12, fontWeight: 600, color: sItem ? tradeColor : undefined }}>
                               {sItem ? fmtVolumeNum(sItem.netBuyVolume) : <span style={{ color: "var(--text-4)" }}>-</span>}
                             </td>
                           )}
