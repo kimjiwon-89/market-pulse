@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
-import { apiClient } from "@/services/apiClient";
+import { useNavigate } from "react-router-dom";
+import { apiClient, getToken } from "@/services/apiClient";
 import type {
   LottoAnalysisDto,
   LottoResultDto,
@@ -27,6 +28,7 @@ const STRATEGY_DESC: Record<LottoStrategy, string> = {
 };
 
 export function LottoAnalysis() {
+  const navigate = useNavigate();
   const [analysis, setAnalysis] = useState<LottoAnalysisDto | null>(null);
   const [rounds, setRounds] = useState<LottoResultDto[]>([]);
   const [stats, setStats] = useState<LottoStatsDto[]>([]);
@@ -40,7 +42,9 @@ export function LottoAnalysis() {
     try {
       const res = await apiClient.get("/lotto/rounds");
       setRounds(res.data.data ?? []);
-    } catch {}
+    } catch {
+      setRounds([]);
+    }
   }, []);
 
   const fetchAnalysis = useCallback(async (round?: number) => {
@@ -52,7 +56,7 @@ export function LottoAnalysis() {
         : await apiClient.get("/lotto/latest");
       setAnalysis(res.data.data);
       setSelectedRound(res.data.data?.drawNo ?? null);
-    } catch (e: any) {
+    } catch {
       setError("데이터를 불러오지 못했습니다.");
     } finally {
       setLoading(false);
@@ -63,7 +67,9 @@ export function LottoAnalysis() {
     try {
       const res = await apiClient.get("/lotto/stats");
       setStats(res.data.data ?? []);
-    } catch {}
+    } catch {
+      setStats([]);
+    }
   }, []);
 
   useEffect(() => {
@@ -80,6 +86,10 @@ export function LottoAnalysis() {
 
   const saveMyCombo = async () => {
     if (myComboNums.length !== 6 || !selectedRound) return;
+    if (!getToken()) {
+      navigate("/login");
+      return;
+    }
     try {
       await apiClient.post("/lotto/combo", {
         drawNo: selectedRound,
@@ -87,14 +97,18 @@ export function LottoAnalysis() {
       });
       setMyComboNums([]);
       fetchAnalysis(selectedRound);
-    } catch {}
+    } catch {
+      setError("조합을 저장하지 못했습니다.");
+    }
   };
 
   const deleteMyCombo = async (id: number) => {
     try {
       await apiClient.delete(`/lotto/combo/${id}`);
       fetchAnalysis(selectedRound ?? undefined);
-    } catch {}
+    } catch {
+      setError("조합을 삭제하지 못했습니다.");
+    }
   };
 
   const toggleMyNum = (n: number) => {
@@ -321,6 +335,7 @@ export function LottoAnalysis() {
       {!loading && tab === "mycombo" && (
         <MyComboTab
           rounds={rounds}
+          isLoggedIn={Boolean(getToken())}
           onDeleteCombo={async (id) => {
             await apiClient.delete(`/lotto/combo/${id}`);
             fetchAnalysis(selectedRound ?? undefined);
@@ -599,16 +614,27 @@ function StatBadge({ label, value }: { label: string; value: string }) {
 
 function MyComboTab({
   rounds,
+  isLoggedIn,
   onDeleteCombo,
 }: {
   rounds: LottoResultDto[];
+  isLoggedIn: boolean;
   onDeleteCombo: (id: number) => Promise<void>;
 }) {
   const [combos, setCombos] = useState<LottoUserCombo[]>([]);
 
   useEffect(() => {
+    if (!isLoggedIn) return;
     apiClient.get("/lotto/combo").then(res => setCombos(res.data.data ?? []));
-  }, []);
+  }, [isLoggedIn]);
+
+  if (!isLoggedIn) {
+    return (
+      <div style={{ padding: 40, textAlign: "center", color: "var(--text-3)" }}>
+        <a href="/login" style={{ color: "var(--accent)", textDecoration: "none", fontWeight: 600 }}>로그인</a> 후 내 조합을 저장하고 확인할 수 있습니다.
+      </div>
+    );
+  }
 
   if (combos.length === 0) {
     return (

@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 public class LottoUserComboVo {
     private Long id;
     private int drawNo;
+    private String username;
     private int[] numbers;
     private Integer hitCount;
     private LocalDateTime createdAt;

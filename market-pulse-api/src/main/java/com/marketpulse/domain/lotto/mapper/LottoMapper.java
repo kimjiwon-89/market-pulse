@@ -33,6 +33,9 @@ public interface LottoMapper {
     // lotto_user_combo
     void insertUserCombo(LottoUserComboVo vo);
     List<LottoUserComboVo> findUserCombos();
+    List<LottoUserComboVo> findUserCombosByUsername(@Param("username") String username);
+    List<LottoUserComboVo> findUserCombosByDrawNoAndUsername(@Param("drawNo") int drawNo,
+                                                             @Param("username") String username);
     void updateUserComboHitCount(@Param("id") Long id, @Param("hitCount") int hitCount);
-    void deleteUserCombo(@Param("id") Long id);
+    int deleteUserCombo(@Param("id") Long id, @Param("username") String username);
 }

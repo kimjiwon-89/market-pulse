@@ -57,7 +57,7 @@ src/
 | `/news` | NewsList | ❌ | 완료 |
 | `/stock/:code` | StockDetail | ❌ | 완료 |
 | `/admin` | Admin | ✅ ADMIN | 완료 |
-| `/lotto` | LottoAnalysis | ❌ (내 조합 저장만 필요) | 완료 |
+| `/lotto` | LottoAnalysis | ❌ (내 조합 저장/조회/삭제만 필요) | 완료 |
 
 ## 코드 컨벤션
 

@@ -268,10 +268,13 @@ CREATE INDEX IF NOT EXISTS idx_lotto_comment_draw_no ON lotto_comment(draw_no);
 CREATE TABLE IF NOT EXISTS lotto_user_combo (
     id         BIGSERIAL PRIMARY KEY,
     draw_no    INTEGER   NOT NULL,
+    username   VARCHAR(50),
     numbers    INTEGER[] NOT NULL,  -- 6개
     hit_count  INTEGER,             -- 당첨 결과 확인 후 채워짐
     created_at TIMESTAMP DEFAULT NOW()
 );
+ALTER TABLE lotto_user_combo ADD COLUMN IF NOT EXISTS username VARCHAR(50);
+CREATE INDEX IF NOT EXISTS idx_lotto_user_combo_username ON lotto_user_combo (username, draw_no);
 
 /*
     REDIS 설치
