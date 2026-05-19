@@ -30,7 +30,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                .requestMatchers("/api/investor/memo/**").authenticated()
+                .requestMatchers("/api/memo/**", "/api/memo").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/lotto/analyze").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/lotto/collect").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/lotto/bulk-results").hasRole("ADMIN")

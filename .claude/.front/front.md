@@ -53,7 +53,7 @@ src/
 | `/index/:id` | IndexDetail | ❌ | 완료 |
 | `/investor` | InvestorTrend | ❌ (메모 기능만 필요) | 완료 |
 | `/net-buy` | NetBuyingList | ❌ | 완료 |
-| `/memo` | MemoList | ❌ (메모 기능만 필요) | 완료 |
+| `/memo` | MemoList | ✅ | 완료 — 범용 메모 필터 리스트 |
 | `/news` | NewsList | ❌ | 완료 |
 | `/stock/:code` | StockDetail | ❌ | 완료 |
 | `/admin` | Admin | ✅ ADMIN | 완료 |

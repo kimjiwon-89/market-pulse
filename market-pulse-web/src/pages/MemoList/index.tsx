@@ -1,31 +1,72 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiClient, getToken } from "@/services/apiClient";
-import type { InvestorMemo } from "@/types";
+import type { MemoRecord, MemoSourceType } from "@/types";
 
-type Market = "KOSPI" | "KOSDAQ";
+type MarketFilter = "ALL" | "KOSPI" | "KOSDAQ";
+type SourceFilter = "ALL" | MemoSourceType;
 
-function fmtDisplayDate(memoDate: string): string {
-  // "2026-05-14" → "2026.05.14"
+const PAGE_SIZE = 20;
+
+const SOURCE_LABEL: Record<MemoSourceType, string> = {
+  INVESTOR_TREND: "투자자 동향",
+  NET_BUY: "순매수도",
+  STOCK_DETAIL: "종목 상세",
+  MANUAL: "직접 작성",
+};
+
+function todayInput(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function inputToApi(value: string): string | undefined {
+  return value ? value.replace(/-/g, "") : undefined;
+}
+
+function fmtDisplayDate(memoDate: string | null): string {
+  if (!memoDate) return "날짜 없음";
   return memoDate.replace(/-/g, ".");
 }
 
-function fmtApiDate(memoDate: string): string {
-  // "2026-05-14" → "20260514"
-  return memoDate.replace(/-/g, "");
+function fmtApiDate(memoDate: string | null): string {
+  return memoDate ? memoDate.replace(/-/g, "") : "";
+}
+
+function contextPath(memo: MemoRecord): string {
+  if (memo.sourceType === "NET_BUY") {
+    const params = new URLSearchParams();
+    if (memo.memoDate) params.set("date", fmtApiDate(memo.memoDate));
+    if (memo.market) params.set("market", memo.market);
+    return `/net-buy?${params.toString()}`;
+  }
+  if (memo.sourceType === "STOCK_DETAIL" && memo.stockCode) {
+    return `/stock/${memo.stockCode}`;
+  }
+  if (memo.sourceType === "INVESTOR_TREND") {
+    const params = new URLSearchParams();
+    if (memo.memoDate) params.set("date", fmtApiDate(memo.memoDate));
+    if (memo.market) params.set("market", memo.market);
+    return `/investor?${params.toString()}`;
+  }
+  return "/memo";
 }
 
 export function MemoList() {
   const navigate = useNavigate();
   const isAuthed = !!getToken();
-  const [market, setMarket] = useState<Market>("KOSPI");
-  const [memos, setMemos] = useState<InvestorMemo[]>([]);
+
+  const [sourceType, setSourceType] = useState<SourceFilter>("ALL");
+  const [market, setMarket] = useState<MarketFilter>("ALL");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState(todayInput());
+  const [stockCode, setStockCode] = useState("");
+  const [keyword, setKeyword] = useState("");
+  const [memos, setMemos] = useState<MemoRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
-
-  const PAGE_SIZE = 20;
 
   const fetchMemos = useCallback(
     async (pageNum: number, replace: boolean) => {
@@ -33,10 +74,19 @@ export function MemoList() {
       setLoading(true);
       setError(null);
       try {
-        const res = await apiClient.get("/investor/memo/list", {
-          params: { market, page: pageNum, size: PAGE_SIZE },
+        const res = await apiClient.get("/memo", {
+          params: {
+            sourceType: sourceType === "ALL" ? undefined : sourceType,
+            market: market === "ALL" ? undefined : market,
+            from: inputToApi(from),
+            to: inputToApi(to),
+            stockCode: stockCode.trim() || undefined,
+            keyword: keyword.trim() || undefined,
+            page: pageNum,
+            size: PAGE_SIZE,
+          },
         });
-        const data: InvestorMemo[] = res.data.data ?? [];
+        const data: MemoRecord[] = res.data.data ?? [];
         setMemos((prev) => (replace ? data : [...prev, ...data]));
         setHasMore(data.length === PAGE_SIZE);
       } catch {
@@ -45,7 +95,7 @@ export function MemoList() {
         setLoading(false);
       }
     },
-    [market, isAuthed]
+    [from, isAuthed, keyword, market, sourceType, stockCode, to]
   );
 
   useEffect(() => {
@@ -60,28 +110,23 @@ export function MemoList() {
     fetchMemos(next, false);
   }
 
-  function goToInvestor(memo: InvestorMemo) {
-    sessionStorage.setItem("mp:flow:initDate", fmtApiDate(memo.memoDate));
-    sessionStorage.setItem("mp:flow:initMarket", memo.market);
-    navigate(`/investor?date=${fmtApiDate(memo.memoDate)}&market=${memo.market}`);
+  function resetFilters() {
+    setSourceType("ALL");
+    setMarket("ALL");
+    setFrom("");
+    setTo(todayInput());
+    setStockCode("");
+    setKeyword("");
   }
 
   if (!isAuthed) {
     return (
       <div style={{ position: "relative" }}>
-        {/* 배경: 흐릿한 페이지 미리보기 */}
-        <div
-          className="stack"
-          style={{ filter: "blur(3px)", opacity: 0.45, pointerEvents: "none", userSelect: "none" }}
-        >
+        <div className="stack" style={{ filter: "blur(3px)", opacity: 0.45, pointerEvents: "none", userSelect: "none" }}>
           <div className="card">
             <div className="card-head">
               <div className="card-title">메모 모아보기</div>
-              <span className="tag">날짜 내림차순</span>
-            </div>
-            <div className="seg-tabs" role="tablist">
-              <button role="tab" aria-selected={true}>코스피</button>
-              <button role="tab" aria-selected={false}>코스닥</button>
+              <span className="tag">필터</span>
             </div>
           </div>
           <div className="card" style={{ padding: "var(--pad-card)" }}>
@@ -93,8 +138,6 @@ export function MemoList() {
             ))}
           </div>
         </div>
-
-        {/* 로그인 안내 overlay */}
         <div
           style={{
             position: "absolute",
@@ -106,26 +149,10 @@ export function MemoList() {
             gap: 14,
           }}
         >
-          <svg
-            width={32}
-            height={32}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="var(--text-3)"
-            strokeWidth={1.5}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-          </svg>
           <div style={{ fontSize: 14, color: "var(--text-2)", fontWeight: 600 }}>
             로그인이 필요한 기능입니다
           </div>
-          <button
-            className="btn primary sm"
-            onClick={() => navigate("/login")}
-          >
+          <button className="btn primary sm" onClick={() => navigate("/login")}>
             로그인하기
           </button>
         </div>
@@ -135,37 +162,62 @@ export function MemoList() {
 
   return (
     <div className="stack">
-      {/* 헤더 카드 */}
       <div className="card">
         <div className="card-head">
-          <div className="card-title">메모 모아보기</div>
-          <span className="tag">날짜 내림차순</span>
+          <div>
+            <div className="card-title">메모 모아보기</div>
+            <div className="card-sub">기능, 날짜, 시장, 종목, 키워드로 투자 기록을 찾습니다</div>
+          </div>
+          <span className="tag">최신순</span>
         </div>
-        <div className="seg-tabs" role="tablist">
-          {(["KOSPI", "KOSDAQ"] as Market[]).map((m) => (
-            <button
-              key={m}
-              role="tab"
-              aria-selected={market === m}
-              onClick={() => setMarket(m)}
-            >
-              {m === "KOSPI" ? "코스피" : "코스닥"}
-            </button>
-          ))}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <span style={{ fontSize: 11, color: "var(--text-4)" }}>기능</span>
+            <select value={sourceType} onChange={(e) => setSourceType(e.target.value as SourceFilter)}>
+              <option value="ALL">전체</option>
+              <option value="NET_BUY">순매수도</option>
+              <option value="INVESTOR_TREND">투자자 동향</option>
+              <option value="STOCK_DETAIL">종목 상세</option>
+              <option value="MANUAL">직접 작성</option>
+            </select>
+          </label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <span style={{ fontSize: 11, color: "var(--text-4)" }}>시장</span>
+            <select value={market} onChange={(e) => setMarket(e.target.value as MarketFilter)}>
+              <option value="ALL">전체</option>
+              <option value="KOSPI">코스피</option>
+              <option value="KOSDAQ">코스닥</option>
+            </select>
+          </label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <span style={{ fontSize: 11, color: "var(--text-4)" }}>종목코드</span>
+            <input value={stockCode} onChange={(e) => setStockCode(e.target.value)} placeholder="005930" />
+          </label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <span style={{ fontSize: 11, color: "var(--text-4)" }}>시작일</span>
+            <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+          </label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <span style={{ fontSize: 11, color: "var(--text-4)" }}>종료일</span>
+            <input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+          </label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <span style={{ fontSize: 11, color: "var(--text-4)" }}>키워드</span>
+            <input value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="외국인, 반도체..." />
+          </label>
+        </div>
+        <div style={{ marginTop: 12, display: "flex", justifyContent: "flex-end", gap: 8 }}>
+          <button className="btn sm ghost" onClick={resetFilters}>초기화</button>
+          <button className="btn sm primary" onClick={() => fetchMemos(0, true)} disabled={loading}>
+            조회
+          </button>
         </div>
       </div>
 
-      {/* 메모 목록 카드 */}
       <div className="card" style={{ padding: 0, overflow: "hidden" }}>
         {loading && memos.length === 0 ? (
-          <div
-            style={{
-              padding: "var(--pad-card)",
-              display: "flex",
-              flexDirection: "column",
-              gap: 16,
-            }}
-          >
+          <div style={{ padding: "var(--pad-card)", display: "flex", flexDirection: "column", gap: 16 }}>
             {Array.from({ length: 5 }).map((_, i) => (
               <div key={i} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <div className="sk short" />
@@ -176,23 +228,12 @@ export function MemoList() {
         ) : error ? (
           <div className="error-block">
             <div className="error-title">{error}</div>
-            <div className="error-msg">잠시 후 다시 시도해 주세요</div>
-            <button className="btn sm" onClick={() => fetchMemos(0, true)}>
-              재시도
-            </button>
+            <button className="btn sm" onClick={() => fetchMemos(0, true)}>재시도</button>
           </div>
         ) : memos.length === 0 ? (
-          <div
-            className="error-block"
-            style={{ color: "var(--text-4)", padding: 48 }}
-          >
-            <div style={{ fontSize: 13 }}>저장된 메모가 없습니다</div>
-            <button
-              className="btn sm ghost"
-              onClick={() => navigate("/investor")}
-            >
-              투자자 동향 보러 가기
-            </button>
+          <div className="error-block" style={{ color: "var(--text-4)", padding: 48 }}>
+            <div style={{ fontSize: 13 }}>조건에 맞는 메모가 없습니다</div>
+            <button className="btn sm ghost" onClick={() => navigate("/net-buy")}>순매수도 보러 가기</button>
           </div>
         ) : (
           <div className="memo-list" style={{ padding: "0 var(--pad-card)" }}>
@@ -200,42 +241,28 @@ export function MemoList() {
               <div
                 key={memo.id}
                 className="memo-item"
-                onClick={() => goToInvestor(memo)}
+                onClick={() => navigate(contextPath(memo))}
                 role="button"
                 tabIndex={0}
-                onKeyDown={(e) => e.key === "Enter" && goToInvestor(memo)}
+                onKeyDown={(e) => e.key === "Enter" && navigate(contextPath(memo))}
               >
                 <div className="memo-date">
                   <span>{fmtDisplayDate(memo.memoDate)}</span>
-                  <span className={`tag ${memo.market === "KOSPI" ? "" : "down"}`}>
-                    {memo.market}
-                  </span>
-                  <span
-                    style={{
-                      color: "var(--text-4)",
-                      fontFamily: "var(--font-mono)",
-                      fontSize: 11,
-                    }}
-                  >
-                    {memo.updatedAt
-                      ? new Date(memo.updatedAt).toLocaleTimeString("ko-KR", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : ""}
-                  </span>
+                  <span className="tag">{SOURCE_LABEL[memo.sourceType]}</span>
+                  {memo.market && <span className={`tag ${memo.market === "KOSDAQ" ? "down" : ""}`}>{memo.market}</span>}
+                  {memo.stockName && (
+                    <span style={{ color: "var(--text-3)", fontSize: 12 }}>
+                      {memo.stockName} {memo.stockCode && <span style={{ fontFamily: "var(--font-mono)" }}>{memo.stockCode}</span>}
+                    </span>
+                  )}
                 </div>
+                {memo.title && <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text)", marginBottom: 4 }}>{memo.title}</div>}
                 <div className="memo-preview">{memo.content}</div>
               </div>
             ))}
-
             {hasMore && (
               <div style={{ padding: "16px 0", textAlign: "center" }}>
-                <button
-                  className="btn ghost sm"
-                  onClick={loadMore}
-                  disabled={loading}
-                >
+                <button className="btn ghost sm" onClick={loadMore} disabled={loading}>
                   {loading ? "불러오는 중..." : "더 보기"}
                 </button>
               </div>

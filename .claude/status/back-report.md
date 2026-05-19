@@ -1,13 +1,14 @@
 # Backend Report
 
-## 로또 인증/관리 API 보호
-- `SecurityConfig`에서 로또 조합 API는 인증 필요, 관리성 POST API는 ADMIN 전용으로 분리
-- 댓글 작성 exact path인 `POST /api/lotto/comment` 인증 보호 보강
-- `LottoController`가 인증 사용자명을 서비스로 전달하도록 변경
-- `LottoService`가 사용자별 조합 저장/조회/삭제를 처리하도록 변경
-- 조합 번호 검증 추가: 6개, 1~45, 중복 금지
-- `lotto_user_combo.username` 컬럼 및 인덱스 정의 추가
+## 범용 메모 시스템 개편
+- 신규 `domain/memo` 도메인 추가
+- `/api/memo` CRUD 및 필터 조회 API 추가
+- `/api/memo/context`로 기능/날짜/시장/종목 맥락별 메모 조회 지원
+- `memo` 테이블 DDL 및 인덱스 추가
+- `/api/memo`는 로그인 사용자 개인 메모로 보호
+- 기존 `/api/investor/memo` endpoint, DTO, Mapper, VO, XML 제거
+- `data.sql`의 legacy `investor_memo` 생성 정의 제거
 
 ## 검증
 - `JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home mvn test` PASS
-- 테스트 소스는 현재 없음
+- 로컬 PostgreSQL `memo` 테이블 및 인덱스 생성 완료

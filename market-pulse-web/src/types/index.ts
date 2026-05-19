@@ -19,10 +19,17 @@ export interface TradeTopItem {
   netBuyVolume: number;
 }
 
-export interface InvestorMemo {
+export type MemoSourceType = "INVESTOR_TREND" | "NET_BUY" | "STOCK_DETAIL" | "MANUAL";
+
+export interface MemoRecord {
   id: number;
-  memoDate: string;
-  market: "KOSPI" | "KOSDAQ";
+  username: string;
+  memoDate: string | null;
+  sourceType: MemoSourceType;
+  market: "KOSPI" | "KOSDAQ" | "ALL" | null;
+  stockCode: string | null;
+  stockName: string | null;
+  title: string | null;
   content: string;
   createdAt: string;
   updatedAt: string;
