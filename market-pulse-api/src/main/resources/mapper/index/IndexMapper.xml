@@ -8,8 +8,9 @@
             (snap_date, index_code, index_name, current_price, change_amount, change_rate,
              trade_volume, trade_amount, daily_json, updated_at)
         VALUES
-            (#{snapDate}, #{indexCode}, #{indexName}, #{currentPrice}, #{changeAmount}, #{changeRate},
-             #{tradeVolume}, #{tradeAmount}, #{dailyJson}, NOW())
+            (#{snapDate}, #{indexCode}, #{indexName},
+             #{currentPrice}::numeric, #{changeAmount}::numeric, #{changeRate}::numeric,
+             #{tradeVolume}::numeric, #{tradeAmount}::numeric, #{dailyJson}::jsonb, NOW())
         ON CONFLICT (snap_date, index_code) DO UPDATE SET
             index_name    = EXCLUDED.index_name,
             current_price = EXCLUDED.current_price,

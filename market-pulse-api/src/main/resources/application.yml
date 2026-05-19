@@ -69,4 +69,4 @@ app:
 krx:
   api:
     base-url: https://data-dbg.krx.co.kr/svc/apis
-    auth-key: CE1A080A2E5A480B8BB511D1386FFD0E33A33D83
+    auth-key: FE777EB1987B49C8A5501FCB889DD28B4633AA33

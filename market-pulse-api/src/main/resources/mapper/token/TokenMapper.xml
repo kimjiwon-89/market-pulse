@@ -18,6 +18,9 @@
     <insert id="upsert">
         INSERT INTO api_token (access_token, expired_at)
         VALUES (#{accessToken}, #{expiredAt})
+        ON CONFLICT ON CONSTRAINT api_token_singleton_unique
+        DO UPDATE SET access_token = EXCLUDED.access_token,
+                      expired_at   = EXCLUDED.expired_at
     </insert>
 
 </mapper>
