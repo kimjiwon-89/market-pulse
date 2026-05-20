@@ -16,11 +16,22 @@
     </select>
 
     <insert id="upsert">
+        WITH latest AS (
+            SELECT id
+            FROM api_token
+            ORDER BY id DESC
+            LIMIT 1
+        ),
+        updated AS (
+            UPDATE api_token
+            SET access_token = #{accessToken},
+                expired_at   = #{expiredAt}
+            WHERE id IN (SELECT id FROM latest)
+            RETURNING id
+        )
         INSERT INTO api_token (access_token, expired_at)
-        VALUES (#{accessToken}, #{expiredAt})
-        ON CONFLICT ON CONSTRAINT api_token_singleton_unique
-        DO UPDATE SET access_token = EXCLUDED.access_token,
-                      expired_at   = EXCLUDED.expired_at
+        SELECT #{accessToken}, #{expiredAt}
+        WHERE NOT EXISTS (SELECT 1 FROM updated)
     </insert>
 
 </mapper>

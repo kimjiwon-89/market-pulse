@@ -189,6 +189,32 @@ KIS API 호출 전 반드시 `TokenService.getValidToken()` 사용.
 3. 신규 발급 → DB + Redis 동시 저장
 ```
 
+### 토큰 반복 발급 장애 메모 (2026-05-20)
+
+증상: KIS access token이 하루 1회 수준이 아니라 요청 중 여러 번 재발급되는 현상.
+
+확인 결과:
+- `TokenMapper.xml`이 `ON CONFLICT ON CONSTRAINT api_token_singleton_unique`에 의존했지만 실제 로컬 DB `api_token`에는 해당 constraint가 없었음.
+- Redis `API_TOKEN` 키는 남아 있었지만 이미 만료된 토큰이었고 TTL이 `-1`이라 자동 삭제되지 않았음.
+- 만료 토큰만 남은 상태에서 신규 발급 후 DB 저장이 실패하면 다음 KIS 요청 때 다시 신규 발급될 수 있음.
+
+보완:
+- DB 저장 SQL은 존재하지 않는 singleton constraint에 의존하지 않고, 최신 row를 update하되 row가 없을 때만 insert하는 방식으로 변경.
+- Redis 저장 시 `expiredAt - 5분` 기준 TTL을 설정해 만료 토큰이 캐시에 계속 남지 않도록 변경.
+- TokenService에 Redis/DB cache hit 및 신규 발급 로그를 추가해 추적 가능하게 함.
+
+확인 쿼리:
+```sql
+SELECT id, left(access_token, 8) AS token_prefix, expired_at, created_at
+FROM api_token
+ORDER BY id DESC
+LIMIT 10;
+
+SELECT conname, contype, pg_get_constraintdef(oid)
+FROM pg_constraint
+WHERE conrelid = 'api_token'::regclass;
+```
+
 ## MyBatis 규칙
 
 - XML 매퍼 위치: `src/main/resources/mapper/<도메인>/<도메인>Mapper.xml`

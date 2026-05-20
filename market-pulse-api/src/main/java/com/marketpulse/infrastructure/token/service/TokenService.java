@@ -1,10 +1,11 @@
 package com.marketpulse.infrastructure.token.service;
-import com.marketpulse.external.client.ExternalApiClient;
+
 import com.marketpulse.infrastructure.token.client.TokenApiClient;
 import com.marketpulse.infrastructure.token.domain.ApiToken;
 import com.marketpulse.infrastructure.token.repository.DbTokenRepository;
 import com.marketpulse.infrastructure.token.repository.RedisTokenRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 
@@ -18,6 +19,7 @@ import org.springframework.stereotype.Service;
  */
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class TokenService {
 
@@ -30,22 +32,26 @@ public class TokenService {
         // 1. Redis 조회
         ApiToken token = redisRepository.find();
         if (token != null && !token.isExpired()) {
+            log.debug("Using KIS token from Redis cache. expiredAt={}", token.getExpiredAt());
             return token.getAccessToken();
         }
 
         // 2. DB 조회
         token = dbRepository.find();
         if (token != null && !token.isExpired()) {
+            log.info("Using KIS token from DB cache. expiredAt={}", token.getExpiredAt());
             redisRepository.save(token);
             return token.getAccessToken();
         }
 
         // 3. 신규 발급
+        log.info("Issuing new KIS token because cached token is missing or expired.");
         ApiToken newToken = tokenApiClient.issueToken();
 
         dbRepository.save(newToken);
         redisRepository.save(newToken);
 
+        log.info("Issued and cached new KIS token. expiredAt={}", newToken.getExpiredAt());
         return newToken.getAccessToken();
     }
 
