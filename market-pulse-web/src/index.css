@@ -340,6 +340,31 @@ body {
   font-weight: 600;
 }
 
+.input {
+  height: 38px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text);
+  padding: 0 10px;
+  font-size: 13px;
+  font-family: var(--font-mono);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--border-strong);
+}
+
+.linklike {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
 /* ─────────────────────────────────────────────
    세그먼트 탭 (필터 토글)
 ───────────────────────────────────────────── */

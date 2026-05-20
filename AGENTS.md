@@ -446,6 +446,16 @@ DELETE /api/investor/memo/tag/{tagId}
 | `FHKST01010400` | 주식현재가 일자별 (차트 데이터) |
 | `FHKST01010900` | 기관·외국인 매매동향 (종목 단위) |
 
+### 향후 과제 — 종목 OHLCV 일배치 캐시
+
+현재 개별 종목 현재가·차트는 DB 저장 없이 KIS API 직통. KIS 장애 시 데이터 조회 불가.
+
+**개선 방향**: 장 마감 후 배치로 주요 종목 OHLCV 저장
+- `stock_price_daily` 테이블 신설 (code, date, open, high, low, close, volume)
+- `RankingSnapshotScheduler`처럼 매일 15:35 이후 상위 종목 자동 수집
+- 용량 추산: 3,000 종목 × 250일 × 1년 ≈ 75MB — PostgreSQL 수준에서 무리 없음
+- KIS 장애 시 전일 데이터 fallback으로 차트 제공
+
 ---
 
 ## 로또 분석 연구소 기능 (구현 예정)
@@ -602,6 +612,9 @@ POST   /api/lotto/collect?from=N&to=M -- 역대 데이터 일괄 수집 (관리�
 - `ApiResponse.failure()` 사용 — `error()` 없음
 - DB 테이블(`users`, `investor_memo`, `api_token`)은 `data.sql` 참고용, 실제 생성은 psql 직접 실행 필요
 - Maven 실행 시 Java 17 명시 필요: `JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home mvn ...`
+- **MyBatis + PostgreSQL 타입 캐스팅**: KIS API 응답 필드는 전부 `String`으로 오는데, DB 컬럼이 `NUMERIC`/`JSONB`이면 그대로 INSERT 시 타입 에러 발생. MyBatis XML에서 `#{field}::numeric`, `#{field}::jsonb` 캐스트 필수
+  - `index_snapshot`: `current_price`, `change_amount`, `change_rate`, `trade_volume`, `trade_amount` → `::numeric` / `daily_json` → `::jsonb`
+  - `news_snapshot`: `raw_json` → `::jsonb`
 
 ---
 

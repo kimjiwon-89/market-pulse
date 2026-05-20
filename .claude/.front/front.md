@@ -58,6 +58,7 @@ src/
 | `/stock/:code` | StockDetail | ❌ | 완료 |
 | `/admin` | Admin | ✅ ADMIN | 완료 |
 | `/lotto` | LottoAnalysis | ❌ (내 조합 저장/조회/삭제만 필요) | 완료 |
+| `/quant` | QuantBacktest | ❌ | 진행 — 퀀트 백테스팅 |
 
 ## 코드 컨벤션
 

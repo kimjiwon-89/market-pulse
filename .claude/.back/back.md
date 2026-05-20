@@ -133,6 +133,12 @@ global/auth/InitialDataRunner.java
 | stock | GET | `/api/stock/detail?code=` | 완료 — KIS FHKST01010100 현재가 시세 |
 | stock | GET | `/api/stock/chart?code=&period=` | 완료 — KIS FHKST01010400 일자별 차트 |
 | stock | GET | `/api/stock/investor?code=` | 완료 — KIS FHKST01010900 투자자 동향 |
+| quant | GET | `/api/quant/strategies` | 진행 — 퀀트 전략 5종 목록 |
+| quant | GET | `/api/quant/backtest?strategyId=&from=&to=` | 진행 — 전략별 백테스팅 실행/캐시 조회 |
+| quant | GET | `/api/quant/performance?from=&to=` | 진행 — 전략 비교 + KOSPI/KOSDAQ 벤치마크 |
+| quant | GET | `/api/quant/trades?strategyId=&from=&to=` | 진행 — 매매 로그 페이지 조회 |
+| quant | POST | `/api/quant/collect?from=&to=&dataType=ALL` | 진행 — ADMIN 전용 KRX 전체 데이터 수집 |
+| quant | GET | `/api/quant/collect/status` | 진행 — ADMIN 전용 수집 상태 조회 |
 
 ## 공통 응답 형식
 

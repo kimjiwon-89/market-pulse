@@ -10,6 +10,7 @@ import { Login } from "@/pages/Login";
 import { Admin } from "@/pages/Admin";
 import { LottoAnalysis } from "@/pages/LottoAnalysis";
 import { StockDetail } from "@/pages/StockDetail";
+import { QuantBacktest } from "@/pages/QuantBacktest";
 
 const router = createBrowserRouter([
   { path: "/login", element: <Login /> },
@@ -25,6 +26,7 @@ const router = createBrowserRouter([
       { path: "news", element: <NewsList /> },
       { path: "admin", element: <Admin /> },
       { path: "lotto", element: <LottoAnalysis /> },
+      { path: "quant", element: <QuantBacktest /> },
       { path: "stock/:code", element: <StockDetail /> },
     ],
   },
