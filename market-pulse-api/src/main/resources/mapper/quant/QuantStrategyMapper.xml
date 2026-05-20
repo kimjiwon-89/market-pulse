@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.marketpulse.domain.quant.mapper.QuantStrategyMapper">
+
+    <select id="findAllActive" resultType="QuantStrategyVo">
+        SELECT id, name, name_en AS nameEn, description, asset_type AS assetType,
+               rebalance_cycle AS rebalanceCycle, params::text AS params,
+               is_active AS isActive, created_at AS createdAt
+        FROM quant_strategy
+        WHERE is_active = TRUE
+        ORDER BY id
+    </select>
+
+    <select id="findById" resultType="QuantStrategyVo">
+        SELECT id, name, name_en AS nameEn, description, asset_type AS assetType,
+               rebalance_cycle AS rebalanceCycle, params::text AS params,
+               is_active AS isActive, created_at AS createdAt
+        FROM quant_strategy
+        WHERE id = #{id}
+    </select>
+
+    <insert id="insertIfNotExists">
+        INSERT INTO quant_strategy (name, name_en, description, asset_type, rebalance_cycle, params, is_active)
+        VALUES (#{name}, #{nameEn}, #{description}, #{assetType}, #{rebalanceCycle}, #{params}::jsonb, TRUE)
+        ON CONFLICT (name_en) DO NOTHING
+    </insert>
+</mapper>
