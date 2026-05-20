@@ -140,6 +140,14 @@ git push origin feature/기능명
 **KRX API 사용 시** → `.Codex/.krx/krx.md` 참조 (인증키·엔드포인트 전체 목록)
 - `.Codex/.krx/krx-data-guide-summary.md` — 유료 히스토리컬 데이터 상품 목록 (추후 필요 시 참조)
 
+**퀀트/백테스트/MP_CORE 작업 시** → `.claude/quant/` 참고 문서를 먼저 읽고 시작
+- `06-퀀트투자-전체프로세스.md` — 퀀트 시스템 전체 흐름
+- `07~11` — 데이터 수집·정리·분석·시각화
+- `12~13` — 종목선정 팩터 기본/심화
+- `14~16` — 포트폴리오 구성·백테스트·성과/위험 평가
+- `17-레퍼런스.md` — 팩터/모델별 근거 문헌 지도
+- 문서 내 분류 기준: `MP_CORE_NOW`는 현재 모델에 바로 반영, `MP_CORE_LATER`는 후속 확장, `NEXT_MODEL`은 별도 모델 후보, `REFERENCE_ONLY`는 배경지식
+
 각 파일에는 해당 영역의 컨벤션, 디렉터리 구조, 구현 스펙, 주의사항이 정리되어 있다.
 작업 후 변경사항이 생기면 해당 md 파일도 함께 업데이트한다.
 
@@ -155,6 +163,7 @@ market-pulse/
     ├── .front/front.md         # 프론트엔드 작업 가이드
     ├── .front/design-guide.md  # 디자인 시스템 (CSS 토큰, 컴포넌트, 페이지 스펙)
     ├── .back/back.md           # 백엔드 작업 가이드
+    ├── quant/                  # 퀀트/MP_CORE 리서치 참고 문서
     ├── .logs/                  # 날짜별 작업 로그 (YYYY-MM-DD-log.md)
     ├── plans/                  # workation-planner 산출물 (html + spec.md)
     └── status/                 # 에이전트 간 소통 채널 (active-plan, reports)
