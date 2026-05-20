@@ -55,4 +55,32 @@ public class KrxApiClient {
             return List.of();
         }
     }
+
+    public List<Map<String, Object>> fetchRows(String path, String basDd) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("AUTH_KEY", authKey);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        HttpEntity<Map<String, String>> entity = new HttpEntity<>(Map.of("basDd", basDd), headers);
+
+        try {
+            ResponseEntity<KrxResponse<Map<String, Object>>> response = restTemplate.exchange(
+                    baseUrl + path,
+                    HttpMethod.POST,
+                    entity,
+                    new ParameterizedTypeReference<KrxResponse<Map<String, Object>>>() {}
+            );
+
+            KrxResponse<Map<String, Object>> body = response.getBody();
+            if (body == null || body.getOutBlock1() == null) {
+                log.warn("KRX empty response: path={}, basDd={}", path, basDd);
+                return List.of();
+            }
+            log.info("KRX fetch rows: path={}, basDd={}, count={}", path, basDd, body.getOutBlock1().size());
+            return body.getOutBlock1();
+        } catch (Exception e) {
+            log.error("KRX API rows error: path={}, basDd={}, msg={}", path, basDd, e.getMessage());
+            return List.of();
+        }
+    }
 }
