@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { apiClient, getToken } from "@/services/apiClient";
-import type { TradeTopItem, InvestorMemo } from "@/types";
+import type { TradeTopItem, MemoRecord } from "@/types";
 import { dirCls, triangle, fmtPct, fmtAmount } from "@/utils/format";
 import { LiveBadge } from "@/components/common/LiveBadge";
 
@@ -169,8 +169,9 @@ export function InvestorTrend() {
   const [foreignItems, setForeignItems] = useState<TradeTopItem[]>([]);
   const [foreignLoading, setForeignLoading] = useState(false);
 
-  const [memo, setMemo] = useState<InvestorMemo | null>(null);
+  const [memoRecords, setMemoRecords] = useState<MemoRecord[]>([]);
   const [memoContent, setMemoContent] = useState("");
+  const [editingMemoId, setEditingMemoId] = useState<number | null>(null);
   const [memoLoading, setMemoLoading] = useState(false);
   const [memoSaving, setMemoSaving] = useState(false);
 
@@ -192,13 +193,20 @@ export function InvestorTrend() {
     if (!isAuthed) return;
     setMemoLoading(true);
     try {
-      const res = await apiClient.get("/investor/memo", { params: { date, market } });
-      const m: InvestorMemo | null = res.data.data ?? null;
-      setMemo(m);
-      setMemoContent(m?.content ?? "");
-    } catch {
-      setMemo(null);
+      const res = await apiClient.get("/memo/context", {
+        params: {
+          sourceType: "INVESTOR_TREND",
+          date,
+          market,
+        },
+      });
+      setMemoRecords(res.data.data ?? []);
       setMemoContent("");
+      setEditingMemoId(null);
+    } catch {
+      setMemoRecords([]);
+      setMemoContent("");
+      setEditingMemoId(null);
     } finally {
       setMemoLoading(false);
     }
@@ -211,19 +219,38 @@ export function InvestorTrend() {
     if (!isAuthed || !memoContent.trim()) return;
     setMemoSaving(true);
     try {
-      const res = await apiClient.post("/investor/memo", { date, market, content: memoContent });
-      setMemo(res.data.data);
+      if (editingMemoId) {
+        const res = await apiClient.patch(`/memo/${editingMemoId}`, {
+          title: `${labelMarket} 투자자 동향 메모`,
+          content: memoContent,
+        });
+        setMemoRecords(prev => prev.map(record => record.id === editingMemoId ? res.data.data : record));
+      } else {
+        const res = await apiClient.post("/memo", {
+          memoDate: date,
+          sourceType: "INVESTOR_TREND",
+          market,
+          title: `${labelMarket} 투자자 동향 메모`,
+          content: memoContent,
+        });
+        setMemoRecords(prev => [res.data.data, ...prev]);
+      }
+      setMemoContent("");
+      setEditingMemoId(null);
     } finally {
       setMemoSaving(false);
     }
   }
 
-  async function deleteMemo() {
-    if (!isAuthed || !memo) return;
+  async function deleteMemo(id: number) {
+    if (!isAuthed) return;
     try {
-      await apiClient.delete(`/investor/memo/${memo.id}`);
-      setMemo(null);
-      setMemoContent("");
+      await apiClient.delete(`/memo/${id}`);
+      setMemoRecords(prev => prev.filter(record => record.id !== id));
+      if (editingMemoId === id) {
+        setEditingMemoId(null);
+        setMemoContent("");
+      }
     } catch { /* silent */ }
   }
 
@@ -320,34 +347,76 @@ export function InvestorTrend() {
             <div className="card-title">메모</div>
             <div className="card-sub">
               {labelMarket} · {dispDate(date)}
-              {isAuthed && memo && (
+              {isAuthed && memoRecords.length > 0 && (
                 <span style={{ marginLeft: 8, color: "var(--text-4)", fontFamily: "var(--font-mono)", fontSize: 11 }}>
-                  저장됨
+                  {memoRecords.length}개
                 </span>
               )}
             </div>
           </div>
-          {isAuthed && memo && (
-            <button className="btn sm danger" onClick={deleteMemo}>삭제</button>
-          )}
         </div>
 
         {isAuthed ? (
           <>
+            {memoRecords.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
+                {memoRecords.map(record => (
+                  <div
+                    key={record.id}
+                    style={{
+                      border: "1px solid var(--border)",
+                      borderRadius: "var(--radius)",
+                      padding: "12px 14px",
+                      background: "var(--bg-alt)",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: "var(--text)" }}>{record.title ?? "메모"}</span>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <button
+                          className="btn sm ghost"
+                          onClick={() => {
+                            setEditingMemoId(record.id);
+                            setMemoContent(record.content);
+                          }}
+                        >
+                          수정
+                        </button>
+                        <button className="btn sm danger" onClick={() => deleteMemo(record.id)}>삭제</button>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 13, color: "var(--text-2)", whiteSpace: "pre-wrap" }}>
+                      {record.content}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
             <textarea
               value={memoContent}
               onChange={(e) => setMemoContent(e.target.value)}
-              placeholder={memoLoading ? "불러오는 중..." : "이 날의 투자 동향을 기록하세요..."}
+              placeholder={memoLoading ? "불러오는 중..." : "이 날의 투자 동향 메모를 추가하세요..."}
               disabled={memoLoading}
               style={{ width: "100%", minHeight: 100 }}
             />
-            <div style={{ marginTop: 10, display: "flex", justifyContent: "flex-end" }}>
+            <div style={{ marginTop: 10, display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              {editingMemoId && (
+                <button
+                  className="btn ghost"
+                  onClick={() => {
+                    setEditingMemoId(null);
+                    setMemoContent("");
+                  }}
+                >
+                  취소
+                </button>
+              )}
               <button
                 className="btn primary"
                 onClick={saveMemo}
                 disabled={memoSaving || !memoContent.trim()}
               >
-                {memoSaving ? "저장 중..." : "저장"}
+                {memoSaving ? "저장 중..." : editingMemoId ? "수정 저장" : "저장"}
               </button>
             </div>
           </>

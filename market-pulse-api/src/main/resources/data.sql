@@ -4,7 +4,6 @@
 
 CREATE SEQUENCE IF NOT EXISTS api_token_id_seq             AS integer;
 CREATE SEQUENCE IF NOT EXISTS users_id_seq                 AS integer;
-CREATE SEQUENCE IF NOT EXISTS investor_memo_id_seq         AS integer;
 CREATE SEQUENCE IF NOT EXISTS index_snapshot_id_seq        AS bigint;
 CREATE SEQUENCE IF NOT EXISTS news_snapshot_id_seq         AS bigint;
 CREATE SEQUENCE IF NOT EXISTS ranking_snapshot_id_seq      AS bigint;
@@ -72,17 +71,6 @@ CREATE INDEX IF NOT EXISTS idx_news_snapshot_date ON news_snapshot (news_date DE
 -- =============================================
 -- 투자자 매매동향
 -- =============================================
-
--- 메모 (날짜 + 시장 조합당 1개, upsert)
-CREATE TABLE IF NOT EXISTS investor_memo (
-    id         SERIAL      PRIMARY KEY,
-    memo_date  DATE        NOT NULL,
-    market     VARCHAR(10) NOT NULL,  -- KOSPI | KOSDAQ
-    content    TEXT        NOT NULL,
-    created_at TIMESTAMP            DEFAULT NOW(),
-    updated_at TIMESTAMP            DEFAULT NOW(),
-    CONSTRAINT uq_investor_memo_date_market UNIQUE (memo_date, market)
-);
 
 -- 순매수/순매도 랭킹 스냅샷 (매일 장 마감 저장)
 CREATE TABLE IF NOT EXISTS ranking_snapshot (
@@ -275,6 +263,28 @@ CREATE TABLE IF NOT EXISTS lotto_user_combo (
 );
 ALTER TABLE lotto_user_combo ADD COLUMN IF NOT EXISTS username VARCHAR(50);
 CREATE INDEX IF NOT EXISTS idx_lotto_user_combo_username ON lotto_user_combo (username, draw_no);
+
+-- =============================================
+-- 범용 메모
+-- =============================================
+
+CREATE TABLE IF NOT EXISTS memo (
+    id          BIGSERIAL PRIMARY KEY,
+    username    VARCHAR(50) NOT NULL,
+    memo_date   DATE,
+    source_type VARCHAR(30) NOT NULL,
+    market      VARCHAR(10),
+    stock_code  VARCHAR(10),
+    stock_name  VARCHAR(100),
+    title       VARCHAR(200),
+    content     TEXT NOT NULL,
+    created_at  TIMESTAMP DEFAULT NOW(),
+    updated_at  TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_memo_username_date ON memo (username, memo_date DESC);
+CREATE INDEX IF NOT EXISTS idx_memo_username_source ON memo (username, source_type);
+CREATE INDEX IF NOT EXISTS idx_memo_username_market ON memo (username, market);
+CREATE INDEX IF NOT EXISTS idx_memo_username_stock_code ON memo (username, stock_code);
 
 /*
     REDIS 설치

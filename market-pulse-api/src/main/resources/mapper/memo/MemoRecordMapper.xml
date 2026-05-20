@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.marketpulse.domain.memo.mapper.MemoRecordMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO memo (
+            username, memo_date, source_type, market, stock_code, stock_name, title, content
+        )
+        VALUES (
+            #{username}, #{memoDate}, #{sourceType}, #{market}, #{stockCode}, #{stockName}, #{title}, #{content}
+        )
+    </insert>
+
+    <select id="findByIdAndUsername" resultType="com.marketpulse.domain.memo.vo.MemoRecordVo">
+        SELECT id,
+               username,
+               memo_date AS memoDate,
+               source_type AS sourceType,
+               market,
+               stock_code AS stockCode,
+               stock_name AS stockName,
+               title,
+               content,
+               created_at AS createdAt,
+               updated_at AS updatedAt
+        FROM memo
+        WHERE id = #{id}
+          AND username = #{username}
+    </select>
+
+    <select id="findList" resultType="com.marketpulse.domain.memo.vo.MemoRecordVo">
+        SELECT id,
+               username,
+               memo_date AS memoDate,
+               source_type AS sourceType,
+               market,
+               stock_code AS stockCode,
+               stock_name AS stockName,
+               title,
+               content,
+               created_at AS createdAt,
+               updated_at AS updatedAt
+        FROM memo
+        WHERE username = #{username}
+        <if test="sourceType != null">
+            AND source_type = #{sourceType}
+        </if>
+        <if test="from != null">
+            AND memo_date &gt;= #{from}
+        </if>
+        <if test="to != null">
+            AND memo_date &lt;= #{to}
+        </if>
+        <if test="market != null">
+            AND market = #{market}
+        </if>
+        <if test="stockCode != null">
+            AND stock_code = #{stockCode}
+        </if>
+        <if test="keyword != null">
+            AND (content ILIKE CONCAT('%', #{keyword}, '%')
+                 OR title ILIKE CONCAT('%', #{keyword}, '%')
+                 OR stock_name ILIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        ORDER BY COALESCE(memo_date, created_at::date) DESC, created_at DESC, id DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="findContext" resultType="com.marketpulse.domain.memo.vo.MemoRecordVo">
+        SELECT id,
+               username,
+               memo_date AS memoDate,
+               source_type AS sourceType,
+               market,
+               stock_code AS stockCode,
+               stock_name AS stockName,
+               title,
+               content,
+               created_at AS createdAt,
+               updated_at AS updatedAt
+        FROM memo
+        WHERE username = #{username}
+          AND source_type = #{sourceType}
+        <if test="memoDate != null">
+            AND memo_date = #{memoDate}
+        </if>
+        <if test="market != null">
+            AND market = #{market}
+        </if>
+        <choose>
+            <when test="stockCode != null">
+                AND stock_code = #{stockCode}
+            </when>
+            <otherwise>
+                AND stock_code IS NULL
+            </otherwise>
+        </choose>
+        ORDER BY created_at DESC, id DESC
+    </select>
+
+    <update id="update">
+        UPDATE memo
+        SET title = #{title},
+            content = #{content},
+            updated_at = NOW()
+        WHERE id = #{id}
+          AND username = #{username}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM memo
+        WHERE id = #{id}
+          AND username = #{username}
+    </delete>
+</mapper>

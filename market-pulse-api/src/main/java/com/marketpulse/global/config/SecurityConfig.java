@@ -34,6 +34,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.DELETE, "/api/quant/cache").hasRole("ADMIN")
                 .requestMatchers("/api/quant/**").permitAll()
                 .requestMatchers("/api/investor/memo/**").authenticated()
+                .requestMatchers("/api/memo/**", "/api/memo").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/lotto/analyze").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/lotto/collect").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/lotto/bulk-results").hasRole("ADMIN")

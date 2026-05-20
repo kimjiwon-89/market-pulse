@@ -117,8 +117,8 @@ global/auth/InitialDataRunner.java
 | investor | GET | `/api/investor/trade-top` | 완료 |
 | investor | GET | `/api/investor/snapshot/dates` | 완료 |
 | investor | POST | `/api/investor/snapshot` | 완료 (수동 트리거) |
-| investor | GET/POST/DELETE | `/api/investor/memo` | 완료 |
-| investor | GET | `/api/investor/memo/list` | 완료 |
+| memo | GET/POST/PATCH/DELETE | `/api/memo` | 완료 — 로그인 사용자별 범용 메모 |
+| memo | GET | `/api/memo/context` | 완료 — 기능/날짜/시장/종목 맥락별 메모 조회 |
 | lotto | GET | `/api/lotto/latest` | 완료 |
 | lotto | GET | `/api/lotto/rounds` | 완료 |
 | lotto | GET | `/api/lotto/analysis?round=` | 완료 |
@@ -139,6 +139,34 @@ global/auth/InitialDataRunner.java
 | quant | GET | `/api/quant/trades?strategyId=&from=&to=` | 진행 — 매매 로그 페이지 조회 |
 | quant | POST | `/api/quant/collect?from=&to=&dataType=ALL` | 진행 — ADMIN 전용 KRX 전체 데이터 수집 |
 | quant | GET | `/api/quant/collect/status` | 진행 — ADMIN 전용 수집 상태 조회 |
+
+## 범용 메모 도메인
+
+메모 기능은 `memo` 테이블과 `/api/memo`를 사용하며 로그인 사용자별 개인 메모로 동작한다.
+기존 `investor_memo` 기반 날짜+시장 1개 upsert 구조는 제거되었다.
+
+### 주요 필드
+
+| 필드 | 설명 |
+|------|------|
+| `username` | 로그인 사용자 |
+| `memo_date` | 메모 기준일 |
+| `source_type` | `INVESTOR_TREND` `NET_BUY` `STOCK_DETAIL` `MANUAL` |
+| `market` | `KOSPI` `KOSDAQ` `ALL` 또는 null |
+| `stock_code` / `stock_name` | 종목 맥락이 있을 때 저장 |
+| `title` / `content` | 제목과 본문 |
+
+### API
+
+```
+GET /api/memo?sourceType=&from=&to=&market=&stockCode=&keyword=&page=&size=
+GET /api/memo/context?sourceType=NET_BUY&date=20260519&market=KOSPI&stockCode=005930
+POST /api/memo
+PATCH /api/memo/{id}
+DELETE /api/memo/{id}
+```
+
+`POST/PATCH/DELETE/GET` 모두 JWT 인증 필요.
 
 ## 공통 응답 형식
 
