@@ -35,6 +35,14 @@ public class QuantStrategyService {
         return strategy;
     }
 
+    public QuantStrategyVo getStrategyByNameEn(String nameEn) {
+        QuantStrategyVo strategy = strategyMapper.findByNameEn(nameEn);
+        if (strategy == null) {
+            throw new IllegalArgumentException("전략을 찾을 수 없습니다: " + nameEn);
+        }
+        return strategy;
+    }
+
     public QuantStrategyInterface getStrategyImpl(String nameEn) {
         Map<String, QuantStrategyInterface> map = strategyImpls.stream()
                 .collect(Collectors.toMap(QuantStrategyInterface::getNameEn, Function.identity()));

@@ -68,19 +68,23 @@
     </select>
 
     <select id="findLatestBacktestPeriod" resultType="map">
-        SELECT strategy_id AS "strategyId",
-               from_date AS "fromDate",
-               to_date AS "toDate"
-        FROM quant_backtest_result
-        ORDER BY to_date DESC, from_date DESC, strategy_id
+        SELECT r.strategy_id AS "strategyId",
+               r.from_date AS "fromDate",
+               r.to_date AS "toDate"
+        FROM quant_backtest_result r
+        JOIN quant_strategy s ON s.id = r.strategy_id
+        WHERE s.name_en = #{strategyNameEn}
+        ORDER BY r.to_date DESC, r.from_date DESC, r.strategy_id
         LIMIT 1
     </select>
 
     <select id="findLatestBacktestCurve" resultType="map">
         WITH latest AS (
-            SELECT strategy_id, from_date, to_date
-            FROM quant_backtest_result
-            ORDER BY to_date DESC, from_date DESC, strategy_id
+            SELECT r.strategy_id, r.from_date, r.to_date
+            FROM quant_backtest_result r
+            JOIN quant_strategy s ON s.id = r.strategy_id
+            WHERE s.name_en = #{strategyNameEn}
+            ORDER BY r.to_date DESC, r.from_date DESC, r.strategy_id
             LIMIT 1
         )
         SELECT r.strategy_id AS "strategyId",
@@ -97,9 +101,11 @@
 
     <select id="findLatestMonthlyReturns" resultType="map">
         WITH latest AS (
-            SELECT strategy_id, from_date, to_date
-            FROM quant_backtest_result
-            ORDER BY to_date DESC, from_date DESC, strategy_id
+            SELECT r.strategy_id, r.from_date, r.to_date
+            FROM quant_backtest_result r
+            JOIN quant_strategy s ON s.id = r.strategy_id
+            WHERE s.name_en = #{strategyNameEn}
+            ORDER BY r.to_date DESC, r.from_date DESC, r.strategy_id
             LIMIT 1
         ),
         monthly AS (
@@ -128,9 +134,11 @@
 
     <select id="findLatestCostSummary" resultType="map">
         WITH latest AS (
-            SELECT strategy_id, from_date, to_date
-            FROM quant_backtest_result
-            ORDER BY to_date DESC, from_date DESC, strategy_id
+            SELECT r.strategy_id, r.from_date, r.to_date
+            FROM quant_backtest_result r
+            JOIN quant_strategy s ON s.id = r.strategy_id
+            WHERE s.name_en = #{strategyNameEn}
+            ORDER BY r.to_date DESC, r.from_date DESC, r.strategy_id
             LIMIT 1
         )
         SELECT COALESCE(SUM(ABS(t.amount)), 0) AS "totalTurnover",

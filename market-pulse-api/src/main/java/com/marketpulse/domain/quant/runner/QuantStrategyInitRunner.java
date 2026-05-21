@@ -24,7 +24,8 @@ public class QuantStrategyInitRunner implements CommandLineRunner {
                 strategy("Asset Allocation", "ASSET_ALLOCATION", "Static stock/bond/gold allocation baseline", "MULTI", "QUARTERLY", "{\"stockWeight\":0.6,\"bondWeight\":0.3,\"goldWeight\":0.1}"),
                 strategy("Volatility Adjust", "VOLATILITY_ADJUST", "Risk allocation adjusted by recent market volatility", "MULTI", "DAILY", "{\"volThreshold\":0.15,\"highVolStockWeight\":0.2,\"lowVolStockWeight\":0.7}"),
                 strategy("Dual Momentum", "DUAL_MOMENTUM", "Monthly relative and absolute momentum across KOSPI, KOSDAQ, gold, and defensive assets", "MULTI", "MONTHLY", "{\"lookbackDays\":126,\"riskAssets\":[\"KOSPI\",\"KOSDAQ\",\"GOLD\"],\"defensiveAssets\":[\"KTB3Y\",\"GOLD\"]}"),
-                strategy("Short-Term Reversal", "SHORT_TERM_REVERSAL", "Weekly liquid oversold stock basket with market-cap and volume filters", "STOCK", "WEEKLY", "{\"lookbackDays\":5,\"topN\":10,\"minMarketCap\":100000000000,\"minVolume\":100000}")
+                strategy("Short-Term Reversal", "SHORT_TERM_REVERSAL", "Weekly liquid oversold stock basket with market-cap and volume filters", "STOCK", "WEEKLY", "{\"lookbackDays\":5,\"topN\":10,\"minMarketCap\":100000000000,\"minVolume\":100000}"),
+                strategy("MP Core Signal", "MP_CORE_SIGNAL", "MP_CORE feature-score portfolio backtest", "STOCK", "MONTHLY", "{\"topN\":20,\"source\":\"quant_core_feature_snapshot\"}")
         );
         strategies.forEach(strategyMapper::insertIfNotExists);
     }

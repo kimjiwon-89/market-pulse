@@ -15,7 +15,6 @@
             FROM quant_core_feature_snapshot f
             WHERE f.model_code = #{modelCode}
               AND f.signal_date = #{signalDate}
-              AND f.label IS NOT NULL
         ),
         ranked_features AS (
             SELECT *,

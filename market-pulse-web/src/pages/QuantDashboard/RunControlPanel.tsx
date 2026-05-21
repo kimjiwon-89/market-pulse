@@ -28,7 +28,6 @@ export function RunControlPanel({ selectedDate, onDone }: Props) {
       }
       if (action === "backtest") {
         await apiClient.post("/quant/core/backtests", {
-          strategyId: 1,
           from: fromInputDate(from),
           to: fromInputDate(to),
           initialCash,

@@ -204,7 +204,7 @@ public class QuantController {
     @Operation(summary = "MP_CORE signal generation (ADMIN)")
     @PostMapping("/core/signals/generate")
     public ApiResponse<QuantSignalGenerateResponse> generateCoreSignals(
-            @RequestParam String date,
+            @RequestParam(required = false) String date,
             @RequestParam(defaultValue = "20") int limit,
             Authentication authentication) {
         requireAdmin(authentication);
@@ -217,7 +217,7 @@ public class QuantController {
             @RequestBody BacktestRequestDto request,
             Authentication authentication) {
         requireAdmin(authentication);
-        backtestService.backtest(request);
+        backtestService.backtestCore(request);
         return ApiResponse.success(coreDashboardService.getLatestBacktest());
     }
 

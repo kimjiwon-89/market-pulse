@@ -76,4 +76,10 @@ public interface MarketDailyPriceMapper {
             @Param("minMarketCap") long minMarketCap,
             @Param("minVolume") long minVolume
     );
+
+    List<MonthlyPickVo> findMonthlyMpCoreSignalPicks(
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate,
+            @Param("topN") int topN
+    );
 }
