@@ -300,3 +300,195 @@ export interface QuantExperimentRun {
 export interface QuantExperimentRunList {
   runs: QuantExperimentRun[];
 }
+
+// ── MP_CORE 퀀트 대시보드 ──
+
+export type QuantCandidateStatus =
+  | "HOLDING"
+  | "BUY_CANDIDATE"
+  | "WATCHLIST"
+  | "BLOCKED"
+  | "SELL_TRIM";
+
+export type QuantCandidateStatusFilter = "ALL" | QuantCandidateStatus;
+
+export type QuantNextAction =
+  | "BUY"
+  | "BUY_ON_REBALANCE"
+  | "HOLD"
+  | "WATCH"
+  | "BLOCK"
+  | "SELL"
+  | "TRIM";
+
+export type QuantRebalanceStatus =
+  | "PENDING"
+  | "SCHEDULED"
+  | "EXECUTED"
+  | "SKIPPED"
+  | "BLOCKED";
+
+export interface QuantBacktestMetric {
+  monthlyReturn: number;
+  mdd: number;
+  sharpe: number;
+  winRate: number;
+  totalCost: number;
+}
+
+export interface QuantCoreSummary {
+  modelCode: string;
+  modelName: string;
+  activeVersion: string;
+  algorithm: string;
+  trainFrom: string;
+  trainTo: string;
+  latestSignalDate: string;
+  dataFreshnessDate: string;
+  targetMonthlyReturn: number;
+  targetIsGuarantee: boolean;
+  latestBacktestSummary: QuantBacktestMetric | null;
+}
+
+export interface QuantCoreSignal {
+  rank: number;
+  assetCode: string;
+  assetName: string;
+  market: string;
+  sector: string;
+  winnerProb: number;
+  neutralProb: number;
+  loserProb: number;
+  score: number;
+  targetWeight: number;
+  reason: Record<string, unknown>;
+  riskFlags: string[];
+}
+
+export interface QuantCandidateSignal {
+  candidateStatus: QuantCandidateStatus;
+  rank: number;
+  assetCode: string;
+  assetName: string;
+  market: string;
+  sector: string;
+  winnerProb: number;
+  score: number;
+  currentWeight: number;
+  targetWeight: number;
+  signalState?: string;
+  rebalanceStatus: QuantRebalanceStatus;
+  nextAction: QuantNextAction | string;
+  rebalanceDate: string;
+  thresholdDistance: number;
+  triggerConditions: string[];
+  blockers: string[];
+  riskFlags: string[];
+  factorScores: Record<string, number>;
+  reasonChips: string[];
+}
+
+export interface QuantFactorScoreItem {
+  factor: string;
+  label: string;
+  score: number;
+  contribution: number;
+  direction: "POSITIVE" | "NEGATIVE" | "NEUTRAL" | string;
+}
+
+export interface QuantTriggerCondition {
+  type: string;
+  label: string;
+  threshold: string;
+  currentValue: string;
+  passed: boolean;
+}
+
+export interface QuantSignalHistoryItem {
+  signalDate: string;
+  candidateStatus: QuantCandidateStatus;
+  score: number;
+  targetWeight: number;
+  nextAction: string;
+}
+
+export interface QuantCandidateDetail {
+  candidate: QuantCandidateSignal;
+  factorBreakdown: QuantFactorScoreItem[];
+  reasonChips: string[];
+  triggerConditions: QuantTriggerCondition[];
+  signalHistory: QuantSignalHistoryItem[];
+}
+
+export interface QuantPortfolioHolding {
+  assetCode: string;
+  assetName: string;
+  market: string;
+  sector: string;
+  targetWeight: number;
+  targetAmount?: number;
+  targetShares?: number;
+  modelScore?: number;
+  riskAdjustment?: number;
+}
+
+export interface QuantPortfolioTarget {
+  date?: string;
+  rebalanceDate?: string;
+  signalDate?: string;
+  executionDate?: string;
+  cashWeight: number;
+  positions: QuantPortfolioHolding[];
+  marketWeights: Record<string, number>;
+  sectorWeights: Record<string, number>;
+  constraintViolations: string[];
+}
+
+export interface QuantBacktestPoint {
+  date: string;
+  grossEquity?: number;
+  netEquity: number;
+  drawdown?: number;
+  monthlyReturn?: number;
+}
+
+export interface QuantMonthlyReturn {
+  year: number;
+  month: number;
+  returnPct: number;
+}
+
+export interface QuantCostSummary {
+  grossReturn: number;
+  netReturn: number;
+  totalFee: number;
+  totalTax: number;
+  totalTurnover: number;
+  avgTurnover: number;
+  totalCost: number;
+  tradeCount: number;
+}
+
+export interface QuantBacktestEvidence {
+  runId: number;
+  modelCode?: string;
+  from?: string;
+  to?: string;
+  monthlyReturn: number;
+  mdd: number;
+  sharpe: number;
+  winRate: number;
+  totalCost: number;
+  metrics?: QuantBacktestMetric;
+  equityCurve: QuantBacktestPoint[];
+  drawdownCurve: QuantBacktestPoint[];
+  monthlyReturns: QuantMonthlyReturn[];
+  costSummary: QuantCostSummary;
+}
+
+export interface QuantDiagnostics {
+  featureImportance: Record<string, number>;
+  factorCorrelation: Record<string, number>;
+  sectorExposure: Record<string, number>;
+  classDistribution: Record<string, number>;
+}

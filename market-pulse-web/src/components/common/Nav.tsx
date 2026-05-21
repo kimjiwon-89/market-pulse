@@ -54,7 +54,7 @@ const NAV_ITEMS = [
   {
     id: "quant",
     to: "/quant",
-    label: "퀀트 백테스팅",
+    label: "MP_CORE",
     icon: "M3 3v18h18M7 16l4-8 4 4 4-6",
     end: false,
   },

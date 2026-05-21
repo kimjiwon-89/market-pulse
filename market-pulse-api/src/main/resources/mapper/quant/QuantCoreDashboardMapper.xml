@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.marketpulse.domain.quant.mapper.QuantCoreDashboardMapper">
+
+    <select id="findActiveCoreModel" resultType="QuantCoreModelRow">
+        SELECT d.model_code AS modelCode,
+               d.display_name AS modelName,
+               v.version AS activeVersion,
+               v.algorithm,
+               v.train_from AS trainFrom,
+               v.train_to AS trainTo
+        FROM quant_model_definition d
+        LEFT JOIN quant_model_version v
+               ON v.model_code = d.model_code
+              AND v.is_active = TRUE
+        WHERE d.model_code = 'MP_CORE'
+          AND d.is_active = TRUE
+        ORDER BY v.created_at DESC NULLS LAST
+        LIMIT 1
+    </select>
+
+    <select id="findLatestSignalDate" resultType="java.time.LocalDate">
+        SELECT MAX(signal_date)
+        FROM quant_core_signal
+        WHERE model_code = #{modelCode}
+    </select>
+
+    <sql id="signalColumns">
+        id,
+        model_code AS modelCode,
+        model_version_id AS modelVersionId,
+        signal_date AS signalDate,
+        asset_code AS assetCode,
+        asset_name AS assetName,
+        market,
+        sector,
+        winner_prob AS winnerProb,
+        neutral_prob AS neutralProb,
+        loser_prob AS loserProb,
+        score,
+        rank,
+        target_weight AS targetWeight,
+        reason::text AS reason,
+        risk_flags::text AS riskFlags,
+        created_at AS createdAt
+    </sql>
+
+    <select id="findSignals" resultType="QuantCoreSignalVo">
+        SELECT <include refid="signalColumns"/>
+        FROM quant_core_signal
+        WHERE model_code = #{modelCode}
+          AND signal_date = #{signalDate}
+        ORDER BY rank ASC NULLS LAST, score DESC, asset_code
+        LIMIT #{limit}
+    </select>
+
+    <select id="findSignalHistory" resultType="QuantCoreSignalVo">
+        SELECT <include refid="signalColumns"/>
+        FROM quant_core_signal
+        WHERE model_code = #{modelCode}
+          AND asset_code = #{assetCode}
+          AND signal_date &lt;= #{signalDate}
+        ORDER BY signal_date DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="findLatestBacktestPeriod" resultType="map">
+        SELECT strategy_id AS "strategyId",
+               from_date AS "fromDate",
+               to_date AS "toDate"
+        FROM quant_backtest_result
+        ORDER BY to_date DESC, from_date DESC, strategy_id
+        LIMIT 1
+    </select>
+
+    <select id="findLatestBacktestCurve" resultType="map">
+        WITH latest AS (
+            SELECT strategy_id, from_date, to_date
+            FROM quant_backtest_result
+            ORDER BY to_date DESC, from_date DESC, strategy_id
+            LIMIT 1
+        )
+        SELECT r.strategy_id AS "strategyId",
+               r.trade_date AS "tradeDate",
+               r.portfolio_value AS "portfolioValue",
+               r.return_pct AS "returnPct"
+        FROM quant_backtest_result r
+        JOIN latest l
+          ON l.strategy_id = r.strategy_id
+         AND l.from_date = r.from_date
+         AND l.to_date = r.to_date
+        ORDER BY r.trade_date
+    </select>
+
+    <select id="findLatestMonthlyReturns" resultType="map">
+        WITH latest AS (
+            SELECT strategy_id, from_date, to_date
+            FROM quant_backtest_result
+            ORDER BY to_date DESC, from_date DESC, strategy_id
+            LIMIT 1
+        ),
+        monthly AS (
+            SELECT date_trunc('month', r.trade_date)::date AS month_date,
+                   FIRST_VALUE(r.portfolio_value) OVER (
+                       PARTITION BY date_trunc('month', r.trade_date)
+                       ORDER BY r.trade_date
+                   ) AS first_value,
+                   FIRST_VALUE(r.portfolio_value) OVER (
+                       PARTITION BY date_trunc('month', r.trade_date)
+                       ORDER BY r.trade_date DESC
+                   ) AS last_value
+            FROM quant_backtest_result r
+            JOIN latest l
+              ON l.strategy_id = r.strategy_id
+             AND l.from_date = r.from_date
+             AND l.to_date = r.to_date
+        )
+        SELECT DISTINCT to_char(month_date, 'YYYY-MM') AS "month",
+               CASE WHEN first_value = 0 THEN 0
+                    ELSE (last_value - first_value)::numeric / first_value
+               END AS "returnPct"
+        FROM monthly
+        ORDER BY "month"
+    </select>
+
+    <select id="findLatestCostSummary" resultType="map">
+        WITH latest AS (
+            SELECT strategy_id, from_date, to_date
+            FROM quant_backtest_result
+            ORDER BY to_date DESC, from_date DESC, strategy_id
+            LIMIT 1
+        )
+        SELECT COALESCE(SUM(ABS(t.amount)), 0) AS "totalTurnover",
+               COALESCE(AVG(ABS(t.weight)), 0) AS "avgTurnover",
+               COALESCE(SUM(t.commission), 0) AS "totalFee",
+               COALESCE(SUM(t.tax), 0) AS "totalTax",
+               COALESCE(SUM(t.commission + t.tax), 0) AS "totalCost",
+               COUNT(t.id) AS "tradeCount"
+        FROM latest l
+        LEFT JOIN quant_trade_log t
+          ON t.strategy_id = l.strategy_id
+         AND t.from_date = l.from_date
+         AND t.to_date = l.to_date
+    </select>
+
+    <select id="countTradesByStrategy" resultType="int">
+        SELECT COUNT(*)
+        FROM quant_trade_log
+        WHERE strategy_id = #{strategyId}
+    </select>
+
+    <select id="findTradesByStrategy" resultType="QuantTradeLogVo">
+        SELECT id, strategy_id AS strategyId, from_date AS fromDate, to_date AS toDate,
+               trade_date AS tradeDate, asset_code AS assetCode, asset_name AS assetName,
+               asset_type AS assetType, trade_type AS tradeType, price, quantity, amount,
+               weight, reason, commission, tax, created_at AS createdAt
+        FROM quant_trade_log
+        WHERE strategy_id = #{strategyId}
+        ORDER BY trade_date DESC, id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+</mapper>

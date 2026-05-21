@@ -35,7 +35,7 @@ public class QuantBacktestService {
     public BacktestResponseDto backtest(BacktestRequestDto req) {
         LocalDate fromDate = parse(req.from());
         LocalDate toDate = parse(req.to());
-        QuantStrategyVo strategy = strategyService.getStrategy(req.strategyId());
+        QuantStrategyVo strategy = strategyService.getStrategy(req.normalizedStrategyId());
         List<QuantBacktestResultVo> cached = resultMapper.findByStrategyAndPeriod(strategy.getId(), fromDate, toDate);
         if (!cached.isEmpty()) {
             return toResponse(strategy, fromDate, toDate, req.normalizedInitialCash(), cached);
