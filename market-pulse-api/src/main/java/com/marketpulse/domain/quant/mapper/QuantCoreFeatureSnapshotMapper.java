@@ -9,6 +9,8 @@ import java.util.List;
 
 @Mapper
 public interface QuantCoreFeatureSnapshotMapper {
+    LocalDate findLatestFeatureDate(@Param("modelCode") String modelCode);
+
     int generateMpCoreFeatures(
             @Param("modelCode") String modelCode,
             @Param("fromDate") LocalDate fromDate,

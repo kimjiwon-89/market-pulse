@@ -21,3 +21,19 @@ completed: 2026-05-21
 ### Verification
 - `market-pulse-web`: `npm.cmd run build` passed.
 - Vite emitted the existing large chunk warning.
+
+## Frontend MP_CORE Backtest Repair
+
+spec: `.Codex/plans/2026-05-21_quant-mp-core-monthly-5pct-spec.md`
+completed: 2026-05-21
+
+### Changed Files
+- `market-pulse-web/src/pages/QuantDashboard/RunControlPanel.tsx`
+
+### Implemented
+- Removed hard-coded `strategyId: 1` from the core backtest request body.
+- Core backtest execution now lets the backend choose the MP_CORE-only strategy.
+
+### Verification
+- `market-pulse-web`: `npm run build` passed.
+- Vite emitted the existing large chunk warning.

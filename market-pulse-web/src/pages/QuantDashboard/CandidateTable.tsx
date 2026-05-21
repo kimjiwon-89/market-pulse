@@ -1,10 +1,10 @@
 import type { QuantCandidateSignal } from "@/types";
 import {
-  CANDIDATE_STATUS_LABEL,
+  BEGINNER_RISK_LABEL,
+  BEGINNER_STATE_LABEL,
+  beginnerStateTone,
   formatDate,
-  formatPctRatio,
-  formatScore,
-  statusTone,
+  mapBeginnerDecision,
 } from "./quantTypes";
 
 type Props = {
@@ -24,53 +24,49 @@ export function CandidateTable({ candidates, loading, onSelect }: Props) {
       <table className="t">
         <thead>
           <tr>
-            <th>순위</th>
-            <th>상태</th>
             <th>종목</th>
-            <th>시장/섹터</th>
-            <th className="num">확률</th>
-            <th className="num">점수</th>
-            <th className="num">현재</th>
-            <th className="num">목표</th>
-            <th>다음 행동</th>
-            <th>리밸런싱</th>
-            <th className="num">기준 거리</th>
-            <th>조건/제약</th>
+            <th>모델 판단</th>
+            <th>내가 할 행동</th>
+            <th>이유</th>
+            <th>위험</th>
+            <th>예정일</th>
           </tr>
         </thead>
         <tbody>
-          {candidates.map((item) => (
+          {candidates.map((item) => {
+            const decision = mapBeginnerDecision(item);
+            return (
             <tr key={item.assetCode} className="clickable" onClick={() => onSelect(item)}>
-              <td className="rank">{item.rank}</td>
-              <td>
-                <span className={`tag ${statusTone(item.candidateStatus)}`}>
-                  {CANDIDATE_STATUS_LABEL[item.candidateStatus]}
-                </span>
-              </td>
               <td className="ticker">
                 {item.assetName}
-                <div className="mono text-xs text-[var(--text-4)]">{item.assetCode}</div>
-              </td>
-              <td>
-                {item.market}
-                <div className="text-xs text-[var(--text-4)]">{item.sector || "-"}</div>
-              </td>
-              <td className="num">{formatPctRatio(item.winnerProb)}</td>
-              <td className="num">{formatScore(item.score)}</td>
-              <td className="num">{formatPctRatio(item.currentWeight)}</td>
-              <td className="num">{formatPctRatio(item.targetWeight)}</td>
-              <td>{item.nextAction}</td>
-              <td className="mono text-xs">{formatDate(item.rebalanceDate)}</td>
-              <td className="num">{formatScore(item.thresholdDistance, 2)}</td>
-              <td>
-                <div className="flex max-w-[260px] flex-wrap gap-1">
-                  {item.triggerConditions.slice(0, 2).map((condition) => <span key={condition} className="tag">{condition}</span>)}
-                  {item.blockers.map((blocker) => <span key={blocker} className="tag down">{blocker}</span>)}
-                  {item.riskFlags.map((flag) => <span key={flag} className="tag down">{flag}</span>)}
+                <div className="mono text-xs text-[var(--text-4)]">
+                  #{item.rank} · {item.assetCode} · {item.market} · {item.sector || "-"}
                 </div>
               </td>
+              <td>
+                <span className={`tag ${beginnerStateTone(decision.state)}`}>
+                  {BEGINNER_STATE_LABEL[decision.state]}
+                </span>
+              </td>
+              <td>
+                <div className="font-medium">{decision.shortAction}</div>
+                {decision.action === "BUY_READY" && <div className="text-xs text-[var(--text-3)]">조건 확인 후 체결 검토</div>}
+              </td>
+              <td>
+                <div className="flex max-w-[320px] flex-wrap gap-1">
+                  {decision.reasons.slice(0, 2).map((reason) => <span key={reason} className="tag">{reason}</span>)}
+                </div>
+              </td>
+              <td>
+                <span className={`tag ${decision.riskLevel === "HIGH" ? "down" : decision.riskLevel === "LOW" ? "up" : "flat"}`}>
+                  {BEGINNER_RISK_LABEL[decision.riskLevel]}
+                </span>
+                <div className="mt-1 text-xs text-[var(--text-3)]">{decision.riskText}</div>
+              </td>
+              <td className="mono text-xs">{formatDate(item.rebalanceDate)}</td>
             </tr>
-          ))}
+          );
+          })}
         </tbody>
       </table>
     </div>

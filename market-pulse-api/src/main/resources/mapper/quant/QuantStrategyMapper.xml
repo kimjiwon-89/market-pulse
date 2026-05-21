@@ -22,6 +22,15 @@
         WHERE id = #{id}
     </select>
 
+    <select id="findByNameEn" resultType="QuantStrategyVo">
+        SELECT id, name, name_en AS nameEn, description, asset_type AS assetType,
+               rebalance_cycle AS rebalanceCycle, params::text AS params,
+               is_active AS isActive, created_at AS createdAt
+        FROM quant_strategy
+        WHERE name_en = #{nameEn}
+          AND is_active = TRUE
+    </select>
+
     <insert id="insertIfNotExists">
         INSERT INTO quant_strategy (name, name_en, description, asset_type, rebalance_cycle, params, is_active)
         VALUES (#{name}, #{nameEn}, #{description}, #{assetType}, #{rebalanceCycle}, #{params}::jsonb, TRUE)
