@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.marketpulse.domain.quant.mapper.QuantExperimentMapper">
+
+    <select id="findRuns" resultType="QuantExperimentRunVo">
+        SELECT id, strategy_name_en AS strategyNameEn, from_date AS fromDate, to_date AS toDate,
+               initial_cash AS initialCash, objective, validation_mode AS validationMode,
+               target_monthly_return AS targetMonthlyReturn, target_is_guarantee AS targetIsGuarantee,
+               status, message, created_at AS createdAt, updated_at AS updatedAt
+        FROM quant_experiment_run
+        WHERE 1 = 1
+        <if test="strategyNameEn != null and strategyNameEn != ''">
+            AND strategy_name_en = #{strategyNameEn}
+        </if>
+        <if test="fromDate != null">
+            AND from_date &gt;= #{fromDate}
+        </if>
+        <if test="toDate != null">
+            AND to_date &lt;= #{toDate}
+        </if>
+        <if test="status != null and status != ''">
+            AND status = #{status}
+        </if>
+        ORDER BY created_at DESC, id DESC
+    </select>
+
+    <select id="findRunById" resultType="QuantExperimentRunVo">
+        SELECT id, strategy_name_en AS strategyNameEn, from_date AS fromDate, to_date AS toDate,
+               initial_cash AS initialCash, objective, validation_mode AS validationMode,
+               target_monthly_return AS targetMonthlyReturn, target_is_guarantee AS targetIsGuarantee,
+               status, message, created_at AS createdAt, updated_at AS updatedAt
+        FROM quant_experiment_run
+        WHERE id = #{id}
+    </select>
+
+    <insert id="insertRun" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO quant_experiment_run (
+            strategy_name_en, from_date, to_date, initial_cash, objective,
+            validation_mode, target_monthly_return, target_is_guarantee, status, message
+        ) VALUES (
+            #{strategyNameEn}, #{fromDate}, #{toDate}, #{initialCash}, #{objective},
+            #{validationMode}, #{targetMonthlyReturn}::numeric, #{targetIsGuarantee}, #{status}, #{message}
+        )
+    </insert>
+
+    <update id="updateRunStatus">
+        UPDATE quant_experiment_run
+        SET status = #{status},
+            message = #{message},
+            updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <select id="findVariantsByRunId" resultType="QuantExperimentVariantVo">
+        SELECT id, run_id AS runId, variant_code AS variantCode, params,
+               total_return AS totalReturn, annualized_return AS annualizedReturn,
+               monthly_return AS monthlyReturn, mdd, sharpe_ratio AS sharpeRatio,
+               turnover, total_cost AS totalCost, target_achieved AS targetAchieved,
+               bias_check_status AS biasCheckStatus, overfit_score AS overfitScore,
+               promoted, created_at AS createdAt
+        FROM quant_experiment_variant
+        WHERE run_id = #{runId}
+        ORDER BY target_achieved DESC, overfit_score ASC, monthly_return DESC, id
+    </select>
+
+    <select id="findVariantById" resultType="QuantExperimentVariantVo">
+        SELECT id, run_id AS runId, variant_code AS variantCode, params,
+               total_return AS totalReturn, annualized_return AS annualizedReturn,
+               monthly_return AS monthlyReturn, mdd, sharpe_ratio AS sharpeRatio,
+               turnover, total_cost AS totalCost, target_achieved AS targetAchieved,
+               bias_check_status AS biasCheckStatus, overfit_score AS overfitScore,
+               promoted, created_at AS createdAt
+        FROM quant_experiment_variant
+        WHERE run_id = #{runId}
+          AND id = #{variantId}
+    </select>
+
+    <insert id="insertVariant" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO quant_experiment_variant (
+            run_id, variant_code, params, total_return, annualized_return,
+            monthly_return, mdd, sharpe_ratio, turnover, total_cost,
+            target_achieved, bias_check_status, overfit_score, promoted
+        ) VALUES (
+            #{runId}, #{variantCode}, #{params}::jsonb, #{totalReturn}::numeric, #{annualizedReturn}::numeric,
+            #{monthlyReturn}::numeric, #{mdd}::numeric, #{sharpeRatio}::numeric, #{turnover}::numeric, #{totalCost},
+            #{targetAchieved}, #{biasCheckStatus}, #{overfitScore}::numeric, #{promoted}
+        )
+    </insert>
+
+    <update id="promoteVariant">
+        UPDATE quant_experiment_variant
+        SET promoted = TRUE
+        WHERE run_id = #{runId}
+          AND id = #{variantId}
+    </update>
+
+    <select id="findWindowsByRunId" resultType="QuantExperimentWindowVo">
+        SELECT w.id, w.variant_id AS variantId, w.window_no AS windowNo,
+               w.train_from AS trainFrom, w.train_to AS trainTo,
+               w.validation_from AS validationFrom, w.validation_to AS validationTo,
+               w.test_from AS testFrom, w.test_to AS testTo,
+               w.validation_monthly_return AS validationMonthlyReturn,
+               w.test_monthly_return AS testMonthlyReturn,
+               w.validation_mdd AS validationMdd, w.test_mdd AS testMdd,
+               w.created_at AS createdAt
+        FROM quant_experiment_window w
+        JOIN quant_experiment_variant v ON v.id = w.variant_id
+        WHERE v.run_id = #{runId}
+        ORDER BY v.id, w.window_no
+    </select>
+
+    <insert id="insertWindows">
+        INSERT INTO quant_experiment_window (
+            variant_id, window_no, train_from, train_to,
+            validation_from, validation_to, test_from, test_to,
+            validation_monthly_return, test_monthly_return, validation_mdd, test_mdd
+        )
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+                #{item.variantId}, #{item.windowNo}, #{item.trainFrom}, #{item.trainTo},
+                #{item.validationFrom}, #{item.validationTo}, #{item.testFrom}, #{item.testTo},
+                #{item.validationMonthlyReturn}::numeric, #{item.testMonthlyReturn}::numeric,
+                #{item.validationMdd}::numeric, #{item.testMdd}::numeric
+            )
+        </foreach>
+    </insert>
+
+    <insert id="insertSignalLogs">
+        INSERT INTO quant_signal_log (
+            run_id, variant_id, strategy_name_en, signal_date,
+            execution_date, asset_code, asset_name, signal_score, selected
+        )
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+                #{item.runId}, #{item.variantId}, #{item.strategyNameEn}, #{item.signalDate},
+                #{item.executionDate}, #{item.assetCode}, #{item.assetName}, #{item.signalScore}::numeric,
+                #{item.selected}
+            )
+        </foreach>
+    </insert>
+</mapper>

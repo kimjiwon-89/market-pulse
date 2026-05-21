@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.marketpulse.domain.quant.mapper.QuantTradeLogMapper">
+
+    <select id="countByStrategyAndPeriod" resultType="int">
+        SELECT COUNT(*)
+        FROM quant_trade_log
+        WHERE strategy_id = #{strategyId}
+          AND from_date = #{fromDate}
+          AND to_date = #{toDate}
+          <if test="tradeType != null and tradeType != ''">
+              AND trade_type = #{tradeType}
+          </if>
+    </select>
+
+    <select id="findPageByStrategyAndPeriod" resultType="QuantTradeLogVo">
+        SELECT id, strategy_id AS strategyId, from_date AS fromDate, to_date AS toDate,
+               trade_date AS tradeDate, asset_code AS assetCode, asset_name AS assetName,
+               asset_type AS assetType, trade_type AS tradeType, price, quantity, amount,
+               weight, reason, commission, tax, created_at AS createdAt
+        FROM quant_trade_log
+        WHERE strategy_id = #{strategyId}
+          AND from_date = #{fromDate}
+          AND to_date = #{toDate}
+          <if test="tradeType != null and tradeType != ''">
+              AND trade_type = #{tradeType}
+          </if>
+        ORDER BY trade_date DESC, id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <insert id="insertBatch">
+        INSERT INTO quant_trade_log (
+            strategy_id, from_date, to_date, trade_date,
+            asset_code, asset_name, asset_type, trade_type,
+            price, quantity, amount, weight, reason, commission, tax
+        )
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+                #{item.strategyId}, #{item.fromDate}, #{item.toDate}, #{item.tradeDate},
+                #{item.assetCode}, #{item.assetName}, #{item.assetType}, #{item.tradeType},
+                #{item.price}::numeric, #{item.quantity}, #{item.amount}, #{item.weight}::numeric,
+                #{item.reason}, #{item.commission}, #{item.tax}
+            )
+        </foreach>
+    </insert>
+
+    <delete id="deleteByStrategyAndPeriod">
+        DELETE FROM quant_trade_log
+        WHERE strategy_id = #{strategyId}
+          AND from_date = #{fromDate}
+          AND to_date = #{toDate}
+    </delete>
+
+    <delete id="deleteByPeriodOverlap">
+        DELETE FROM quant_trade_log
+        WHERE from_date &lt;= #{toDate}
+          AND to_date &gt;= #{fromDate}
+    </delete>
+</mapper>

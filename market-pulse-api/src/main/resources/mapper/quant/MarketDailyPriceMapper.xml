@@ -1,0 +1,441 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.marketpulse.domain.quant.mapper.MarketDailyPriceMapper">
+
+    <insert id="upsertBatch">
+        INSERT INTO market_daily_price (
+            trade_date, asset_code, asset_type, asset_name,
+            open_price, high_price, low_price, close_price,
+            volume, market_cap, sector, ytm
+        )
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+                #{item.tradeDate}, #{item.assetCode}, #{item.assetType}, #{item.assetName},
+                #{item.openPrice}::numeric, #{item.highPrice}::numeric, #{item.lowPrice}::numeric, #{item.closePrice}::numeric,
+                #{item.volume}, #{item.marketCap}, #{item.sector}, #{item.ytm}::numeric
+            )
+        </foreach>
+        ON CONFLICT (trade_date, asset_code, asset_type) DO UPDATE
+            SET asset_name = EXCLUDED.asset_name,
+                open_price = EXCLUDED.open_price,
+                high_price = EXCLUDED.high_price,
+                low_price = EXCLUDED.low_price,
+                close_price = EXCLUDED.close_price,
+                volume = EXCLUDED.volume,
+                market_cap = EXCLUDED.market_cap,
+                sector = EXCLUDED.sector,
+                ytm = EXCLUDED.ytm
+    </insert>
+
+    <select id="findByCodeAndDateRange" resultType="MarketDailyPriceVo">
+        SELECT *
+        FROM market_daily_price
+        WHERE asset_code = #{assetCode}
+          AND asset_type = #{assetType}
+          AND trade_date BETWEEN #{fromDate} AND #{toDate}
+        ORDER BY trade_date
+    </select>
+
+    <select id="findByTypeAndDate" resultType="MarketDailyPriceVo">
+        SELECT *
+        FROM market_daily_price
+        WHERE asset_type = #{assetType}
+          AND trade_date = #{tradeDate}
+        ORDER BY market_cap DESC NULLS LAST, asset_code
+    </select>
+
+    <select id="countByTypeAndDate" resultType="int">
+        SELECT COUNT(*)
+        FROM market_daily_price
+        WHERE asset_type = #{assetType}
+          AND trade_date = #{tradeDate}
+    </select>
+
+    <select id="findTopBySectorReturn" resultType="MarketDailyPriceVo">
+        WITH ranked AS (
+            SELECT DISTINCT ON (p.asset_code)
+                   p.*
+            FROM market_daily_price p
+            JOIN market_daily_price s
+              ON s.asset_code = p.asset_code
+             AND s.asset_type = p.asset_type
+             AND s.trade_date = (
+                 SELECT MIN(trade_date)
+                 FROM market_daily_price
+                 WHERE asset_code = p.asset_code
+                   AND asset_type = p.asset_type
+                   AND trade_date BETWEEN #{fromDate} AND #{toDate}
+             )
+            WHERE p.asset_type = 'STOCK'
+              AND p.trade_date = (
+                  SELECT MAX(trade_date)
+                  FROM market_daily_price
+                  WHERE asset_code = p.asset_code
+                    AND asset_type = p.asset_type
+                    AND trade_date BETWEEN #{fromDate} AND #{toDate}
+              )
+              AND p.sector IS NOT NULL
+              AND s.close_price > 0
+            ORDER BY p.asset_code,
+                     ((p.close_price - s.close_price) / s.close_price) DESC
+        )
+        SELECT *
+        FROM ranked
+        ORDER BY sector, market_cap DESC NULLS LAST
+        LIMIT #{topN}
+    </select>
+
+    <select id="findTopStocksByReturn" resultType="MarketDailyPriceVo">
+        WITH start_price AS (
+            SELECT DISTINCT ON (asset_code) asset_code, close_price AS start_close
+            FROM market_daily_price
+            WHERE asset_type = 'STOCK'
+              AND trade_date BETWEEN #{fromDate} AND #{toDate}
+            ORDER BY asset_code, trade_date
+        ),
+        end_price AS (
+            SELECT DISTINCT ON (asset_code) *
+            FROM market_daily_price
+            WHERE asset_type = 'STOCK'
+              AND trade_date BETWEEN #{fromDate} AND #{toDate}
+            ORDER BY asset_code, trade_date DESC
+        )
+        SELECT e.*
+        FROM end_price e
+        JOIN start_price s ON s.asset_code = e.asset_code
+        WHERE s.start_close > 0
+        ORDER BY ((e.close_price - s.start_close) / s.start_close) DESC
+        LIMIT #{topN}
+    </select>
+
+    <select id="findFirstByTypeAndDateRange" resultType="MarketDailyPriceVo">
+        SELECT *
+        FROM market_daily_price
+        WHERE asset_type = #{assetType}
+          AND trade_date BETWEEN #{fromDate} AND #{toDate}
+        ORDER BY trade_date, market_cap DESC NULLS LAST, asset_code
+        LIMIT 1
+    </select>
+
+    <select id="findMonthlyMomentumPicks" resultType="MonthlyPickVo">
+        WITH raw_months AS (
+            SELECT date_trunc('month', trade_date)::date AS month_key,
+                   MIN(trade_date) AS rebalance_date,
+                   MAX(trade_date) AS exit_date
+            FROM market_daily_price
+            WHERE asset_type = 'STOCK'
+              AND trade_date BETWEEN #{fromDate} AND #{toDate}
+            GROUP BY date_trunc('month', trade_date)::date
+        ),
+        months AS (
+            SELECT rm.*,
+                   (
+                       SELECT MAX(p.trade_date)
+                       FROM market_daily_price p
+                       WHERE p.asset_type = 'STOCK'
+                         AND p.trade_date &lt; rm.rebalance_date
+                   ) AS signal_date
+            FROM raw_months rm
+        ),
+        candidates AS (
+            SELECT m.rebalance_date,
+                   m.exit_date,
+                   buy.asset_code,
+                   buy.asset_name,
+                   buy.asset_type,
+                   buy.sector,
+                   COALESCE(buy.open_price, buy.close_price) AS buy_price,
+                   COALESCE(sell.open_price, sell.close_price) AS sell_price,
+                   start_price.close_price AS start_price,
+                   buy.market_cap,
+                   ((signal.close_price - start_price.close_price) / NULLIF(start_price.close_price, 0)) AS score,
+                   ROW_NUMBER() OVER (
+                       PARTITION BY m.rebalance_date
+                       ORDER BY ((signal.close_price - start_price.close_price) / NULLIF(start_price.close_price, 0)) DESC,
+                                buy.market_cap DESC NULLS LAST
+                   ) AS pick_rank
+            FROM months m
+            JOIN market_daily_price buy
+              ON buy.asset_type = 'STOCK'
+             AND buy.trade_date = m.rebalance_date
+            JOIN market_daily_price signal
+              ON signal.asset_type = buy.asset_type
+             AND signal.asset_code = buy.asset_code
+             AND signal.trade_date = m.signal_date
+            JOIN market_daily_price sell
+              ON sell.asset_type = buy.asset_type
+             AND sell.asset_code = buy.asset_code
+             AND sell.trade_date = m.exit_date
+            JOIN LATERAL (
+                SELECT p.close_price
+                FROM market_daily_price p
+                WHERE p.asset_type = signal.asset_type
+                  AND p.asset_code = signal.asset_code
+                  AND p.trade_date &lt;= m.signal_date
+                ORDER BY p.trade_date DESC
+                OFFSET #{lookbackDays}
+                LIMIT 1
+            ) start_price ON TRUE
+            WHERE buy.close_price IS NOT NULL
+              AND sell.close_price IS NOT NULL
+              AND start_price.close_price &gt; 0
+        )
+        SELECT rebalance_date AS rebalanceDate,
+               exit_date AS exitDate,
+               asset_code AS assetCode,
+               asset_name AS assetName,
+               asset_type AS assetType,
+               sector,
+               buy_price AS buyPrice,
+               sell_price AS sellPrice,
+               score,
+               market_cap AS marketCap,
+               pick_rank AS pickRank
+        FROM candidates
+        WHERE pick_rank &lt;= #{topN}
+        ORDER BY rebalance_date, pick_rank
+    </select>
+
+    <select id="findMonthlySectorPicks" resultType="MonthlyPickVo">
+        WITH months AS (
+            SELECT date_trunc('month', trade_date)::date AS month_key,
+                   MIN(trade_date) AS rebalance_date,
+                   MAX(trade_date) AS exit_date
+            FROM market_daily_price
+            WHERE asset_type = 'STOCK'
+              AND trade_date BETWEEN #{fromDate} AND #{toDate}
+            GROUP BY date_trunc('month', trade_date)::date
+        ),
+        sector_scores AS (
+            SELECT m.rebalance_date,
+                   buy.sector,
+                   AVG((buy.close_price - start_price.close_price) / NULLIF(start_price.close_price, 0)) AS sector_return,
+                   ROW_NUMBER() OVER (
+                       PARTITION BY m.rebalance_date
+                       ORDER BY AVG((buy.close_price - start_price.close_price) / NULLIF(start_price.close_price, 0)) DESC
+                   ) AS sector_rank
+            FROM months m
+            JOIN market_daily_price buy
+              ON buy.asset_type = 'STOCK'
+             AND buy.trade_date = m.rebalance_date
+             AND buy.sector IS NOT NULL
+            JOIN LATERAL (
+                SELECT p.close_price
+                FROM market_daily_price p
+                WHERE p.asset_type = buy.asset_type
+                  AND p.asset_code = buy.asset_code
+                  AND p.trade_date &lt;= m.rebalance_date
+                ORDER BY p.trade_date DESC
+                OFFSET #{lookbackDays}
+                LIMIT 1
+            ) start_price ON TRUE
+            WHERE start_price.close_price &gt; 0
+            GROUP BY m.rebalance_date, buy.sector
+        ),
+        sector_members AS (
+            SELECT m.rebalance_date,
+                   m.exit_date,
+                   buy.asset_code,
+                   buy.asset_name,
+                   buy.asset_type,
+                   buy.sector,
+                   COALESCE(buy.open_price, buy.close_price) AS buy_price,
+                   COALESCE(sell.open_price, sell.close_price) AS sell_price,
+                   s.sector_return AS score,
+                   buy.market_cap,
+                   ROW_NUMBER() OVER (
+                       PARTITION BY m.rebalance_date, buy.sector
+                       ORDER BY buy.market_cap DESC NULLS LAST, buy.asset_code
+                   ) AS member_rank,
+                   s.sector_rank
+            FROM months m
+            JOIN sector_scores s
+              ON s.rebalance_date = m.rebalance_date
+             AND s.sector_rank &lt;= #{topSectors}
+            JOIN market_daily_price buy
+              ON buy.asset_type = 'STOCK'
+             AND buy.trade_date = m.rebalance_date
+             AND buy.sector = s.sector
+            JOIN market_daily_price sell
+              ON sell.asset_type = buy.asset_type
+             AND sell.asset_code = buy.asset_code
+             AND sell.trade_date = m.exit_date
+        )
+        SELECT rebalance_date AS rebalanceDate,
+               exit_date AS exitDate,
+               asset_code AS assetCode,
+               asset_name AS assetName,
+               asset_type AS assetType,
+               sector,
+               buy_price AS buyPrice,
+               sell_price AS sellPrice,
+               score,
+               market_cap AS marketCap,
+               ROW_NUMBER() OVER (PARTITION BY rebalance_date ORDER BY sector_rank, member_rank) AS pickRank
+        FROM sector_members
+        WHERE member_rank &lt;= #{topStocksPerSector}
+        ORDER BY rebalance_date, pickRank
+    </select>
+
+    <select id="findMonthlyDualMomentumPicks" resultType="MonthlyPickVo">
+        WITH months AS (
+            SELECT date_trunc('month', trade_date)::date AS month_key,
+                   MIN(trade_date) AS rebalance_date,
+                   MAX(trade_date) AS exit_date
+            FROM market_daily_price
+            WHERE trade_date BETWEEN #{fromDate} AND #{toDate}
+              AND asset_code IN ('KOSPI', 'KOSDAQ', 'GOLD', 'KTB3Y')
+            GROUP BY date_trunc('month', trade_date)::date
+        ),
+        scored AS (
+            SELECT m.rebalance_date,
+                   m.exit_date,
+                   buy.asset_code,
+                   buy.asset_name,
+                   buy.asset_type,
+                   buy.sector,
+                   COALESCE(buy.open_price, buy.close_price) AS buy_price,
+                   COALESCE(sell.open_price, sell.close_price) AS sell_price,
+                   start_price.close_price AS start_price,
+                   buy.market_cap,
+                   ((buy.close_price - start_price.close_price) / NULLIF(start_price.close_price, 0)) AS score,
+                   CASE WHEN buy.asset_code IN ('KOSPI', 'KOSDAQ', 'GOLD') THEN 1 ELSE 0 END AS risk_asset
+            FROM months m
+            JOIN market_daily_price buy
+              ON buy.trade_date = m.rebalance_date
+             AND buy.asset_code IN ('KOSPI', 'KOSDAQ', 'GOLD', 'KTB3Y')
+            JOIN market_daily_price sell
+              ON sell.asset_type = buy.asset_type
+             AND sell.asset_code = buy.asset_code
+             AND sell.trade_date = m.exit_date
+            JOIN LATERAL (
+                SELECT p.close_price
+                FROM market_daily_price p
+                WHERE p.asset_type = buy.asset_type
+                  AND p.asset_code = buy.asset_code
+                  AND p.trade_date &lt;= m.rebalance_date
+                ORDER BY p.trade_date DESC
+                OFFSET #{lookbackDays}
+                LIMIT 1
+            ) start_price ON TRUE
+            WHERE buy.close_price IS NOT NULL
+              AND sell.close_price IS NOT NULL
+              AND start_price.close_price &gt; 0
+        ),
+        best_risk AS (
+            SELECT DISTINCT ON (rebalance_date)
+                   *
+            FROM scored
+            WHERE risk_asset = 1
+            ORDER BY rebalance_date, score DESC
+        ),
+        defensive AS (
+            SELECT DISTINCT ON (rebalance_date)
+                   *
+            FROM scored
+            WHERE asset_code IN ('KTB3Y', 'GOLD')
+            ORDER BY rebalance_date,
+                     CASE WHEN asset_code = 'KTB3Y' THEN 0 ELSE 1 END,
+                     score DESC
+        ),
+        picked AS (
+            SELECT COALESCE(
+                       CASE WHEN br.score &gt; 0 THEN br.asset_code END,
+                       d.asset_code
+                   ) AS chosen_code,
+                   m.rebalance_date
+            FROM months m
+            LEFT JOIN best_risk br ON br.rebalance_date = m.rebalance_date
+            LEFT JOIN defensive d ON d.rebalance_date = m.rebalance_date
+        )
+        SELECT s.rebalance_date AS rebalanceDate,
+               s.exit_date AS exitDate,
+               s.asset_code AS assetCode,
+               s.asset_name AS assetName,
+               s.asset_type AS assetType,
+               s.sector,
+               s.buy_price AS buyPrice,
+               s.sell_price AS sellPrice,
+               s.score,
+               s.market_cap AS marketCap,
+               1 AS pickRank
+        FROM scored s
+        JOIN picked p
+          ON p.rebalance_date = s.rebalance_date
+         AND p.chosen_code = s.asset_code
+        ORDER BY s.rebalance_date
+    </select>
+
+    <select id="findWeeklyShortTermReversalPicks" resultType="MonthlyPickVo">
+        WITH weeks AS (
+            SELECT date_trunc('week', trade_date)::date AS week_key,
+                   MIN(trade_date) AS rebalance_date,
+                   MAX(trade_date) AS exit_date
+            FROM market_daily_price
+            WHERE asset_type = 'STOCK'
+              AND trade_date BETWEEN #{fromDate} AND #{toDate}
+            GROUP BY date_trunc('week', trade_date)::date
+        ),
+        candidates AS (
+            SELECT w.rebalance_date,
+                   w.exit_date,
+                   buy.asset_code,
+                   buy.asset_name,
+                   buy.asset_type,
+                   buy.sector,
+                   COALESCE(buy.open_price, buy.close_price) AS buy_price,
+                   COALESCE(sell.open_price, sell.close_price) AS sell_price,
+                   start_price.close_price AS start_price,
+                   buy.market_cap,
+                   ((buy.close_price - start_price.close_price) / NULLIF(start_price.close_price, 0)) AS short_return,
+                   (-1 * ((buy.close_price - start_price.close_price) / NULLIF(start_price.close_price, 0))) AS score,
+                   ROW_NUMBER() OVER (
+                       PARTITION BY w.rebalance_date
+                       ORDER BY ((buy.close_price - start_price.close_price) / NULLIF(start_price.close_price, 0)) ASC,
+                                buy.market_cap DESC NULLS LAST
+                   ) AS pick_rank
+            FROM weeks w
+            JOIN market_daily_price buy
+              ON buy.asset_type = 'STOCK'
+             AND buy.trade_date = w.rebalance_date
+            JOIN market_daily_price sell
+              ON sell.asset_type = buy.asset_type
+             AND sell.asset_code = buy.asset_code
+             AND sell.trade_date = w.exit_date
+            JOIN LATERAL (
+                SELECT p.close_price
+                FROM market_daily_price p
+                WHERE p.asset_type = buy.asset_type
+                  AND p.asset_code = buy.asset_code
+                  AND p.trade_date &lt;= w.rebalance_date
+                ORDER BY p.trade_date DESC
+                OFFSET #{lookbackDays}
+                LIMIT 1
+            ) start_price ON TRUE
+            WHERE buy.close_price IS NOT NULL
+              AND sell.close_price IS NOT NULL
+              AND start_price.close_price &gt; 0
+              AND COALESCE(buy.market_cap, 0) &gt;= #{minMarketCap}
+              AND COALESCE(buy.volume, 0) &gt;= #{minVolume}
+              AND ((buy.close_price - start_price.close_price) / NULLIF(start_price.close_price, 0)) &lt; 0
+        )
+        SELECT rebalance_date AS rebalanceDate,
+               exit_date AS exitDate,
+               asset_code AS assetCode,
+               asset_name AS assetName,
+               asset_type AS assetType,
+               sector,
+               buy_price AS buyPrice,
+               sell_price AS sellPrice,
+               score,
+               market_cap AS marketCap,
+               pick_rank AS pickRank
+        FROM candidates
+        WHERE pick_rank &lt;= #{topN}
+        ORDER BY rebalance_date, pick_rank
+    </select>
+</mapper>

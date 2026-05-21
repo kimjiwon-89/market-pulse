@@ -4,11 +4,13 @@ import com.marketpulse.domain.lotto.service.DhlotteryClient;
 import com.marketpulse.domain.lotto.service.LottoService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
+@ConditionalOnProperty(name = "app.scheduler.enabled", havingValue = "true", matchIfMissing = true)
 @RequiredArgsConstructor
 public class LottoScheduler {
 

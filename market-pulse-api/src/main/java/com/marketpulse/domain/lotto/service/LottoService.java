@@ -42,7 +42,7 @@ public class LottoService {
                 .collect(Collectors.toList());
     }
 
-    public LottoAnalysisDto getAnalysis(int drawNo) {
+    public LottoAnalysisDto getAnalysis(int drawNo, String username) {
         LottoResultVo result = lottoMapper.findResultByDrawNo(drawNo);
         List<LottoAnalysisPoolVo> pools = lottoMapper.findPoolsByDrawNo(drawNo);
         List<LottoAnalysisResultVo> results = lottoMapper.findAnalysisResultsByDrawNo(drawNo);
@@ -55,10 +55,11 @@ public class LottoService {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
 
-        List<LottoUserComboDto> myCombs = lottoMapper.findUserCombos().stream()
-                .filter(vo -> vo.getDrawNo() == drawNo)
-                .map(LottoUserComboDto::new)
-                .collect(Collectors.toList());
+        List<LottoUserComboDto> myCombs = username == null
+                ? List.of()
+                : lottoMapper.findUserCombosByDrawNoAndUsername(drawNo, username).stream()
+                        .map(LottoUserComboDto::new)
+                        .collect(Collectors.toList());
 
         return LottoAnalysisDto.builder()
                 .drawNo(drawNo)
@@ -70,7 +71,7 @@ public class LottoService {
                 .build();
     }
 
-    public LottoAnalysisDto getLatest() {
+    public LottoAnalysisDto getLatest(String username) {
         Integer latest = lottoMapper.findLatestDrawNo();
         if (latest == null) {
             return null;  // DB 비어있음 — 동행복권 서버호출은 봇 차단으로 불가
@@ -79,7 +80,7 @@ public class LottoService {
         if (pools.isEmpty()) {
             analyzeOnly(latest);
         }
-        return getAnalysis(latest);
+        return getAnalysis(latest, username);
     }
 
     // ──────────────────────────────────────────────
@@ -126,22 +127,28 @@ public class LottoService {
     // 내 조합 저장 / 삭제
     // ──────────────────────────────────────────────
 
-    public LottoUserComboDto saveUserCombo(LottoUserComboRequestDto req) {
+    public LottoUserComboDto saveUserCombo(LottoUserComboRequestDto req, String username) {
+        validateUserCombo(req);
+
         LottoUserComboVo vo = new LottoUserComboVo();
         vo.setDrawNo(req.getDrawNo());
+        vo.setUsername(username);
         vo.setNumbers(req.getNumbers().stream().mapToInt(Integer::intValue).toArray());
         lottoMapper.insertUserCombo(vo);
         return new LottoUserComboDto(vo);
     }
 
-    public List<LottoUserComboDto> getUserCombos() {
-        return lottoMapper.findUserCombos().stream()
+    public List<LottoUserComboDto> getUserCombos(String username) {
+        return lottoMapper.findUserCombosByUsername(username).stream()
                 .map(LottoUserComboDto::new)
                 .collect(Collectors.toList());
     }
 
-    public void deleteUserCombo(Long id) {
-        lottoMapper.deleteUserCombo(id);
+    public void deleteUserCombo(Long id, String username) {
+        int deleted = lottoMapper.deleteUserCombo(id, username);
+        if (deleted == 0) {
+            throw new IllegalArgumentException("삭제할 조합을 찾을 수 없습니다.");
+        }
     }
 
     // ──────────────────────────────────────────────
@@ -453,6 +460,23 @@ public class LottoService {
         List<Integer> list = new ArrayList<>();
         for (int v : arr) list.add(v);
         return list;
+    }
+
+    private void validateUserCombo(LottoUserComboRequestDto req) {
+        if (req.getDrawNo() <= 0) {
+            throw new IllegalArgumentException("회차 정보가 올바르지 않습니다.");
+        }
+        if (req.getNumbers() == null || req.getNumbers().size() != 6) {
+            throw new IllegalArgumentException("로또 조합은 6개 번호여야 합니다.");
+        }
+        Set<Integer> unique = new HashSet<>(req.getNumbers());
+        if (unique.size() != 6) {
+            throw new IllegalArgumentException("로또 번호는 중복될 수 없습니다.");
+        }
+        boolean invalid = unique.stream().anyMatch(n -> n == null || n < 1 || n > 45);
+        if (invalid) {
+            throw new IllegalArgumentException("로또 번호는 1부터 45 사이여야 합니다.");
+        }
     }
 
     private String toJson(Object obj) {

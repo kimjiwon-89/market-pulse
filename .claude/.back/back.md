@@ -117,21 +117,93 @@ global/auth/InitialDataRunner.java
 | investor | GET | `/api/investor/trade-top` | 완료 |
 | investor | GET | `/api/investor/snapshot/dates` | 완료 |
 | investor | POST | `/api/investor/snapshot` | 완료 (수동 트리거) |
-| investor | GET/POST/DELETE | `/api/investor/memo` | 완료 |
-| investor | GET | `/api/investor/memo/list` | 완료 |
+| memo | GET/POST/PATCH/DELETE | `/api/memo` | 완료 — 로그인 사용자별 범용 메모 |
+| memo | GET | `/api/memo/context` | 완료 — 기능/날짜/시장/종목 맥락별 메모 조회 |
 | lotto | GET | `/api/lotto/latest` | 완료 |
 | lotto | GET | `/api/lotto/rounds` | 완료 |
 | lotto | GET | `/api/lotto/analysis?round=` | 완료 |
 | lotto | GET | `/api/lotto/stats` | 완료 |
-| lotto | POST/GET/DELETE | `/api/lotto/combo` | 완료 |
-| lotto | POST | `/api/lotto/collect?from=&to=` | 완료 (관리자용 일괄 수집) |
-| lotto | POST | `/api/lotto/bulk-results` | 완료 — body: LottoResultRawDto[] 일괄 저장 |
-| lotto | POST | `/api/lotto/analyze-all` | 완료 — 분석 미완료 회차 전체 일괄 분석 |
-| lotto | POST | `/api/lotto/result` | 완료 — 단일 회차 수동 등록 (쿼리 파라미터) |
+| lotto | POST/GET/DELETE | `/api/lotto/combo` | 완료 — 로그인 사용자별 내 조합 |
+| lotto | POST | `/api/lotto/analyze?round=` | 완료 — ADMIN 전용 분석 실행 |
+| lotto | POST | `/api/lotto/collect?from=&to=` | 완료 — ADMIN 전용 일괄 수집 |
+| lotto | POST | `/api/lotto/bulk-results` | 완료 — ADMIN 전용, body: LottoResultRawDto[] 일괄 저장 |
+| lotto | POST | `/api/lotto/analyze-all` | 완료 — ADMIN 전용, 분석 미완료 회차 전체 일괄 분석 |
+| lotto | POST | `/api/lotto/result` | 완료 — ADMIN 전용, 단일 회차 수동 등록 |
 | stock | GET | `/api/stock/search?q=&limit=` | 완료 — stock_master 이름 부분 일치 검색 |
 | stock | GET | `/api/stock/detail?code=` | 완료 — KIS FHKST01010100 현재가 시세 |
 | stock | GET | `/api/stock/chart?code=&period=` | 완료 — KIS FHKST01010400 일자별 차트 |
 | stock | GET | `/api/stock/investor?code=` | 완료 — KIS FHKST01010900 투자자 동향 |
+| quant | GET | `/api/quant/strategies` | 진행 — 퀀트 전략 5종 목록 |
+| quant | GET | `/api/quant/backtest?strategyId=&from=&to=` | 진행 — 전략별 백테스팅 실행/캐시 조회 |
+| quant | GET | `/api/quant/performance?from=&to=` | 진행 — 전략 비교 + KOSPI/KOSDAQ 벤치마크 |
+| quant | GET | `/api/quant/trades?strategyId=&from=&to=` | 진행 — 매매 로그 페이지 조회 |
+| quant | POST | `/api/quant/collect?from=&to=&dataType=ALL` | 진행 — ADMIN 전용 KRX 전체 데이터 수집 |
+| quant | GET | `/api/quant/collect/status` | 진행 — ADMIN 전용 수집 상태 조회 |
+| quant | GET/POST/PATCH/DELETE | `/api/quant/models` | 진행 — 확장형 퀀트 모델 정의 레지스트리, POST/PATCH/DELETE는 ADMIN 전용 |
+
+## Quant 모델 레지스트리
+
+퀀트 모델은 기존 `quant_strategy` 하드코딩 전략 목록과 별도로 `quant_model_definition` 테이블에서 관리한다.
+코드로 실행 가능한 모델은 `domain/quant/model/<model_key>/` 폴더에 구현체를 두고, DB의 `implementation_key`로 연결한다.
+
+현재 코드 모델:
+
+| 모델 코드 | 구현 폴더 | 설명 |
+|---|---|---|
+| `MP_CORE` | `domain/quant/model/mp_core/` | 가격·유동성·변동성·베타·섹터·수급 feature 기반 코어 분류 모델 |
+
+API:
+
+```
+GET    /api/quant/models?includeInactive=false
+GET    /api/quant/models/{modelId}
+POST   /api/quant/models              # ADMIN
+PATCH  /api/quant/models/{modelId}    # ADMIN
+DELETE /api/quant/models/{modelId}    # ADMIN, soft deactivate
+POST   /api/quant/models/{modelCode}/features?from=YYYYMMDD&to=YYYYMMDD  # ADMIN
+GET    /api/quant/models/{modelCode}/features?date=YYYYMMDD&limit=50
+POST   /api/quant/models/{modelCode}/signals?date=YYYYMMDD&limit=20     # ADMIN
+GET    /api/quant/models/{modelCode}/signals?date=YYYYMMDD&limit=20
+```
+
+웹에서 사용자가 추가하는 모델은 `is_user_defined=true`, `implementation_type=USER_DEFINED`로 저장한다.
+코드 구현체가 붙은 모델만 응답의 `runnable=true`가 된다.
+
+`MP_CORE` feature snapshot은 `quant_core_feature_snapshot`에 저장한다.
+현재 1차 생성기는 `market_daily_price`에서 5/20/60/120/252일 수익률, 60일 변동성, 60일 drawdown, 20일 평균 거래대금, 60일 위험조정 수익률을 만든다.
+label은 20영업일 forward return 기준으로 `WINNER/NEUTRAL/LOSER`를 우선 생성하며, 벤치마크 대비 초과수익 label은 다음 단계에서 보강한다.
+
+`MP_CORE` signal 1차 생성기는 아직 ML 학습 모델이 아니라 feature 기반 baseline engine이다.
+`riskAdjRet60d`, `ret60d`, `tradeAmount20dAvg`, `drawdown60d`를 rank score로 합성해 `winnerProb`, `neutralProb`, `loserProb`, `score`, `targetWeight`, `reason`, `riskFlags`를 저장한다.
+응답의 `riskFlags.baselineOnly=true`는 아직 RandomForest 모델 신호가 아니라는 표시다.
+
+## 범용 메모 도메인
+
+메모 기능은 `memo` 테이블과 `/api/memo`를 사용하며 로그인 사용자별 개인 메모로 동작한다.
+기존 `investor_memo` 기반 날짜+시장 1개 upsert 구조는 제거되었다.
+
+### 주요 필드
+
+| 필드 | 설명 |
+|------|------|
+| `username` | 로그인 사용자 |
+| `memo_date` | 메모 기준일 |
+| `source_type` | `INVESTOR_TREND` `NET_BUY` `STOCK_DETAIL` `MANUAL` |
+| `market` | `KOSPI` `KOSDAQ` `ALL` 또는 null |
+| `stock_code` / `stock_name` | 종목 맥락이 있을 때 저장 |
+| `title` / `content` | 제목과 본문 |
+
+### API
+
+```
+GET /api/memo?sourceType=&from=&to=&market=&stockCode=&keyword=&page=&size=
+GET /api/memo/context?sourceType=NET_BUY&date=20260519&market=KOSPI&stockCode=005930
+POST /api/memo
+PATCH /api/memo/{id}
+DELETE /api/memo/{id}
+```
+
+`POST/PATCH/DELETE/GET` 모두 JWT 인증 필요.
 
 ## 공통 응답 형식
 
@@ -152,6 +224,32 @@ KIS API 호출 전 반드시 `TokenService.getValidToken()` 사용.
 1. Redis 조회 → 유효하면 반환
 2. DB 조회 → 유효하면 Redis 저장 후 반환
 3. 신규 발급 → DB + Redis 동시 저장
+```
+
+### 토큰 반복 발급 장애 메모 (2026-05-20)
+
+증상: KIS access token이 하루 1회 수준이 아니라 요청 중 여러 번 재발급되는 현상.
+
+확인 결과:
+- `TokenMapper.xml`이 `ON CONFLICT ON CONSTRAINT api_token_singleton_unique`에 의존했지만 실제 로컬 DB `api_token`에는 해당 constraint가 없었음.
+- Redis `API_TOKEN` 키는 남아 있었지만 이미 만료된 토큰이었고 TTL이 `-1`이라 자동 삭제되지 않았음.
+- 만료 토큰만 남은 상태에서 신규 발급 후 DB 저장이 실패하면 다음 KIS 요청 때 다시 신규 발급될 수 있음.
+
+보완:
+- DB 저장 SQL은 존재하지 않는 singleton constraint에 의존하지 않고, 최신 row를 update하되 row가 없을 때만 insert하는 방식으로 변경.
+- Redis 저장 시 `expiredAt - 5분` 기준 TTL을 설정해 만료 토큰이 캐시에 계속 남지 않도록 변경.
+- TokenService에 Redis/DB cache hit 및 신규 발급 로그를 추가해 추적 가능하게 함.
+
+확인 쿼리:
+```sql
+SELECT id, left(access_token, 8) AS token_prefix, expired_at, created_at
+FROM api_token
+ORDER BY id DESC
+LIMIT 10;
+
+SELECT conname, contype, pg_get_constraintdef(oid)
+FROM pg_constraint
+WHERE conrelid = 'api_token'::regclass;
 ```
 
 ## MyBatis 규칙

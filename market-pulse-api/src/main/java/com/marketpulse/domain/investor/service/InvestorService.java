@@ -2,8 +2,6 @@ package com.marketpulse.domain.investor.service;
 
 import com.marketpulse.domain.investor.dto.InvestorDailyItem;
 import com.marketpulse.domain.investor.dto.MarketFlowDto;
-import com.marketpulse.domain.investor.dto.MemoRequestDto;
-import com.marketpulse.domain.investor.dto.MemoResponseDto;
 import com.marketpulse.domain.investor.dto.TradeTopResponseDto;
 import com.marketpulse.domain.investor.mapper.MarketFlowSnapshotMapper;
 import com.marketpulse.domain.investor.mapper.RankingSnapshotMapper;
@@ -11,8 +9,6 @@ import com.marketpulse.domain.investor.vo.MarketFlowSnapshotVo;
 import com.marketpulse.domain.investor.vo.RankingSnapshotVo;
 import com.marketpulse.domain.stock.dto.ForeignTradeItem;
 import com.marketpulse.global.response.KisResponse;
-import com.marketpulse.domain.investor.mapper.MemoMapper;
-import com.marketpulse.domain.investor.vo.MemoVo;
 import com.marketpulse.external.client.ExternalApiClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,7 +28,6 @@ import java.util.stream.IntStream;
 public class InvestorService {
 
     private final ExternalApiClient externalApiClient;
-    private final MemoMapper memoMapper;
     private final RankingSnapshotMapper snapshotMapper;
     private final MarketFlowSnapshotMapper marketFlowSnapshotMapper;
 
@@ -205,35 +200,6 @@ public class InvestorService {
         return snapshotMapper.findAvailableDates(effectiveInvestor, effectiveTrade, effectiveMarket);
     }
 
-    /* ── Memo ── */
-
-    public MemoResponseDto getMemo(String date, String market) {
-        LocalDate memoDate = LocalDate.parse(date, FMT);
-        MemoVo vo = memoMapper.findByDateAndMarket(memoDate, market);
-        return vo != null ? toMemoDto(vo) : null;
-    }
-
-    public MemoResponseDto saveMemo(MemoRequestDto req) {
-        LocalDate memoDate = LocalDate.parse(req.getDate(), FMT);
-        MemoVo vo = new MemoVo();
-        vo.setMemoDate(memoDate);
-        vo.setMarket(req.getMarket());
-        vo.setContent(req.getContent());
-        memoMapper.upsert(vo);
-        MemoVo saved = memoMapper.findByDateAndMarket(memoDate, req.getMarket());
-        return toMemoDto(saved);
-    }
-
-    public void deleteMemo(Long id) {
-        memoMapper.deleteById(id);
-    }
-
-    public List<MemoResponseDto> getMemoList(String market, int page, int size) {
-        int offset = page * size;
-        return memoMapper.findList(market, size, offset)
-                .stream().map(this::toMemoDto).toList();
-    }
-
     /* ── API 직접 호출 (스케줄러 내부 전용) ── */
 
     private List<TradeTopResponseDto> fetchForeignTradeTop(String market, String tradeType) {
@@ -283,17 +249,6 @@ public class InvestorService {
     }
 
     /* ── helpers ── */
-
-    private MemoResponseDto toMemoDto(MemoVo vo) {
-        return MemoResponseDto.builder()
-                .id(vo.getId())
-                .memoDate(vo.getMemoDate())
-                .market(vo.getMarket())
-                .content(vo.getContent())
-                .createdAt(vo.getCreatedAt())
-                .updatedAt(vo.getUpdatedAt())
-                .build();
-    }
 
     private long parseLong(String value) {
         if (value == null || value.isBlank()) return 0L;

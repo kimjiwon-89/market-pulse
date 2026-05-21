@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Market Pulse Quant Model Redesign</title>
+  <style>
+    :root {
+      --bg: #f7f7f5;
+      --panel: #ffffff;
+      --ink: #18181b;
+      --muted: #69645f;
+      --line: #dedbd6;
+      --soft: #f0efec;
+      --blue: #1e5edb;
+      --gold: #a16207;
+      --red: #c93333;
+      --green: #15803d;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Pretendard Variable", Pretendard, "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.55;
+    }
+    header {
+      padding: 42px 32px 28px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel);
+    }
+    main { max-width: 1180px; margin: 0 auto; padding: 28px 24px 56px; }
+    h1 { margin: 0 0 10px; font-size: 34px; letter-spacing: 0; }
+    h2 { margin: 36px 0 14px; font-size: 22px; }
+    h3 { margin: 0 0 10px; font-size: 17px; }
+    p { margin: 0 0 12px; }
+    .meta { color: var(--muted); font-size: 14px; }
+    .notice {
+      margin-top: 20px;
+      padding: 14px 16px;
+      border: 1px solid #ead7a4;
+      background: #fff8e7;
+      border-radius: 8px;
+      color: #5f4100;
+    }
+    .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+    .two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 18px;
+    }
+    .model-card { min-height: 260px; }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: var(--soft);
+      font-size: 12px;
+      color: var(--muted);
+      margin: 0 6px 6px 0;
+    }
+    .tag.ready { color: #fff; background: var(--green); }
+    .tag.warn { color: #fff; background: var(--gold); }
+    .tag.blocked { color: #fff; background: var(--red); }
+    .tag.blue { color: #fff; background: var(--blue); }
+    .cagr {
+      font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 28px;
+      font-weight: 700;
+      margin: 8px 0;
+    }
+    .muted { color: var(--muted); }
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      overflow: hidden;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    th, td { padding: 11px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { text-align: left; background: var(--soft); color: #44403c; font-size: 12px; }
+    tr:last-child td { border-bottom: 0; }
+    .num { text-align: right; font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Consolas, monospace; white-space: nowrap; }
+    .api { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    pre {
+      margin: 0;
+      padding: 14px;
+      background: #151518;
+      color: #f5f5f4;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    .timeline { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .step {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 13px;
+      min-height: 120px;
+    }
+    .step b { display: block; margin-bottom: 6px; color: var(--blue); }
+    a { color: var(--blue); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    @media (max-width: 1100px) {
+      .grid { grid-template-columns: 1fr 1fr; }
+      .timeline { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 760px) {
+      .grid, .api, .timeline, .two { grid-template-columns: 1fr; }
+      header { padding: 28px 18px 22px; }
+      main { padding: 18px 14px 38px; }
+      h1 { font-size: 27px; }
+      table { display: block; overflow-x: auto; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Quant Model Redesign</h1>
+    <p class="meta">작성일: 2026-05-20 · 현재 5모델 확정 · 최종 방향: 단기/중기/장기 × 위험형/안정형 = 6모델 체계</p>
+    <div class="notice">
+      이 문서의 수익률은 특정 기간의 공개 논문·책·백테스트 기준입니다. 실거래 성과를 보장하지 않으며, 한국 시장 적용 전 생존편향, 거래비용, 세금, 유동성, 재무 데이터 시점 지연을 별도 검증해야 합니다.
+    </div>
+  </header>
+
+  <main>
+    <h2>최종 선정 5모델</h2>
+    <section class="grid">
+      <article class="card model-card">
+        <span class="tag blue">단기</span><span class="tag warn">위험형</span>
+        <h3>MP-PEAD · Earnings Drift</h3>
+        <div class="cagr">12.5%</div>
+        <p class="muted">실적 발표 후 어닝 서프라이즈와 발표 전후 가격 반응이 좋은 종목을 2~12주 보유.</p>
+        <p><b>역할:</b> 5번째 단기투자 모델.</p>
+      </article>
+      <article class="card model-card">
+        <span class="tag blue">중기</span><span class="tag warn">위험형</span>
+        <h3>MP-DM · Dual Momentum</h3>
+        <div class="cagr">17.43%</div>
+        <p class="muted">상대 모멘텀 1위 자산을 고르고, 절대 모멘텀이 약하면 방어자산으로 이동.</p>
+        <p><b>장점:</b> 가격 데이터만으로 구현 가능.</p>
+      </article>
+      <article class="card model-card">
+        <span class="tag blue">중기</span><span class="tag ready">안정형</span>
+        <h3>MP-CF · Conservative Formula</h3>
+        <div class="cagr">15.1%</div>
+        <p class="muted">저변동성 종목군에서 모멘텀과 순주주환원율로 최종 선별.</p>
+        <p><b>주의:</b> 순주주환원율 데이터 필요.</p>
+      </article>
+      <article class="card model-card">
+        <span class="tag blue">장기</span><span class="tag warn">위험형</span>
+        <h3>MP-MF · Magic Formula + Momentum</h3>
+        <div class="cagr">30.8%</div>
+        <p class="muted">Earnings Yield와 ROIC에 6개월 모멘텀 필터를 결합.</p>
+        <p><b>주의:</b> 재무 데이터 필수.</p>
+      </article>
+      <article class="card model-card">
+        <span class="tag blue">장기</span><span class="tag ready">안정형</span>
+        <h3>MP-PF · Piotroski Value Quality</h3>
+        <div class="cagr">23%</div>
+        <p class="muted">저 P/B 종목 중 F-Score 8~9 종목을 선별하는 가치+재무건전성 모델.</p>
+        <p><b>주의:</b> 재무제표 시점 관리가 핵심.</p>
+      </article>
+    </section>
+
+    <h2>6모델 확장 매트릭스</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>투자 기간</th>
+          <th>위험형</th>
+          <th>안정형</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>단기</td>
+          <td><b>MP-PEAD</b><br />실적 발표 후 드리프트</td>
+          <td><b>후보: MP-STR</b><br />Short-Term Reversal with Liquidity Filter</td>
+        </tr>
+        <tr>
+          <td>중기</td>
+          <td><b>MP-DM</b><br />Dual Momentum</td>
+          <td><b>MP-CF</b><br />Conservative Formula</td>
+        </tr>
+        <tr>
+          <td>장기</td>
+          <td><b>MP-MF</b><br />Magic Formula + Momentum</td>
+          <td><b>MP-PF</b><br />Piotroski Value Quality</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="two" style="margin-top:14px">
+      <div class="card">
+        <h3>단기 안정형 후보</h3>
+        <p><b>MP-STR</b>은 최근 1~5거래일 과매도 종목 중 유동성, 스프레드, 변동성 필터를 통과한 종목만 주간 단위로 거래하는 모델입니다.</p>
+        <p class="muted">거래비용과 슬리피지에 매우 민감해서, 운영 모델로 넣기 전 비용 차감 검증이 먼저 필요합니다.</p>
+      </div>
+      <div class="card">
+        <h3>API 분류 필드</h3>
+        <p>모든 모델에 <code>horizon</code>과 <code>riskProfile</code>을 둡니다.</p>
+        <pre><code>horizon: SHORT | MID | LONG
+riskProfile: AGGRESSIVE | DEFENSIVE</code></pre>
+      </div>
+    </div>
+
+    <h2>공개 모델/매매법 리스트업</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>분류</th>
+          <th>모델</th>
+          <th>핵심 룰</th>
+          <th class="num">공개 성과</th>
+          <th>판정</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>단기 이벤트</td><td>PEAD</td><td>어닝 서프라이즈 이후 2~12주 드리프트</td><td class="num">12.5%/년</td><td>신규 선정</td></tr>
+        <tr><td>가치+퀄리티</td><td>Magic Formula</td><td>Earnings Yield + ROIC</td><td class="num">30.8%/년</td><td>선정</td></tr>
+        <tr><td>가치+재무건전성</td><td>Piotroski F-Score</td><td>저 P/B + 9개 재무 신호</td><td class="num">23%/년</td><td>선정</td></tr>
+        <tr><td>방어형 멀티팩터</td><td>Conservative Formula</td><td>저변동성 + 모멘텀 + 순주주환원율</td><td class="num">15.1%/년</td><td>선정</td></tr>
+        <tr><td>모멘텀</td><td>Dual Momentum / GEM</td><td>상대 모멘텀 + 절대 모멘텀</td><td class="num">17.43%/년</td><td>선정</td></tr>
+        <tr><td>단기 반전</td><td>Short-Term Reversal</td><td>과매도/급락 종목의 주간 되돌림</td><td class="num">비용 민감</td><td>6번째 후보</td></tr>
+        <tr><td>저변동성</td><td>Low Volatility</td><td>변동성 낮은 종목 선별</td><td class="num">위험조정 중심</td><td>보조 연구</td></tr>
+        <tr><td>성장주</td><td>CAN SLIM</td><td>실적 성장, 신고가, 수급, 시장 추세</td><td class="num">정성 요소 큼</td><td>제외</td></tr>
+      </tbody>
+    </table>
+
+    <h2>데이터 준비 상태</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>모델</th>
+          <th>기간</th>
+          <th>성향</th>
+          <th>가격</th>
+          <th>재무</th>
+          <th>컨센서스/실적</th>
+          <th>판단</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>MP-PEAD</td><td>단기</td><td>위험형</td><td>필수</td><td>권장</td><td>필수</td><td><span class="tag warn">부분 가능</span></td></tr>
+        <tr><td>MP-DM</td><td>중기</td><td>위험형</td><td>필수</td><td>불필요</td><td>불필요</td><td><span class="tag ready">즉시 가능</span></td></tr>
+        <tr><td>MP-CF</td><td>중기</td><td>안정형</td><td>필수</td><td>선택</td><td>불필요</td><td><span class="tag warn">부분 가능</span></td></tr>
+        <tr><td>MP-MF</td><td>장기</td><td>위험형</td><td>필수</td><td>필수</td><td>불필요</td><td><span class="tag blocked">데이터 필요</span></td></tr>
+        <tr><td>MP-PF</td><td>장기</td><td>안정형</td><td>필수</td><td>필수</td><td>불필요</td><td><span class="tag blocked">데이터 필요</span></td></tr>
+      </tbody>
+    </table>
+
+    <h2>API 구조</h2>
+    <section class="api">
+      <div class="card">
+        <h3>모델 관리</h3>
+        <pre><code>GET   /api/quant/models?horizon=SHORT&riskProfile=AGGRESSIVE
+GET   /api/quant/models/{modelCode}
+PATCH /api/quant/models/{modelCode}
+POST  /api/quant/models/{modelCode}/activate
+POST  /api/quant/models/{modelCode}/deactivate</code></pre>
+      </div>
+      <div class="card">
+        <h3>백테스트</h3>
+        <pre><code>POST   /api/quant/models/{modelCode}/backtests
+GET    /api/quant/models/{modelCode}/backtests
+GET    /api/quant/models/{modelCode}/backtests/{runId}
+DELETE /api/quant/models/{modelCode}/backtests/{runId}</code></pre>
+      </div>
+      <div class="card">
+        <h3>신호와 포트폴리오</h3>
+        <pre><code>GET  /api/quant/models/{modelCode}/signals?date=20260520
+POST /api/quant/models/{modelCode}/signals/generate?date=20260520
+GET  /api/quant/models/{modelCode}/portfolio?date=20260520
+POST /api/quant/models/{modelCode}/rebalance?date=20260520</code></pre>
+      </div>
+      <div class="card">
+        <h3>응답 예시</h3>
+        <pre><code>{
+  "code": "MP-PEAD",
+  "name": "Earnings Drift",
+  "horizon": "SHORT",
+  "riskProfile": "AGGRESSIVE",
+  "publicCagr": 12.5,
+  "dataReadiness": "PARTIAL_READY"
+}</code></pre>
+      </div>
+    </section>
+
+    <h2>DB 확장안</h2>
+    <pre><code>CREATE TABLE quant_model (
+    id BIGSERIAL PRIMARY KEY,
+    code VARCHAR(30) NOT NULL UNIQUE,
+    name VARCHAR(100) NOT NULL,
+    category VARCHAR(30) NOT NULL,
+    horizon VARCHAR(20) NOT NULL,
+    risk_profile VARCHAR(20) NOT NULL,
+    description TEXT,
+    rebalance_cycle VARCHAR(20) NOT NULL,
+    min_public_cagr NUMERIC(8,4),
+    source_summary TEXT,
+    params JSONB,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);</code></pre>
+
+    <h2>구현 순서</h2>
+    <section class="timeline">
+      <div class="step"><b>1</b>quant_model 리소스와 5개 모델 seed 생성</div>
+      <div class="step"><b>2</b>horizon, riskProfile, dataReadiness 필드 추가</div>
+      <div class="step"><b>3</b>MP-DM 가격 기반 모델 먼저 구현</div>
+      <div class="step"><b>4</b>MP-PEAD를 가격 반응 proxy로 MVP 구현</div>
+      <div class="step"><b>5</b>MP-CF를 저변동성+모멘텀 MVP로 구현</div>
+      <div class="step"><b>6</b>재무/실적 데이터 적재 설계</div>
+      <div class="step"><b>7</b>MP-MF, MP-PF 구현</div>
+      <div class="step"><b>8</b>MP-STR 후보 검증 후 6모델 체계 완성</div>
+    </section>
+
+    <h2>참고 자료</h2>
+    <ul>
+      <li><a href="https://papers.ssrn.com/sol3/papers.cfm?abstract_id=909563">PEAD / Earnings Surprise Drift SSRN</a></li>
+      <li><a href="https://www.sciencedirect.com/science/article/pii/S0927539825000301">Short-Term Reversal 최신 연구</a></li>
+      <li><a href="https://www.fool.com/investing/general/2011/07/01/a-foolish-view-of-a-magic-formula.aspx">Joel Greenblatt Magic Formula 원 백테스트 요약</a></li>
+      <li><a href="https://www.quant-investing.com/strategies/magic-formula-investing-and-momentum">Magic Formula + Momentum 확장</a></li>
+      <li><a href="https://www.anderson.ucla.edu/sites/default/files/documents/areas/prg/asam/2019/F-Score.pdf">Piotroski F-Score 논문 PDF</a></li>
+      <li><a href="https://svrn.co/blog/2015/8/2/is-gary-antonaccis-global-equity-momentum-strategy-robust">Gary Antonacci GEM 성과 요약</a></li>
+      <li><a href="https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3145152">Conservative Formula SSRN</a></li>
+    </ul>
+  </main>
+</body>
+</html>

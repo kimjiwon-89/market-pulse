@@ -37,6 +37,13 @@ const BOTTOM_NAV_ITEMS = [
     icon: "M12 2l2.7 8.2H23l-7 5.1 2.7 8.2-7-5.1-7 5.1 2.7-8.2-7-5.1h8.3z",
     end: false,
   },
+  {
+    id: "quant",
+    to: "/quant",
+    label: "퀀트",
+    icon: "M3 3v18h18M7 16l4-8 4 4 4-6",
+    end: false,
+  },
 ];
 
 const ADMIN_BOTTOM_ITEM = {

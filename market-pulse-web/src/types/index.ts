@@ -19,10 +19,17 @@ export interface TradeTopItem {
   netBuyVolume: number;
 }
 
-export interface InvestorMemo {
+export type MemoSourceType = "INVESTOR_TREND" | "NET_BUY" | "STOCK_DETAIL" | "MANUAL";
+
+export interface MemoRecord {
   id: number;
-  memoDate: string;
-  market: "KOSPI" | "KOSDAQ";
+  username: string;
+  memoDate: string | null;
+  sourceType: MemoSourceType;
+  market: "KOSPI" | "KOSDAQ" | "ALL" | null;
+  stockCode: string | null;
+  stockName: string | null;
+  title: string | null;
   content: string;
   createdAt: string;
   updatedAt: string;
@@ -148,4 +155,148 @@ export interface LottoComment {
   isOwner: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+// ── 퀀트 백테스팅 ──
+
+export interface QuantStrategy {
+  id: number;
+  name: string;
+  nameEn: string;
+  description: string;
+  assetType: "INDEX" | "STOCK" | "MULTI";
+  rebalanceCycle: "SIGNAL" | "MONTHLY" | "QUARTERLY" | "DAILY";
+  params: Record<string, unknown>;
+}
+
+export interface EquityPoint {
+  date: string;
+  value: number;
+  returnPct: number;
+}
+
+export interface PerformanceSummary {
+  totalReturn: number;
+  annualizedReturn: number;
+  monthlyReturn: number;
+  targetMonthlyReturn: number;
+  finalValue: number;
+  profitAmount: number;
+  initialToNowReturn: number;
+  mdd: number;
+  sharpeRatio: number;
+  totalTrades: number;
+  winRate: number;
+}
+
+export interface AllocationItem {
+  assetName: string;
+  weight: number;
+}
+
+export interface BacktestResult {
+  strategyId: number;
+  strategyName: string;
+  from: string;
+  to: string;
+  initialCash: number;
+  performance: PerformanceSummary;
+  equityCurve: EquityPoint[];
+  currentAllocation: AllocationItem[];
+}
+
+export interface StrategyComparison {
+  strategyId: number;
+  strategyName: string;
+  totalReturn: number;
+  mdd: number;
+  sharpeRatio: number;
+  equityCurve: EquityPoint[];
+}
+
+export interface PerformanceResponse {
+  from: string;
+  to: string;
+  benchmark: EquityPoint[];
+  kosdaqBenchmark: EquityPoint[];
+  strategies: StrategyComparison[];
+}
+
+export interface TradeLog {
+  id: number;
+  tradeDate: string;
+  assetCode: string;
+  assetName: string;
+  assetType: string;
+  tradeType: "BUY" | "SELL";
+  price: number;
+  quantity: number;
+  amount: number;
+  weight: number;
+  reason: string;
+  commission: number;
+  tax: number;
+}
+
+export interface TradeLogPage {
+  total: number;
+  page: number;
+  size: number;
+  items: TradeLog[];
+}
+
+export type QuantExperimentStatus = "PENDING" | "RUNNING" | "DONE" | "FAILED";
+
+export type QuantBiasCheckStatus = "PASS" | "FAIL";
+
+export interface QuantExperimentWindow {
+  id?: number;
+  variantId?: number;
+  windowNo: number;
+  trainFrom: string;
+  trainTo: string;
+  validationFrom: string;
+  validationTo: string;
+  testFrom: string;
+  testTo: string;
+  validationMonthlyReturn: number;
+  testMonthlyReturn: number;
+  validationMdd: number;
+  testMdd: number;
+}
+
+export interface QuantExperimentVariant {
+  id: number;
+  runId: number;
+  variantCode: string;
+  params: Record<string, unknown>;
+  totalReturn: number;
+  annualizedReturn: number;
+  monthlyReturn: number;
+  mdd: number;
+  sharpeRatio: number;
+  turnover: number;
+  totalCost: number;
+  targetAchieved: boolean;
+  biasCheckStatus: QuantBiasCheckStatus;
+  overfitScore: number;
+  promoted: boolean;
+  equityCurve?: EquityPoint[];
+}
+
+export interface QuantExperimentRun {
+  id: number;
+  strategyNameEn: string;
+  from: string;
+  to: string;
+  status: QuantExperimentStatus;
+  targetMonthlyReturn: number;
+  targetIsGuarantee: boolean;
+  variants: QuantExperimentVariant[];
+  windows: QuantExperimentWindow[];
+  message?: string;
+}
+
+export interface QuantExperimentRunList {
+  runs: QuantExperimentRun[];
 }

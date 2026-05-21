@@ -51,6 +51,13 @@ const NAV_ITEMS = [
     icon: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 6a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm-4 8a4 4 0 0 1 8 0H8z",
     end: false,
   },
+  {
+    id: "quant",
+    to: "/quant",
+    label: "퀀트 백테스팅",
+    icon: "M3 3v18h18M7 16l4-8 4 4 4-6",
+    end: false,
+  },
 ];
 
 const ADMIN_ITEM = {

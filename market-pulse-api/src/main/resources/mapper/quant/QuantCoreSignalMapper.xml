@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.marketpulse.domain.quant.mapper.QuantCoreSignalMapper">
+
+    <insert id="generateBaselineSignals">
+        WITH feature_rows AS (
+            SELECT f.*,
+                   (f.features->>'ret60d')::numeric AS ret_60d,
+                   (f.features->>'riskAdjRet60d')::numeric AS risk_adj_ret_60d,
+                   (f.features->>'drawdown60d')::numeric AS drawdown_60d,
+                   (f.features->>'tradeAmount20dAvg')::numeric AS trade_amount_20d_avg
+            FROM quant_core_feature_snapshot f
+            WHERE f.model_code = #{modelCode}
+              AND f.signal_date = #{signalDate}
+              AND f.label IS NOT NULL
+        ),
+        ranked_features AS (
+            SELECT *,
+                   COALESCE(PERCENT_RANK() OVER (ORDER BY risk_adj_ret_60d), 0) AS risk_adj_rank,
+                   COALESCE(PERCENT_RANK() OVER (ORDER BY ret_60d), 0) AS ret_rank,
+                   COALESCE(PERCENT_RANK() OVER (ORDER BY trade_amount_20d_avg), 0) AS liquidity_rank,
+                   COALESCE(1 + drawdown_60d, 0.5) AS drawdown_score
+            FROM feature_rows
+            WHERE ret_60d IS NOT NULL
+              AND risk_adj_ret_60d IS NOT NULL
+              AND trade_amount_20d_avg IS NOT NULL
+        ),
+        scored AS (
+            SELECT *,
+                   (
+                       0.45 * risk_adj_rank
+                       + 0.30 * ret_rank
+                       + 0.15 * liquidity_rank
+                       + 0.10 * GREATEST(LEAST(drawdown_score, 1), 0)
+                   ) AS baseline_score
+            FROM ranked_features
+        ),
+        final_rows AS (
+            SELECT *,
+                   ROW_NUMBER() OVER (
+                       ORDER BY baseline_score DESC,
+                                trade_amount_20d_avg DESC NULLS LAST,
+                                asset_code
+                   ) AS signal_rank
+            FROM scored
+        ),
+        probability_rows AS (
+            SELECT *,
+                   LEAST(0.80, GREATEST(0.05, 0.30 + baseline_score * 0.50)) AS calc_winner_prob,
+                   LEAST(0.35, GREATEST(0.15, 0.15 + (1 - ABS(baseline_score - 0.50) * 2) * 0.20)) AS calc_neutral_prob
+            FROM final_rows
+        )
+        INSERT INTO quant_core_signal (
+            model_code, model_version_id, signal_date, asset_code, asset_name, market, sector,
+            winner_prob, neutral_prob, loser_prob, score, rank, target_weight, reason, risk_flags
+        )
+        SELECT model_code,
+               NULL,
+               signal_date,
+               asset_code,
+               asset_name,
+               market,
+               sector,
+               calc_winner_prob AS winner_prob,
+               calc_neutral_prob AS neutral_prob,
+               GREATEST(0.05, 1 - calc_winner_prob - calc_neutral_prob) AS loser_prob,
+               baseline_score AS score,
+               signal_rank AS rank,
+               CASE WHEN signal_rank &lt;= #{limit} THEN LEAST(0.15, 1.0 / #{limit}) ELSE 0 END AS target_weight,
+               jsonb_build_object(
+                   'engine', 'baseline_feature_score',
+                   'riskAdjRank', risk_adj_rank,
+                   'retRank', ret_rank,
+                   'liquidityRank', liquidity_rank,
+                   'drawdownScore', drawdown_score
+               ) AS reason,
+               jsonb_build_object(
+                   'highVolatility', COALESCE((features->>'vol60d')::numeric, 0) > 0.05,
+                   'deepDrawdown', COALESCE(drawdown_60d, 0) &lt; -0.20,
+                   'lowLiquidity', liquidity_rank &lt; 0.20,
+                   'baselineOnly', true
+               ) AS risk_flags
+        FROM probability_rows
+        WHERE signal_rank &lt;= #{limit}
+        ON CONFLICT (model_code, signal_date, asset_code) DO UPDATE
+            SET asset_name = EXCLUDED.asset_name,
+                market = EXCLUDED.market,
+                sector = EXCLUDED.sector,
+                winner_prob = EXCLUDED.winner_prob,
+                neutral_prob = EXCLUDED.neutral_prob,
+                loser_prob = EXCLUDED.loser_prob,
+                score = EXCLUDED.score,
+                rank = EXCLUDED.rank,
+                target_weight = EXCLUDED.target_weight,
+                reason = EXCLUDED.reason,
+                risk_flags = EXCLUDED.risk_flags,
+                created_at = NOW()
+    </insert>
+
+    <select id="findByModelAndDate" resultType="QuantCoreSignalVo">
+        SELECT id,
+               model_code AS modelCode,
+               model_version_id AS modelVersionId,
+               signal_date AS signalDate,
+               asset_code AS assetCode,
+               asset_name AS assetName,
+               market,
+               sector,
+               winner_prob AS winnerProb,
+               neutral_prob AS neutralProb,
+               loser_prob AS loserProb,
+               score,
+               rank,
+               target_weight AS targetWeight,
+               reason::text AS reason,
+               risk_flags::text AS riskFlags,
+               created_at AS createdAt
+        FROM quant_core_signal
+        WHERE model_code = #{modelCode}
+          AND signal_date = #{signalDate}
+        ORDER BY rank ASC NULLS LAST, score DESC, asset_code
+        LIMIT #{limit}
+    </select>
+</mapper>

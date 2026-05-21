@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.marketpulse.domain.quant.mapper.QuantBacktestResultMapper">
+
+    <select id="findByStrategyAndPeriod" resultType="QuantBacktestResultVo">
+        SELECT id, strategy_id AS strategyId, from_date AS fromDate, to_date AS toDate,
+               trade_date AS tradeDate, portfolio_value AS portfolioValue,
+               return_pct AS returnPct, cash, equity, created_at AS createdAt
+        FROM quant_backtest_result
+        WHERE strategy_id = #{strategyId}
+          AND from_date = #{fromDate}
+          AND to_date = #{toDate}
+        ORDER BY trade_date
+    </select>
+
+    <insert id="insertBatch">
+        INSERT INTO quant_backtest_result (
+            strategy_id, from_date, to_date, trade_date,
+            portfolio_value, return_pct, cash, equity
+        )
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+                #{item.strategyId}, #{item.fromDate}, #{item.toDate}, #{item.tradeDate},
+                #{item.portfolioValue}, #{item.returnPct}::numeric, #{item.cash}, #{item.equity}
+            )
+        </foreach>
+        ON CONFLICT (strategy_id, from_date, to_date, trade_date) DO UPDATE
+            SET portfolio_value = EXCLUDED.portfolio_value,
+                return_pct = EXCLUDED.return_pct,
+                cash = EXCLUDED.cash,
+                equity = EXCLUDED.equity
+    </insert>
+
+    <delete id="deleteByStrategyAndPeriod">
+        DELETE FROM quant_backtest_result
+        WHERE strategy_id = #{strategyId}
+          AND from_date = #{fromDate}
+          AND to_date = #{toDate}
+    </delete>
+
+    <delete id="deleteByPeriodOverlap">
+        DELETE FROM quant_backtest_result
+        WHERE from_date &lt;= #{toDate}
+          AND to_date &gt;= #{fromDate}
+    </delete>
+</mapper>

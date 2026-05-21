@@ -140,6 +140,14 @@ git push origin feature/기능명
 **KRX API 사용 시** → `.claude/.krx/krx.md` 참조 (인증키·엔드포인트 전체 목록)
 - `.claude/.krx/krx-data-guide-summary.md` — 유료 히스토리컬 데이터 상품 목록 (추후 필요 시 참조)
 
+**퀀트/백테스트/MP_CORE 작업 시** → `.claude/quant/` 참고 문서를 먼저 읽고 시작
+- `06-퀀트투자-전체프로세스.md` — 퀀트 시스템 전체 흐름
+- `07~11` — 데이터 수집·정리·분석·시각화
+- `12~13` — 종목선정 팩터 기본/심화
+- `14~16` — 포트폴리오 구성·백테스트·성과/위험 평가
+- `17-레퍼런스.md` — 팩터/모델별 근거 문헌 지도
+- 문서 내 분류 기준: `MP_CORE_NOW`는 현재 모델에 바로 반영, `MP_CORE_LATER`는 후속 확장, `NEXT_MODEL`은 별도 모델 후보, `REFERENCE_ONLY`는 배경지식
+
 각 파일에는 해당 영역의 컨벤션, 디렉터리 구조, 구현 스펙, 주의사항이 정리되어 있다.
 작업 후 변경사항이 생기면 해당 md 파일도 함께 업데이트한다.
 
@@ -155,6 +163,7 @@ market-pulse/
     ├── .front/front.md         # 프론트엔드 작업 가이드
     ├── .front/design-guide.md  # 디자인 시스템 (CSS 토큰, 컴포넌트, 페이지 스펙)
     ├── .back/back.md           # 백엔드 작업 가이드
+    ├── quant/                  # 퀀트/MP_CORE 리서치 참고 문서
     ├── .logs/                  # 날짜별 작업 로그 (YYYY-MM-DD-log.md)
     ├── plans/                  # workation-planner 산출물 (html + spec.md)
     └── status/                 # 에이전트 간 소통 채널 (active-plan, reports)
@@ -200,14 +209,17 @@ external.api:
 | index | `GET /api/index/inquire-daily-indexchartprice` | 국내 업종 기간별 시세 |
 | stock | `GET /api/stock/foreign-trade` | 투자자×거래유형×시장 필터 조합, 날짜별 시계열 |
 | news | `GET /api/news/inquire-daily-news` | 국내 뉴스 |
-| investor | `GET /api/investor/trade-top` `GET/POST/DELETE /api/investor/memo` | 투자자 매매동향 + 메모 |
+| investor | `GET /api/investor/trade-top` | 투자자 매매동향 |
+| memo | `GET/POST/PATCH/DELETE /api/memo` `GET /api/memo/context` | 로그인 사용자별 범용 메모 |
+| lotto | `GET /api/lotto/latest` `POST/GET/DELETE /api/lotto/combo` | 로또 분석 + 사용자별 조합 |
 | auth | `POST /api/auth/login` `GET /api/auth/me` | JWT 인증 |
 | admin | `GET/POST/DELETE/PATCH /api/admin/users` | 사용자 관리 (ADMIN 전용) |
 
 **인증 (JWT)**
 
 - `POST /api/auth/login` — `{ username, password }` → `{ token, username, role }`
-- 보호 경로: `/api/investor/memo/**` (인증 필요), `/api/admin/**` (ADMIN 전용)
+- 보호 경로: `/api/memo/**` (인증 필요), `/api/lotto/combo/**` (인증 필요), `/api/admin/**` (ADMIN 전용)
+- 로또 관리성 POST API(`/api/lotto/analyze`, `/collect`, `/bulk-results`, `/analyze-all`, `/result`)는 ADMIN 전용
 - 나머지 조회 API는 공개
 - 기본 계정: `admin / market2026` (앱 시작 시 자동 생성, `application-local.yml`에서 변경)
 
@@ -224,6 +236,7 @@ com.marketpulse/
 ├── domain/          # 비즈니스 도메인 (controller / service / dto / mapper / vo)
 │   ├── index/
 │   ├── investor/
+│   ├── memo/        # 범용 메모 (사용자별, source/date/market/stock context)
 │   ├── news/
 │   ├── stock/       # foreign-trade + stock_master 검색 + 종목 상세
 │   └── user/        # 사용자 관리 (ADMIN API)
@@ -271,10 +284,10 @@ baseURL: 'http://localhost:8080/api'
 | `/index/:id` | IndexDetail | 공개 | 업종 상세 시세 |
 | `/investor` | InvestorTrend | 공개 (메모만 인증) | 투자자 매매동향 + 메모 |
 | `/net-buy` | NetBuyingList | 공개 | 순매수/순매도 순위 |
-| `/memo` | MemoList | 공개 (메모만 인증) | 메모 모아보기 |
+| `/memo` | MemoList | 인증 | 범용 메모 필터/모아보기 |
 | `/news` | NewsList | 공개 | 뉴스 |
 | `/stock/:code` | StockDetail | 공개 | 종목 상세 (현재가·차트·투자자동향) |
-| `/lotto` | LottoAnalysis | 공개 (조합 저장만 인증) | 로또 분석 연구소 |
+| `/lotto` | LottoAnalysis | 공개 (내 조합은 인증) | 로또 분석 연구소 |
 | `/admin` | Admin | ADMIN | 사용자 관리 |
 
 **디렉터리 구조**
@@ -292,10 +305,11 @@ src/
 
 ---
 
-## 투자자 매매동향 기능 (investor 도메인)
+## 투자자 매매동향 + 범용 메모 기능
 
-외국인/기관의 일별 순매수·순매도 상위 20위를 시장별로 조회하고,
-날짜+시장별로 메모를 남기고 모아볼 수 있는 기능.
+외국인/기관의 일별 순매수·순매도 상위 20위를 시장별로 조회한다.
+메모는 기존 `investor_memo` 날짜+시장 1개 upsert 구조를 제거하고,
+`memo` 테이블 기반의 로그인 사용자별 다중 메모 구조로 통일했다.
 
 ### 데이터 소스
 
@@ -318,48 +332,80 @@ GET /api/investor/trade-top
   &tradeType=BUY|SELL                # 순매수/순매도
   &date=20260514                     # 조회 날짜 (기본값: 오늘)
 
-# 메모 — 날짜+시장별 1개, upsert
-GET    /api/investor/memo?date=20260514&market=KOSPI|KOSDAQ
-POST   /api/investor/memo
-  body: { date: "20260514", market: "KOSPI", content: "..." }
-DELETE /api/investor/memo/{id}
+# 범용 메모 — 로그인 사용자별 다중 메모
+GET /api/memo
+  ?sourceType=NET_BUY|INVESTOR_TREND|STOCK_DETAIL|MANUAL
+  &from=20260501
+  &to=20260520
+  &market=KOSPI|KOSDAQ|ALL
+  &stockCode=005930
+  &keyword=외국인
+  &page=0
+  &size=20
 
-# 메모 모아보기 (최신순)
-GET    /api/investor/memo/list?market=KOSPI|KOSDAQ&page=0&size=20
+GET /api/memo/context
+  ?sourceType=NET_BUY
+  &date=20260520
+  &market=KOSPI
+  &stockCode=005930
+
+POST /api/memo
+  body: {
+    memoDate: "20260520",
+    sourceType: "NET_BUY",
+    market: "KOSPI",
+    stockCode: "005930",
+    stockName: "삼성전자",
+    title: "순매수도 1위",
+    content: "외국인 순매수 강함"
+  }
+
+PATCH  /api/memo/{id}
+DELETE /api/memo/{id}
 ```
 
 ### 백엔드 구현 위치
 
 ```
 com.marketpulse/
-└── domain/investor/
-    ├── controller/InvestorController.java
-    ├── service/InvestorService.java
-    ├── dto/TradeTopRequestDto.java
-    ├── dto/TradeTopResponseDto.java
-    ├── dto/MemoRequestDto.java
-    ├── dto/MemoResponseDto.java
-    ├── mapper/MemoMapper.java
-    └── vo/MemoVo.java
+├── domain/investor/
+│   ├── controller/InvestorController.java
+│   ├── service/InvestorService.java
+│   └── dto/TradeTopResponseDto.java
+└── domain/memo/
+    ├── controller/MemoController.java
+    ├── service/MemoService.java
+    ├── dto/MemoCreateRequest.java
+    ├── dto/MemoUpdateRequest.java
+    ├── dto/MemoRecordResponse.java
+    ├── mapper/MemoRecordMapper.java
+    └── vo/MemoRecordVo.java
 ```
 
 ### DB 테이블
 
-메모는 PostgreSQL에 저장. `memo_date + market` 조합에 unique 제약.
+메모는 PostgreSQL `memo` 테이블에 저장한다.
+같은 날짜+시장+종목 맥락에도 여러 개 메모를 만들 수 있으며, 로그인 사용자별로 분리된다.
 
 ```sql
-CREATE TABLE investor_memo (
-    id         BIGSERIAL    PRIMARY KEY,
-    memo_date  DATE         NOT NULL,
-    market     VARCHAR(10)  NOT NULL,  -- 'KOSPI' | 'KOSDAQ'
-    content    TEXT         NOT NULL,
-    created_at TIMESTAMP    DEFAULT NOW(),
-    updated_at TIMESTAMP    DEFAULT NOW(),
-    UNIQUE (memo_date, market)          -- 날짜+시장 조합당 1개
+CREATE TABLE memo (
+    id          BIGSERIAL PRIMARY KEY,
+    username    VARCHAR(50) NOT NULL,
+    memo_date   DATE,
+    source_type VARCHAR(30) NOT NULL,  -- INVESTOR_TREND | NET_BUY | STOCK_DETAIL | MANUAL
+    market      VARCHAR(10),
+    stock_code  VARCHAR(10),
+    stock_name  VARCHAR(100),
+    title       VARCHAR(200),
+    content     TEXT NOT NULL,
+    created_at  TIMESTAMP DEFAULT NOW(),
+    updated_at  TIMESTAMP DEFAULT NOW()
 );
+CREATE INDEX idx_memo_username_date ON memo (username, memo_date DESC);
+CREATE INDEX idx_memo_username_source ON memo (username, source_type);
+CREATE INDEX idx_memo_username_market ON memo (username, market);
+CREATE INDEX idx_memo_username_stock_code ON memo (username, stock_code);
 ```
-
-POST는 upsert로 처리 (날짜+시장 중복이면 content 업데이트).
 
 ### 프론트엔드 UI
 
@@ -369,44 +415,49 @@ POST는 upsert로 처리 (날짜+시장 중복이면 content 업데이트).
 - 탭: 외국인 / 기관
 - 탭: 순매수 / 순매도
 - 순위 테이블 (순위 / 종목명 / 순매수대금 / 순매수량)
-- 하단 메모 입력창 + 저장 버튼 (날짜·시장 탭 전환 시 해당 메모 자동 로드)
-- 메모 삭제 버튼
+- 하단 메모: `sourceType=INVESTOR_TREND`, 날짜+시장 맥락의 다중 메모
+- 각 메모별 수정/삭제 가능
 
 **MemoList (`/memo`)**
-- 코스피 / 코스닥 탭 구분
-- 날짜 내림차순 리스트
-- 각 항목: 날짜 + 시장 + 메모 내용 미리보기
-- 항목 클릭 시 `/investor?date=YYYYMMDD&market=KOSPI|KOSDAQ` 로 이동
+- 로그인 필요
+- 필터: 기능(sourceType), 날짜 범위, 시장, 종목코드, 키워드
+- 각 항목: 날짜 + 기능 + 시장 + 종목 + 제목/본문 미리보기
+- 항목 클릭 시 sourceType에 따라 `/net-buy`, `/investor`, `/stock/:code` 등 원래 맥락으로 이동
+
+**NetBuyingList (`/net-buy`)**
+- 하단 시장 메모: `sourceType=NET_BUY`, 날짜+시장 맥락의 다중 메모
+- 종목 모달 메모: `sourceType=NET_BUY`, 날짜+시장+종목 맥락의 다중 메모
+- 시장 메모와 종목 메모는 `stock_code IS NULL` / `stock_code = 코드`로 분리 조회
 
 ---
 
-## 종목 마스터 + 종목 상세 + 메모 @태그 기능 (구현 예정)
+## 종목 마스터 + 종목 상세 + 메모 @태그 기능
 
 > 상세 스펙은 `.claude/.back/back.md`, `.claude/.front/front.md` 참고
 
 ### 개요
 
-1. **stock_master 테이블** — KRX 전종목(코드·이름·시장·업종) DB 저장, 매일 자정 자동 업데이트
-2. **종목 상세 페이지** (`/stock/:code`) — KIS API로 현재가·일자별 차트·투자자동향 조회
-3. **메모 @mention 태그** — 메모 작성 시 `@종목명` 입력 → 자동완성 드롭다운 → 저장 시 가격 스냅샷 기록
+1. **stock_master 테이블** — KRX 전종목(코드·이름·시장·업종) DB 저장, 매일 자정 자동 업데이트 완료
+2. **종목 상세 페이지** (`/stock/:code`) — KIS API로 현재가·일자별 차트·투자자동향 조회 완료
+3. **범용 메모 종목 연결** — 현재는 `memo.stock_code/stock_name`으로 종목 맥락 저장. `@mention` 자동완성/가격 스냅샷은 후속 확장
 
-### DB 테이블 (신규 — psql 직접 생성 필요)
+### DB 테이블
 
 ```sql
 -- 전종목 마스터
-CREATE TABLE stock_master (
+CREATE TABLE IF NOT EXISTS stock_master (
     code       VARCHAR(10)  PRIMARY KEY,   -- 종목코드 (6자리)
     name       VARCHAR(100) NOT NULL,       -- 종목명
     market     VARCHAR(10)  NOT NULL,       -- 'KOSPI' | 'KOSDAQ'
     sector     VARCHAR(100),               -- 업종명
     updated_at TIMESTAMP    DEFAULT NOW()
 );
-CREATE INDEX idx_stock_master_name ON stock_master(name);
+CREATE INDEX IF NOT EXISTS idx_stock_master_name ON stock_master(name);
 
--- 메모 종목 태그 (저장 시점 스냅샷 포함)
+-- 후속 확장 후보: 메모 종목 태그 가격 스냅샷
 CREATE TABLE memo_stock_tag (
     id                  BIGSERIAL PRIMARY KEY,
-    memo_id             BIGINT       NOT NULL REFERENCES investor_memo(id) ON DELETE CASCADE,
+    memo_id             BIGINT       NOT NULL REFERENCES memo(id) ON DELETE CASCADE,
     stock_code          VARCHAR(10)  NOT NULL,
     stock_name          VARCHAR(100) NOT NULL,
     price_at_tag        BIGINT       NOT NULL,    -- 태그 시점 현재가
@@ -427,10 +478,13 @@ GET /api/stock/detail?code=005930         # 현재가·기본정보 (KIS FHKST01
 GET /api/stock/chart?code=005930&period=1M|3M|1Y  # 일자별 차트 (KIS FHKST01010400)
 GET /api/stock/investor?code=005930       # 투자자 동향 (KIS FHKST01010900)
 
-# 메모 태그
-POST   /api/investor/memo/{memoId}/tag
-  body: { stockCode, stockName, priceAtTag, changeRateAtTag }
-DELETE /api/investor/memo/tag/{tagId}
+# 메모 생성 시 종목 맥락 포함
+POST /api/memo
+  body: { sourceType: "NET_BUY", stockCode: "005930", stockName: "삼성전자", ... }
+
+# 후속 확장 후보: 메모 태그 스냅샷
+POST   /api/memo/{memoId}/tag
+DELETE /api/memo/tag/{tagId}
 ```
 
 ### 스케줄러
@@ -448,7 +502,7 @@ DELETE /api/investor/memo/tag/{tagId}
 
 ---
 
-## 로또 분석 연구소 기능 (구현 예정)
+## 로또 분석 연구소 기능
 
 > 상세 기획: `.claude/.lotto/lotto-final-plan.md` / 수식 레퍼런스: `.claude/.lotto/lotto_machine_learning_analysis_overview_md.md`
 
@@ -523,10 +577,12 @@ CREATE TABLE lotto_analysis_result (
 CREATE TABLE lotto_user_combo (
     id         BIGSERIAL PRIMARY KEY,
     draw_no    INTEGER NOT NULL,
+    username   VARCHAR(50),
     numbers    INTEGER[] NOT NULL,  -- 6개
     hit_count  INTEGER,
     created_at TIMESTAMP DEFAULT NOW()
 );
+CREATE INDEX idx_lotto_user_combo_username ON lotto_user_combo (username, draw_no);
 ```
 
 ### API
@@ -537,12 +593,15 @@ GET  /api/lotto/rounds               -- 전체 회차 목록
 GET  /api/lotto/analysis?round=1157  -- 특정 회차 5개 전략 풀 + 조합 + 적중률
 GET  /api/lotto/stats                -- 전략별 누적 성적 (그래프용)
 
-POST   /api/lotto/combo             -- 내 조합 저장 { drawNo, numbers[] }
-GET    /api/lotto/combo             -- 내 저장 조합 목록
-DELETE /api/lotto/combo/{id}        -- 삭제
+POST   /api/lotto/combo             -- 내 조합 저장 { drawNo, numbers[] } (로그인 필요)
+GET    /api/lotto/combo             -- 내 저장 조합 목록 (로그인 필요, username별)
+DELETE /api/lotto/combo/{id}        -- 삭제 (로그인 필요, 본인 조합만)
 
-POST   /api/lotto/analyze?round=N   -- DB 기존 데이터로 분석만 실행 (동행복권 수집 없이)
-POST   /api/lotto/collect?from=N&to=M -- 역대 데이터 일괄 수집 (관리자용, 동행복권 API 봇차단 이슈 있음)
+POST   /api/lotto/analyze?round=N   -- DB 기존 데이터로 분석만 실행 (ADMIN 전용)
+POST   /api/lotto/collect?from=N&to=M -- 역대 데이터 일괄 수집 (ADMIN 전용, 동행복권 API 봇차단 이슈 있음)
+POST   /api/lotto/bulk-results      -- 당첨번호 대량 저장 (ADMIN 전용)
+POST   /api/lotto/analyze-all       -- DB 미분석 회차 전체 분석 (ADMIN 전용)
+POST   /api/lotto/result            -- 단일 회차 수동 등록 + 분석 (ADMIN 전용)
 ```
 
 > ⚠️ 동행복권 API(`www.dhlottery.co.kr`)는 서버 측 HTTP 요청 시 봇 차단 (HTML 리다이렉트 반환).
@@ -552,7 +611,7 @@ POST   /api/lotto/collect?from=N&to=M -- 역대 데이터 일괄 수집 (관리�
 
 | 경로 | 컴포넌트 | 인증 | 설명 |
 |------|----------|------|------|
-| `/lotto` | LottoAnalysis | 공개 (조합 저장만 인증) | 로또 분석 연구소 |
+| `/lotto` | LottoAnalysis | 공개 (내 조합 저장/조회/삭제만 인증) | 로또 분석 연구소 |
 
 ### 화면 구성
 
@@ -600,7 +659,7 @@ POST   /api/lotto/collect?from=N&to=M -- 역대 데이터 일괄 수집 (관리�
 - JWT secret(`app.jwt.secret`)도 운영 시 환경변수로 주입. 32자 이상 무작위 문자열 권장
 - MyBatis XML 매퍼 위치: `src/main/resources/mapper/**/*.xml`
 - `ApiResponse.failure()` 사용 — `error()` 없음
-- DB 테이블(`users`, `investor_memo`, `api_token`)은 `data.sql` 참고용, 실제 생성은 psql 직접 실행 필요
+- DB 테이블(`users`, `memo`, `api_token`, `lotto_*`, `stock_master` 등)은 `data.sql` 참고용, 실제 생성은 psql 직접 실행 필요
 - Maven 실행 시 Java 17 명시 필요: `JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home mvn ...`
 
 ---

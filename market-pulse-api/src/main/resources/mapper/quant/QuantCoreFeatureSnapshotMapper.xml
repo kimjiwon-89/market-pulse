@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.marketpulse.domain.quant.mapper.QuantCoreFeatureSnapshotMapper">
+
+    <insert id="generateMpCoreFeatures">
+        WITH stock_base AS (
+            SELECT p.*,
+                   CASE
+                       WHEN p.asset_code LIKE '0%' OR p.asset_code LIKE '1%' OR p.asset_code LIKE '2%' THEN 'KOSPI'
+                       ELSE 'KOSDAQ'
+                   END AS market_name,
+                   LAG(p.close_price) OVER w AS prev_close,
+                   LAG(p.close_price, 5) OVER w AS close_5d,
+                   LAG(p.close_price, 20) OVER w AS close_20d,
+                   LAG(p.close_price, 60) OVER w AS close_60d,
+                   LAG(p.close_price, 120) OVER w AS close_120d,
+                   LAG(p.close_price, 252) OVER w AS close_252d,
+                   LEAD(p.close_price, 20) OVER w AS forward_close_20d,
+                   AVG(COALESCE(p.volume, 0) * p.close_price) OVER (
+                       PARTITION BY p.asset_code
+                       ORDER BY p.trade_date
+                       ROWS BETWEEN 19 PRECEDING AND CURRENT ROW
+                   ) AS trade_amount_20d_avg,
+                   MAX(p.close_price) OVER (
+                       PARTITION BY p.asset_code
+                       ORDER BY p.trade_date
+                       ROWS BETWEEN 59 PRECEDING AND CURRENT ROW
+                   ) AS high_60d
+            FROM market_daily_price p
+            WHERE p.asset_type = 'STOCK'
+            WINDOW w AS (PARTITION BY p.asset_code ORDER BY p.trade_date)
+        ),
+        stock_window AS (
+            SELECT b.*,
+                   STDDEV_POP(
+                       CASE
+                           WHEN b.prev_close > 0 THEN (b.close_price - b.prev_close) / b.prev_close
+                           ELSE NULL
+                       END
+                   ) OVER (
+                       PARTITION BY b.asset_code
+                       ORDER BY b.trade_date
+                       ROWS BETWEEN 59 PRECEDING AND CURRENT ROW
+                   ) AS vol_60d
+            FROM stock_base b
+        ),
+        features AS (
+            SELECT #{modelCode} AS model_code,
+                   trade_date AS signal_date,
+                   asset_code,
+                   asset_name,
+                   market_name AS market,
+                   sector,
+                   CASE WHEN close_5d > 0 THEN (close_price - close_5d) / close_5d END AS ret_5d,
+                   CASE WHEN close_20d > 0 THEN (close_price - close_20d) / close_20d END AS ret_20d,
+                   CASE WHEN close_60d > 0 THEN (close_price - close_60d) / close_60d END AS ret_60d,
+                   CASE WHEN close_120d > 0 THEN (close_price - close_120d) / close_120d END AS ret_120d,
+                   CASE WHEN close_252d > 0 THEN (close_price - close_252d) / close_252d END AS ret_252d,
+                   vol_60d,
+                   CASE WHEN high_60d > 0 THEN (close_price - high_60d) / high_60d END AS drawdown_60d,
+                   trade_amount_20d_avg,
+                   CASE WHEN forward_close_20d > 0 THEN (forward_close_20d - close_price) / close_price END AS forward_return
+            FROM stock_window
+            WHERE trade_date BETWEEN #{fromDate} AND #{toDate}
+              AND close_price > 0
+              AND close_60d IS NOT NULL
+        )
+        INSERT INTO quant_core_feature_snapshot (
+            model_code, signal_date, asset_code, asset_name, market, sector,
+            features, preprocessing_meta, label, forward_return, benchmark_return
+        )
+        SELECT model_code,
+               signal_date,
+               asset_code,
+               asset_name,
+               market,
+               sector,
+               jsonb_build_object(
+                   'ret5d', ret_5d,
+                   'ret20d', ret_20d,
+                   'ret60d', ret_60d,
+                   'ret120d', ret_120d,
+                   'ret252d', ret_252d,
+                   'vol60d', vol_60d,
+                   'drawdown60d', drawdown_60d,
+                   'tradeAmount20dAvg', trade_amount_20d_avg,
+                   'riskAdjRet60d', CASE WHEN vol_60d > 0 THEN ret_60d / vol_60d END
+               ),
+               jsonb_build_object(
+                   'source', 'market_daily_price',
+                   'preprocessing', 'raw rolling features; model transforms pending',
+                   'lookAheadSafe', true
+               ),
+               CASE
+                   WHEN forward_return >= 0.08 THEN 'WINNER'
+                   WHEN forward_return &lt;= -0.05 THEN 'LOSER'
+                   WHEN forward_return IS NULL THEN NULL
+                   ELSE 'NEUTRAL'
+               END,
+               forward_return,
+               NULL
+        FROM features
+        ON CONFLICT (model_code, signal_date, asset_code) DO UPDATE
+            SET asset_name = EXCLUDED.asset_name,
+                market = EXCLUDED.market,
+                sector = EXCLUDED.sector,
+                features = EXCLUDED.features,
+                preprocessing_meta = EXCLUDED.preprocessing_meta,
+                label = EXCLUDED.label,
+                forward_return = EXCLUDED.forward_return,
+                benchmark_return = EXCLUDED.benchmark_return
+    </insert>
+
+    <select id="findByModelAndDate" resultType="QuantCoreFeatureSnapshotVo">
+        SELECT id,
+               model_code AS modelCode,
+               signal_date AS signalDate,
+               asset_code AS assetCode,
+               asset_name AS assetName,
+               market,
+               sector,
+               features::text AS features,
+               preprocessing_meta::text AS preprocessingMeta,
+               label,
+               forward_return AS forwardReturn,
+               benchmark_return AS benchmarkReturn,
+               created_at AS createdAt
+        FROM quant_core_feature_snapshot
+        WHERE model_code = #{modelCode}
+          AND signal_date = #{signalDate}
+        ORDER BY (features->>'riskAdjRet60d')::numeric DESC NULLS LAST,
+                 (features->>'ret60d')::numeric DESC NULLS LAST,
+                 asset_code
+        LIMIT #{limit}
+    </select>
+</mapper>

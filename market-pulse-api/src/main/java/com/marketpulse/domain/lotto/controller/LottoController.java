@@ -6,6 +6,7 @@ import com.marketpulse.global.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,8 +21,8 @@ public class LottoController {
 
     @Operation(summary = "최신 회차 분석")
     @GetMapping("/latest")
-    public ApiResponse<LottoAnalysisDto> latest() {
-        return ApiResponse.success(lottoService.getLatest());
+    public ApiResponse<LottoAnalysisDto> latest(Authentication auth) {
+        return ApiResponse.success(lottoService.getLatest(username(auth)));
     }
 
     @Operation(summary = "전체 회차 목록")
@@ -32,8 +33,8 @@ public class LottoController {
 
     @Operation(summary = "특정 회차 분석 조회")
     @GetMapping("/analysis")
-    public ApiResponse<LottoAnalysisDto> analysis(@RequestParam int round) {
-        return ApiResponse.success(lottoService.getAnalysis(round));
+    public ApiResponse<LottoAnalysisDto> analysis(@RequestParam int round, Authentication auth) {
+        return ApiResponse.success(lottoService.getAnalysis(round, username(auth)));
     }
 
     @Operation(summary = "전략별 누적 성적")
@@ -44,20 +45,21 @@ public class LottoController {
 
     @Operation(summary = "내 조합 저장")
     @PostMapping("/combo")
-    public ApiResponse<LottoUserComboDto> saveCombo(@RequestBody LottoUserComboRequestDto req) {
-        return ApiResponse.success(lottoService.saveUserCombo(req));
+    public ApiResponse<LottoUserComboDto> saveCombo(@RequestBody LottoUserComboRequestDto req,
+                                                    Authentication auth) {
+        return ApiResponse.success(lottoService.saveUserCombo(req, auth.getName()));
     }
 
     @Operation(summary = "내 저장 조합 목록")
     @GetMapping("/combo")
-    public ApiResponse<List<LottoUserComboDto>> getCombos() {
-        return ApiResponse.success(lottoService.getUserCombos());
+    public ApiResponse<List<LottoUserComboDto>> getCombos(Authentication auth) {
+        return ApiResponse.success(lottoService.getUserCombos(auth.getName()));
     }
 
     @Operation(summary = "내 조합 삭제")
     @DeleteMapping("/combo/{id}")
-    public ApiResponse<Void> deleteCombo(@PathVariable Long id) {
-        lottoService.deleteUserCombo(id);
+    public ApiResponse<Void> deleteCombo(@PathVariable Long id, Authentication auth) {
+        lottoService.deleteUserCombo(id, auth.getName());
         return ApiResponse.success(null);
     }
 
@@ -105,5 +107,9 @@ public class LottoController {
             @RequestParam int bonusNo) {
         lottoService.insertResultManual(drawNo, drawDate, no1, no2, no3, no4, no5, no6, bonusNo);
         return ApiResponse.success("입력 + 분석 완료: " + drawNo + "회");
+    }
+
+    private String username(Authentication auth) {
+        return auth != null ? auth.getName() : null;
     }
 }
