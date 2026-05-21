@@ -21,11 +21,11 @@ function chartDate(value: string) {
 
 function metricRows(backtest: QuantBacktestEvidence | null) {
   return [
-    ["월간 성과", formatPctRatio(backtest?.monthlyReturn ?? backtest?.metrics?.monthlyReturn)],
-    ["MDD", formatPctRatio(backtest?.mdd ?? backtest?.metrics?.mdd)],
-    ["Sharpe", (backtest?.sharpe ?? backtest?.metrics?.sharpe)?.toFixed(2) ?? "-"],
-    ["승률", formatPctRatio(backtest?.winRate ?? backtest?.metrics?.winRate)],
-    ["총 비용", formatMoney(backtest?.totalCost ?? backtest?.metrics?.totalCost)],
+    ["월평균 수익률", formatPctRatio(backtest?.monthlyReturn ?? backtest?.metrics?.monthlyReturn)],
+    ["최대 하락 경험", formatPctRatio(backtest?.mdd ?? backtest?.metrics?.mdd)],
+    ["변동 대비 성과", (backtest?.sharpe ?? backtest?.metrics?.sharpe)?.toFixed(2) ?? "-"],
+    ["오른 달 비율", formatPctRatio(backtest?.winRate ?? backtest?.metrics?.winRate)],
+    ["거래 비용", formatMoney(backtest?.totalCost ?? backtest?.metrics?.totalCost)],
   ];
 }
 
@@ -33,14 +33,30 @@ function toDrawdownData(points: QuantBacktestPoint[]) {
   return points.map((point) => ({ date: point.date, drawdown: point.drawdown ?? 0 }));
 }
 
+function capitalRows(backtest: QuantBacktestEvidence | null) {
+  const equity = backtest?.equityCurve ?? [];
+  const seed = equity[0]?.netEquity ?? null;
+  const current = equity[equity.length - 1]?.netEquity ?? null;
+  const profit = seed !== null && current !== null ? current - seed : null;
+  return { seed, current, profit };
+}
+
 export function BacktestEvidencePanel({ backtest }: Props) {
   const isMobile = useIsMobile();
   const chartHeight = isMobile ? 190 : 260;
   const equity = backtest?.equityCurve ?? [];
   const drawdown = toDrawdownData(backtest?.drawdownCurve ?? []);
+  const capital = capitalRows(backtest);
 
   return (
     <div className="space-y-5">
+      <div className="card border-[var(--border-strong)] bg-[var(--bg-alt)]">
+        <div className="font-medium">과거 결과는 참고 자료이며 앞으로의 수익을 보장하지 않습니다.</div>
+        <div className="mt-1 text-sm text-[var(--text-3)]">
+          최대 하락 경험은 과거 테스트 기간 중 고점 대비 가장 크게 내려갔던 구간입니다.
+        </div>
+      </div>
+
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         {metricRows(backtest).map(([label, value]) => (
           <div key={label} className="card stat-cell">
@@ -50,10 +66,30 @@ export function BacktestEvidencePanel({ backtest }: Props) {
         ))}
       </div>
 
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+        <div className="card stat-cell">
+          <div className="stat-label">시드머니</div>
+          <div className="stat-value text-base lg:text-xl">{formatMoney(capital.seed)}</div>
+          <div className="stat-delta flat">테스트 첫날 평가액</div>
+        </div>
+        <div className="card stat-cell">
+          <div className="stat-label">현재 평가액</div>
+          <div className="stat-value text-base lg:text-xl">{formatMoney(capital.current)}</div>
+          <div className="stat-delta flat">테스트 마지막 날 평가액</div>
+        </div>
+        <div className="card stat-cell">
+          <div className="stat-label">평가 손익</div>
+          <div className={`stat-value text-base lg:text-xl ${(capital.profit ?? 0) >= 0 ? "up" : "down"}`}>
+            {formatMoney(capital.profit)}
+          </div>
+          <div className="stat-delta flat">현재 평가액 - 시드머니</div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <div className="card">
           <div className="card-head">
-            <div className="card-title">Equity Curve</div>
+            <div className="card-title">자산 흐름</div>
             <div className="card-sub">비용 차감 기준</div>
           </div>
           {equity.length > 0 ? (
@@ -72,8 +108,8 @@ export function BacktestEvidencePanel({ backtest }: Props) {
 
         <div className="card">
           <div className="card-head">
-            <div className="card-title">Drawdown</div>
-            <div className="card-sub">낙폭 구간</div>
+            <div className="card-title">최대 하락 경험</div>
+            <div className="card-sub">고점 대비 내려간 구간</div>
           </div>
           {drawdown.length > 0 ? (
             <ResponsiveContainer width="100%" height={chartHeight}>

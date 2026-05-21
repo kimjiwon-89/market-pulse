@@ -114,6 +114,12 @@
                 benchmark_return = EXCLUDED.benchmark_return
     </insert>
 
+    <select id="findLatestFeatureDate" resultType="java.time.LocalDate">
+        SELECT MAX(signal_date)
+        FROM quant_core_feature_snapshot
+        WHERE model_code = #{modelCode}
+    </select>
+
     <select id="findByModelAndDate" resultType="QuantCoreFeatureSnapshotVo">
         SELECT id,
                model_code AS modelCode,

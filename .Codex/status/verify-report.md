@@ -32,3 +32,31 @@ spec: `.Codex/plans/2026-05-21_quant-mp-core-frontend-spec.md`
 - 타입 안전성 점검: 검증 범위 파일에서 무분별한 TypeScript `any` 사용은 확인되지 않았습니다.
 - dead code 점검: 검증 범위에서 AC를 저해하는 미사용 import/변수는 확인되지 않았습니다.
 - WARN: `DiagnosticsPanel`은 `classDistribution`을 map으로 렌더링하지만 backend `QuantDiagnosticsDto`는 현재 `classDistribution` 필드를 반환하지 않습니다. 현재 AC-10F는 렌더링 방식 검증이므로 PASS 판정 유지, 후속 계약 정합성 개선 대상으로 기록합니다.
+
+---
+
+## 검증 결과
+
+spec: `.Codex/plans/2026-05-21_quant-mp-core-monthly-5pct-spec.md`
+검증일: 2026-05-21
+최종 판정: **PASS**
+
+### AC별 결과
+
+| AC | 판정 | 근거 |
+|----|------|------|
+| AC-1: `/quant/core/backtests`는 `strategyId: 1` 일반 전략 결과가 아니라 MP_CORE signal 기반 백테스트를 실행하거나, 일반 전략 사용 시 MP_CORE 결과로 표시하지 않는다. | ✅ PASS | `RunControlPanel.tsx`에서 `strategyId: 1` 제거. `QuantController.runCoreBacktest`가 `backtestService.backtestCore` 호출. `QuantBacktestService.backtestCore`는 `MP_CORE_SIGNAL` 전략만 사용. |
+| AC-2: `/quant/core/backtests/latest`는 MP_CORE 전용 backtest 결과만 조회한다. | ✅ PASS | `QuantCoreDashboardMapper.xml`의 latest period/curve/monthly/cost 쿼리가 `quant_strategy.name_en = MP_CORE_SIGNAL`로 필터링됨. |
+| AC-3: 월수익률 계산은 누적수익률 단순 나눗셈이 아니라 기간 기준 복리 월환산으로 계산한다. | ✅ PASS | `QuantCoreDashboardService.metrics`가 first/last date 기준 월 수를 구하고 `pow(1 + totalReturn, 1 / months) - 1`로 계산. |
+| AC-4: 대시보드에 표시되는 backtest `strategyId/runId`가 실제 MP_CORE 결과와 일치한다. | ✅ PASS | latest backtest period가 `MP_CORE_SIGNAL` 필터를 통과한 `strategy_id`만 반환. |
+| AC-5: 2% 수익률의 기준 기간, 총수익률, 월환산 방식, 사용 전략을 확인할 수 있다. | ✅ PASS | core latest response는 MP_CORE-only `from/to`, `runId`, equity curve, monthly return을 반환하며 계산 방식이 spec에 기록됨. |
+| AC-6: 위 정합성 수정 후 `MpCoreModelDefinition`의 기본 목표 월수익률은 `0.05`이며 보장 수익으로 표현하지 않는다. | ✅ PASS | `MpCoreModelDefinition`과 `QuantCoreDashboardService` target monthly return을 `0.05`로 변경. |
+| AC-7: feature label의 WINNER 기준 조정은 MP_CORE 전용 backtest 정합성 확인 후 적용한다. | ✅ PASS | 이번 구현은 백테스트 정합성 수정을 우선했고 label threshold는 후속 튜닝으로 유지. |
+| AC-8: 기존 `/api/quant/core/*` API 경로와 응답 구조는 깨지지 않는다. | ✅ PASS | endpoint 경로와 DTO 구조 변경 없음. |
+| AC-9: `market-pulse-api` 컴파일이 통과한다. | ✅ PASS | `JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home mvn -DskipTests compile` 성공. |
+| AC-10: 후속 데이터인 선물/공매도/장외 거래를 임의 더미 값으로 넣지 않는다. | ✅ PASS | 새 MP_CORE strategy는 기존 `quant_core_feature_snapshot`만 사용. |
+
+### 추가 검증
+
+- `market-pulse-web`: `npm run build` 성공.
+- `./mvnw`는 실행 권한이 없어 실패했고, 동일 목적의 `mvn -DskipTests compile`로 검증했습니다.

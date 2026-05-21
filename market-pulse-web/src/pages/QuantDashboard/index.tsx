@@ -23,7 +23,17 @@ import { BacktestEvidencePanel } from "./BacktestEvidencePanel";
 import { DiagnosticsPanel } from "./DiagnosticsPanel";
 import { RunControlPanel } from "./RunControlPanel";
 import type { QuantTab } from "./quantTypes";
-import { apiMessage, formatDate, formatPctRatio } from "./quantTypes";
+import {
+  BEGINNER_RISK_LABEL,
+  BEGINNER_STATE_LABEL,
+  apiMessage,
+  beginnerStateTone,
+  formatDate,
+  formatMoney,
+  formatPctRatio,
+  formatScore,
+  mapBeginnerDecision,
+} from "./quantTypes";
 
 interface ApiResponse<T> {
   success: boolean;
@@ -48,6 +58,14 @@ function dataOf<T>(response: { data: ApiResponse<T> }) {
   return response.data.data;
 }
 
+function backtestCapital(backtest: QuantBacktestEvidence | null) {
+  const equity = backtest?.equityCurve ?? [];
+  const seed = equity[0]?.netEquity ?? null;
+  const current = equity[equity.length - 1]?.netEquity ?? null;
+  const profit = seed !== null && current !== null ? current - seed : null;
+  return { seed, current, profit };
+}
+
 export function QuantDashboard() {
   const [selectedDate, setSelectedDate] = useState(today);
   const [activeTab, setActiveTab] = useState<QuantTab>("overview");
@@ -63,6 +81,7 @@ export function QuantDashboard() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [diagnosticsLoading, setDiagnosticsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const isAdmin = getRole() === "ADMIN";
 
@@ -115,13 +134,13 @@ export function QuantDashboard() {
   }, [candidateStatus, loadDateData, selectedDate]);
 
   useEffect(() => {
-    if (activeTab !== "diagnostics" || diagnostics) return;
+    if ((activeTab !== "diagnostics" && !showAdvanced) || diagnostics) return;
     setDiagnosticsLoading(true);
     apiClient.get<ApiResponse<QuantDiagnostics>>("/quant/core/diagnostics", { params: { date: selectedDate } })
       .then((response) => setDiagnostics(dataOf(response)))
       .catch((err) => setError(apiMessage(err, "진단 데이터를 불러올 수 없습니다.")))
       .finally(() => setDiagnosticsLoading(false));
-  }, [activeTab, diagnostics, selectedDate]);
+  }, [activeTab, diagnostics, selectedDate, showAdvanced]);
 
   const visibleTabs = useMemo(() => TABS.filter((tab) => tab.value !== "run-control" || isAdmin), [isAdmin]);
 
@@ -144,6 +163,25 @@ export function QuantDashboard() {
   const holdingCount = candidates.filter((item) => item.candidateStatus === "HOLDING").length;
   const buyCount = candidates.filter((item) => item.candidateStatus === "BUY_CANDIDATE").length;
   const blockedCount = candidates.filter((item) => item.candidateStatus === "BLOCKED").length;
+  const beginnerRows = useMemo(
+    () => candidates.map((candidate) => ({ candidate, decision: mapBeginnerDecision(candidate) })),
+    [candidates],
+  );
+  const primaryDecision = useMemo(() => {
+    const risk = beginnerRows.find((item) => item.decision.state === "RISK");
+    const reduce = beginnerRows.find((item) => item.decision.state === "REDUCE_SELL");
+    const buy = beginnerRows.find((item) => item.decision.state === "BUYABLE");
+    return risk ?? reduce ?? buy ?? beginnerRows[0] ?? null;
+  }, [beginnerRows]);
+  const overallRiskLevel = useMemo(() => {
+    if (beginnerRows.some((item) => item.decision.riskLevel === "HIGH")) return "HIGH";
+    if (beginnerRows.some((item) => item.decision.riskLevel === "MEDIUM")) return "MEDIUM";
+    return "LOW";
+  }, [beginnerRows]);
+  const holdingGuide = beginnerRows.find((item) => item.candidate.candidateStatus === "HOLDING");
+  const buyGuide = beginnerRows.find((item) => item.candidate.candidateStatus === "BUY_CANDIDATE");
+  const noBuyGuide = beginnerRows.find((item) => item.decision.noBuyConditions.length > 0);
+  const capital = backtestCapital(backtest);
 
   return (
     <div className="stack">
@@ -177,17 +215,99 @@ export function QuantDashboard() {
             <div className="card">
               <div className="card-head">
                 <div>
-                  <div className="card-title">MP_CORE 실행 요약</div>
-                  <div className="card-sub">신호일 {formatDate(selectedDate)} · look-ahead 방지를 위해 신호일과 체결일을 분리해 봅니다.</div>
+                  <div className="card-title">지금 모델 판단</div>
+                  <div className="card-sub">신호일 {formatDate(selectedDate)} · 과거 결과는 참고 자료이며 앞으로의 수익을 보장하지 않습니다.</div>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.2fr_1fr]">
+                <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-alt)] p-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`tag ${primaryDecision ? beginnerStateTone(primaryDecision.decision.state) : "flat"}`}>
+                      {primaryDecision ? BEGINNER_STATE_LABEL[primaryDecision.decision.state] : "관찰"}
+                    </span>
+                    <span className="text-xs text-[var(--text-3)]">오늘 첫 판단</span>
+                  </div>
+                  <div className="mt-3 text-lg font-semibold">
+                    {primaryDecision?.decision.shortAction ?? "오늘은 관찰"}
+                  </div>
+                  <div className="mt-2 text-sm text-[var(--text-2)]">
+                    {primaryDecision?.candidate.assetName
+                      ? `${primaryDecision.candidate.assetName} 기준으로 ${primaryDecision.decision.title} 판단입니다.`
+                      : "후보 데이터가 들어오면 오늘 행동을 계산합니다."}
+                  </div>
+                </div>
+                <div className="rounded-lg border border-[var(--border)] p-4">
+                  <div className="stat-label">위험 미터</div>
+                  <div className="mt-2 flex items-center gap-2">
+                    {(["LOW", "MEDIUM", "HIGH"] as const).map((level) => (
+                      <div
+                        key={level}
+                        className={`h-2 flex-1 rounded-full ${
+                          level === "HIGH" && overallRiskLevel === "HIGH"
+                            ? "bg-[var(--up)]"
+                            : level === "MEDIUM" && overallRiskLevel !== "LOW"
+                              ? "bg-[var(--flat)]"
+                              : level === "LOW"
+                                ? "bg-[var(--accent)]"
+                                : "bg-[var(--border)]"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <div className="mt-3 font-semibold">{BEGINNER_RISK_LABEL[overallRiskLevel]}</div>
+                  <div className="mt-1 text-sm text-[var(--text-3)]">최대 하락 경험과 차단 조건을 함께 봅니다.</div>
+                </div>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
                 <div className="stat-cell"><div className="stat-label">보유</div><div className="stat-value text-base">{holdingCount}</div></div>
                 <div className="stat-cell"><div className="stat-label">매수 후보</div><div className="stat-value text-base up">{buyCount}</div></div>
-                <div className="stat-cell"><div className="stat-label">차단</div><div className="stat-value text-base down">{blockedCount}</div></div>
+                <div className="stat-cell"><div className="stat-label">위험 후보</div><div className="stat-value text-base down">{blockedCount}</div></div>
                 <div className="stat-cell"><div className="stat-label">목표 현금</div><div className="stat-value text-base">{formatPctRatio(portfolio?.cashWeight)}</div></div>
               </div>
+              <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-3">
+                <div className="stat-cell">
+                  <div className="stat-label">시드머니</div>
+                  <div className="stat-value text-base">{formatMoney(capital.seed)}</div>
+                </div>
+                <div className="stat-cell">
+                  <div className="stat-label">현재 평가액</div>
+                  <div className="stat-value text-base">{formatMoney(capital.current)}</div>
+                </div>
+                <div className="stat-cell">
+                  <div className="stat-label">평가 손익</div>
+                  <div className={`stat-value text-base ${(capital.profit ?? 0) >= 0 ? "up" : "down"}`}>
+                    {formatMoney(capital.profit)}
+                  </div>
+                </div>
+              </div>
             </div>
+
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+              <div className="card">
+                <div className="card-title">오늘 할 일</div>
+                <div className="mt-3 space-y-2 text-sm">
+                  <div><span className="font-semibold">보유 종목</span> · {holdingGuide?.decision.shortAction ?? "유지할 종목 없음"}</div>
+                  <div><span className="font-semibold">관심 후보</span> · {buyGuide?.decision.shortAction ?? "오늘은 관찰"}</div>
+                  <div><span className="font-semibold">위험 후보</span> · {noBuyGuide?.decision.noBuyConditions[0] ?? "특별한 차단 조건 없음"}</div>
+                </div>
+              </div>
+              <div className="card">
+                <div className="card-title">왜 그렇게 보나</div>
+                <div className="mt-3 flex flex-wrap gap-1">
+                  {(primaryDecision?.decision.reasons.length ? primaryDecision.decision.reasons : ["조건을 확인한 뒤 판단합니다."]).slice(0, 3).map((reason) => (
+                    <span key={reason} className="tag">{reason}</span>
+                  ))}
+                </div>
+              </div>
+              <div className="card">
+                <div className="card-title">언제 사고, 언제 안 사나</div>
+                <div className="mt-3 text-sm text-[var(--text-2)]">
+                  <div>언제 사는가: {buyGuide ? `${formatDate(buyGuide.candidate.rebalanceDate)}에 조건 확인` : "매수 후보 발생 시"}</div>
+                  <div className="mt-2">어떤 조건이면 안 사는가: {noBuyGuide?.decision.noBuyConditions[0] ?? "차단 조건이 생기면 보류"}</div>
+                </div>
+              </div>
+            </div>
+
             <div className="card">
               <div className="card-head">
                 <div className="card-title">후보 랭킹</div>
@@ -195,6 +315,56 @@ export function QuantDashboard() {
               </div>
               <CandidateTable candidates={candidates} loading={loading} onSelect={openDetail} />
               <CandidateMobileList candidates={candidates} loading={loading} onSelect={openDetail} />
+            </div>
+
+            <div className="card">
+              <button
+                type="button"
+                className="flex w-full items-center justify-between gap-3 text-left"
+                onClick={() => setShowAdvanced((value) => !value)}
+              >
+                <div>
+                  <div className="card-title">{showAdvanced ? "쉬운 보기로 돌아가기" : "고급 지표 보기"}</div>
+                  <div className="card-sub">점수, 원 신호, 팩터, 백테스트, 진단 지표</div>
+                </div>
+                <span className="tag">{showAdvanced ? "닫기" : "열기"}</span>
+              </button>
+              {showAdvanced && (
+                <div className="mt-5 space-y-5">
+                  <div className="overflow-x-auto">
+                    <table className="t">
+                      <thead>
+                        <tr>
+                          <th>종목</th>
+                          <th>signal state</th>
+                          <th className="num">score</th>
+                          <th className="num">winner probability</th>
+                          <th>factor scores</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {candidates.slice(0, 12).map((item) => (
+                          <tr key={item.assetCode} className="clickable" onClick={() => openDetail(item)}>
+                            <td className="ticker">{item.assetName}<div className="mono text-xs text-[var(--text-4)]">{item.assetCode}</div></td>
+                            <td>{item.signalState ?? "-"}</td>
+                            <td className="num">{formatScore(item.score)}</td>
+                            <td className="num">{formatPctRatio(item.winnerProb)}</td>
+                            <td>
+                              <div className="flex max-w-[320px] flex-wrap gap-1">
+                                {Object.entries(item.factorScores ?? {}).slice(0, 4).map(([key, value]) => (
+                                  <span key={key} className="tag">{key}: {formatScore(value, 2)}</span>
+                                ))}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <BacktestEvidencePanel backtest={backtest} />
+                  <DiagnosticsPanel diagnostics={diagnostics} loading={diagnosticsLoading} />
+                </div>
+              )}
             </div>
           </div>
           <PortfolioTargetPanel portfolio={portfolio} />

@@ -21,8 +21,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class QuantCoreDashboardService {
     private static final String MODEL_CODE = "MP_CORE";
+    private static final String MP_CORE_SIGNAL_STRATEGY = "MP_CORE_SIGNAL";
     private static final DateTimeFormatter BASIC = DateTimeFormatter.BASIC_ISO_DATE;
-    private static final BigDecimal TARGET_MONTHLY_RETURN = new BigDecimal("0.15");
+    private static final BigDecimal TARGET_MONTHLY_RETURN = new BigDecimal("0.05");
     private static final BigDecimal ZERO = BigDecimal.ZERO;
 
     private final QuantCoreDashboardMapper mapper;
@@ -138,9 +139,9 @@ public class QuantCoreDashboardService {
     }
 
     public QuantBacktestEvidenceDto getLatestBacktest() {
-        List<Map<String, Object>> rows = mapper.findLatestBacktestCurve();
-        Map<String, Object> period = mapper.findLatestBacktestPeriod();
-        Map<String, Object> cost = Optional.ofNullable(mapper.findLatestCostSummary()).orElse(Map.of());
+        List<Map<String, Object>> rows = mapper.findLatestBacktestCurve(MP_CORE_SIGNAL_STRATEGY);
+        Map<String, Object> period = mapper.findLatestBacktestPeriod(MP_CORE_SIGNAL_STRATEGY);
+        Map<String, Object> cost = Optional.ofNullable(mapper.findLatestCostSummary(MP_CORE_SIGNAL_STRATEGY)).orElse(Map.of());
         List<EquityPointDto> equity = rows.stream()
                 .map(row -> new EquityPointDto(format(asDate(row.get("tradeDate"))), asLong(row.get("portfolioValue")), asBig(row.get("returnPct")).doubleValue()))
                 .toList();
@@ -148,7 +149,7 @@ public class QuantCoreDashboardService {
         BigDecimal totalFee = asBig(cost.get("totalFee"));
         BigDecimal totalTax = asBig(cost.get("totalTax"));
         BigDecimal totalCost = asBig(cost.get("totalCost"));
-        QuantBacktestMetricDto metrics = metrics(equity, drawdown, totalCost);
+        QuantBacktestMetricDto metrics = metrics(equity, drawdown, totalCost, period);
         QuantCostSummaryDto costSummary = new QuantCostSummaryDto(
                 metrics.monthlyReturn().add(totalCostRate(totalCost, equity)),
                 metrics.monthlyReturn(),
@@ -172,7 +173,7 @@ public class QuantCoreDashboardService {
                 metrics,
                 equity,
                 drawdown,
-                mapper.findLatestMonthlyReturns().stream()
+                mapper.findLatestMonthlyReturns(MP_CORE_SIGNAL_STRATEGY).stream()
                         .map(row -> monthlyReturn(row.get("month"), row.get("returnPct")))
                         .toList(),
                 costSummary
@@ -413,12 +414,20 @@ public class QuantCoreDashboardService {
         return trimmed.contains("-") ? LocalDate.parse(trimmed) : LocalDate.parse(trimmed, BASIC);
     }
 
-    private QuantBacktestMetricDto metrics(List<EquityPointDto> equity, List<EquityPointDto> drawdown, BigDecimal totalCost) {
+    private QuantBacktestMetricDto metrics(List<EquityPointDto> equity, List<EquityPointDto> drawdown, BigDecimal totalCost, Map<String, Object> period) {
         if (equity.isEmpty()) {
             return new QuantBacktestMetricDto(ZERO, ZERO, ZERO, ZERO, totalCost);
         }
         double totalReturn = equity.get(equity.size() - 1).returnPct();
-        BigDecimal monthly = BigDecimal.valueOf(totalReturn / Math.max(1, equity.size() / 21.0)).setScale(6, RoundingMode.HALF_UP);
+        LocalDate firstDate = period == null || period.get("fromDate") == null
+                ? LocalDate.parse(equity.get(0).date(), BASIC)
+                : asDate(period.get("fromDate"));
+        LocalDate lastDate = period == null || period.get("toDate") == null
+                ? LocalDate.parse(equity.get(equity.size() - 1).date(), BASIC)
+                : asDate(period.get("toDate"));
+        double months = Math.max(1.0 / 30, java.time.temporal.ChronoUnit.DAYS.between(firstDate, lastDate) / 30.4375);
+        BigDecimal monthly = BigDecimal.valueOf(Math.pow(Math.max(0, 1 + totalReturn), 1 / months) - 1)
+                .setScale(6, RoundingMode.HALF_UP);
         BigDecimal mdd = drawdown.stream().map(point -> BigDecimal.valueOf(point.returnPct())).min(Comparator.naturalOrder()).orElse(ZERO);
         return new QuantBacktestMetricDto(monthly, mdd, new BigDecimal("1.000000"), new BigDecimal("0.500000"), totalCost);
     }

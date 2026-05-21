@@ -438,4 +438,119 @@
         WHERE pick_rank &lt;= #{topN}
         ORDER BY rebalance_date, pick_rank
     </select>
+
+    <select id="findMonthlyMpCoreSignalPicks" resultType="MonthlyPickVo">
+        WITH raw_months AS (
+            SELECT date_trunc('month', trade_date)::date AS month_key,
+                   MIN(trade_date) AS rebalance_date,
+                   MAX(trade_date) AS exit_date
+            FROM market_daily_price
+            WHERE asset_type = 'STOCK'
+              AND trade_date BETWEEN #{fromDate} AND #{toDate}
+            GROUP BY date_trunc('month', trade_date)::date
+        ),
+        months AS (
+            SELECT rm.*,
+                   (
+                       SELECT MAX(f.signal_date)
+                       FROM quant_core_feature_snapshot f
+                       WHERE f.model_code = 'MP_CORE'
+                         AND f.signal_date &lt; rm.rebalance_date
+                   ) AS signal_date
+            FROM raw_months rm
+        ),
+        feature_rows AS (
+            SELECT m.rebalance_date,
+                   m.exit_date,
+                   f.signal_date,
+                   f.asset_code,
+                   f.asset_name,
+                   f.market,
+                   f.sector,
+                   (f.features->>'ret20d')::numeric AS ret_20d,
+                   (f.features->>'ret60d')::numeric AS ret_60d,
+                   (f.features->>'riskAdjRet60d')::numeric AS risk_adj_ret_60d,
+                   (f.features->>'drawdown60d')::numeric AS drawdown_60d,
+                   (f.features->>'tradeAmount20dAvg')::numeric AS trade_amount_20d_avg,
+                   (f.features->>'vol60d')::numeric AS vol_60d
+            FROM months m
+            JOIN quant_core_feature_snapshot f
+              ON f.model_code = 'MP_CORE'
+             AND f.signal_date = m.signal_date
+            WHERE m.signal_date IS NOT NULL
+        ),
+        ranked_features AS (
+            SELECT *,
+                   COALESCE(PERCENT_RANK() OVER (PARTITION BY signal_date ORDER BY risk_adj_ret_60d), 0) AS risk_adj_rank,
+                   COALESCE(PERCENT_RANK() OVER (PARTITION BY signal_date ORDER BY ret_60d), 0) AS ret_rank,
+                   COALESCE(PERCENT_RANK() OVER (PARTITION BY signal_date ORDER BY ret_20d), 0) AS short_momentum_rank,
+                   COALESCE(PERCENT_RANK() OVER (PARTITION BY signal_date ORDER BY trade_amount_20d_avg), 0) AS liquidity_rank,
+                   COALESCE(PERCENT_RANK() OVER (PARTITION BY signal_date ORDER BY vol_60d DESC), 0) AS stability_rank,
+                   GREATEST(LEAST(COALESCE(1 + drawdown_60d, 0.5), 1), 0) AS drawdown_score
+            FROM feature_rows
+            WHERE ret_20d IS NOT NULL
+              AND ret_60d IS NOT NULL
+              AND risk_adj_ret_60d IS NOT NULL
+              AND trade_amount_20d_avg IS NOT NULL
+        ),
+        scored AS (
+            SELECT *,
+                   (
+                       0.25 * risk_adj_rank
+                       + 0.20 * ret_rank
+                       + 0.30 * short_momentum_rank
+                       + 0.12 * liquidity_rank
+                       + 0.08 * drawdown_score
+                       + 0.05 * stability_rank
+                   ) AS score
+            FROM ranked_features
+            WHERE liquidity_rank &gt;= 0.20
+              AND COALESCE(drawdown_60d, 0) &gt; -0.30
+              AND COALESCE(vol_60d, 0) &lt;= 0.12
+        ),
+        candidates AS (
+            SELECT s.rebalance_date,
+                   s.exit_date,
+                   buy.asset_code,
+                   buy.asset_name,
+                   buy.asset_type,
+                   buy.sector,
+                   COALESCE(buy.open_price, buy.close_price) AS buy_price,
+                   COALESCE(sell.open_price, sell.close_price) AS sell_price,
+                   s.score,
+                   buy.market_cap,
+                   ROW_NUMBER() OVER (
+                       PARTITION BY s.rebalance_date
+                       ORDER BY s.score DESC,
+                                s.liquidity_rank DESC,
+                                buy.market_cap DESC NULLS LAST,
+                                buy.asset_code
+                   ) AS pick_rank
+            FROM scored s
+            JOIN market_daily_price buy
+              ON buy.asset_type = 'STOCK'
+             AND buy.asset_code = s.asset_code
+             AND buy.trade_date = s.rebalance_date
+            JOIN market_daily_price sell
+              ON sell.asset_type = buy.asset_type
+             AND sell.asset_code = buy.asset_code
+             AND sell.trade_date = s.exit_date
+            WHERE buy.close_price IS NOT NULL
+              AND sell.close_price IS NOT NULL
+        )
+        SELECT rebalance_date AS rebalanceDate,
+               exit_date AS exitDate,
+               asset_code AS assetCode,
+               asset_name AS assetName,
+               asset_type AS assetType,
+               sector,
+               buy_price AS buyPrice,
+               sell_price AS sellPrice,
+               score,
+               market_cap AS marketCap,
+               pick_rank AS pickRank
+        FROM candidates
+        WHERE pick_rank &lt;= #{topN}
+        ORDER BY rebalance_date, pick_rank
+    </select>
 </mapper>

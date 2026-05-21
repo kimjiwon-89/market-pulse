@@ -29,13 +29,13 @@ public interface QuantCoreDashboardMapper {
             @Param("limit") int limit
     );
 
-    List<Map<String, Object>> findLatestBacktestCurve();
+    List<Map<String, Object>> findLatestBacktestCurve(@Param("strategyNameEn") String strategyNameEn);
 
-    List<Map<String, Object>> findLatestMonthlyReturns();
+    List<Map<String, Object>> findLatestMonthlyReturns(@Param("strategyNameEn") String strategyNameEn);
 
-    Map<String, Object> findLatestBacktestPeriod();
+    Map<String, Object> findLatestBacktestPeriod(@Param("strategyNameEn") String strategyNameEn);
 
-    Map<String, Object> findLatestCostSummary();
+    Map<String, Object> findLatestCostSummary(@Param("strategyNameEn") String strategyNameEn);
 
     int countTradesByStrategy(@Param("strategyId") Long strategyId);
 
