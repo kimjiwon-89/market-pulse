@@ -4,10 +4,14 @@ import com.marketpulse.domain.quant.dto.*;
 import com.marketpulse.domain.quant.service.QuantBacktestService;
 import com.marketpulse.domain.quant.service.QuantCollectService;
 import com.marketpulse.domain.quant.service.QuantExperimentService;
+import com.marketpulse.domain.quant.service.QuantModelDefinitionService;
+import com.marketpulse.domain.quant.service.QuantModelFeatureService;
+import com.marketpulse.domain.quant.service.QuantModelSignalService;
 import com.marketpulse.domain.quant.service.QuantStrategyService;
 import com.marketpulse.global.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
@@ -27,11 +31,100 @@ public class QuantController {
     private final QuantBacktestService backtestService;
     private final QuantCollectService collectService;
     private final QuantExperimentService experimentService;
+    private final QuantModelDefinitionService modelDefinitionService;
+    private final QuantModelFeatureService modelFeatureService;
+    private final QuantModelSignalService modelSignalService;
 
     @Operation(summary = "전략 목록 조회")
     @GetMapping("/strategies")
     public ApiResponse<List<StrategyDto>> getStrategies() {
         return ApiResponse.success(strategyService.getAllStrategies());
+    }
+
+    @Operation(summary = "Quant 모델 목록")
+    @GetMapping("/models")
+    public ApiResponse<List<QuantModelDto>> getModels(
+            @RequestParam(defaultValue = "false") boolean includeInactive,
+            Authentication authentication) {
+        if (includeInactive) {
+            requireAdmin(authentication);
+        }
+        return ApiResponse.success(modelDefinitionService.list(includeInactive));
+    }
+
+    @Operation(summary = "Quant 모델 상세")
+    @GetMapping("/models/{modelId}")
+    public ApiResponse<QuantModelDto> getModel(@PathVariable Long modelId) {
+        return ApiResponse.success(modelDefinitionService.get(modelId));
+    }
+
+    @Operation(summary = "Quant 모델 추가 (ADMIN 전용)")
+    @PostMapping("/models")
+    public ApiResponse<QuantModelDto> createModel(
+            @Valid @RequestBody QuantModelCreateRequest request,
+            Authentication authentication) {
+        requireAdmin(authentication);
+        return ApiResponse.success(modelDefinitionService.create(request, username(authentication)));
+    }
+
+    @Operation(summary = "Quant 모델 수정 (ADMIN 전용)")
+    @PatchMapping("/models/{modelId}")
+    public ApiResponse<QuantModelDto> updateModel(
+            @PathVariable Long modelId,
+            @Valid @RequestBody QuantModelUpdateRequest request,
+            Authentication authentication) {
+        requireAdmin(authentication);
+        return ApiResponse.success(modelDefinitionService.update(modelId, request));
+    }
+
+    @Operation(summary = "Quant 모델 비활성화 (ADMIN 전용)")
+    @DeleteMapping("/models/{modelId}")
+    public ApiResponse<String> deactivateModel(
+            @PathVariable Long modelId,
+            Authentication authentication) {
+        requireAdmin(authentication);
+        modelDefinitionService.deactivate(modelId);
+        return ApiResponse.success("model deactivated: " + modelId);
+    }
+
+    @Operation(summary = "Quant 모델 feature snapshot 생성 (ADMIN 전용)")
+    @PostMapping("/models/{modelCode}/features")
+    public ApiResponse<QuantFeatureGenerateResponse> generateModelFeatures(
+            @PathVariable String modelCode,
+            @RequestParam String from,
+            @RequestParam String to,
+            Authentication authentication) {
+        requireAdmin(authentication);
+        return ApiResponse.success(modelFeatureService.generate(modelCode, from, to));
+    }
+
+    @Operation(summary = "Quant 모델 feature snapshot 조회")
+    @GetMapping("/models/{modelCode}/features")
+    public ApiResponse<List<QuantCoreFeatureSnapshotDto>> getModelFeatures(
+            @PathVariable String modelCode,
+            @RequestParam String date,
+            @RequestParam(defaultValue = "50") int limit) {
+        return ApiResponse.success(modelFeatureService.list(modelCode, date, limit));
+    }
+
+    @Operation(summary = "Quant 모델 signal 생성 (ADMIN 전용)")
+    @PostMapping("/models/{modelCode}/signals")
+    public ApiResponse<QuantSignalGenerateResponse> generateModelSignals(
+            @PathVariable String modelCode,
+            @RequestParam String date,
+            @RequestParam(defaultValue = "20") int limit,
+            Authentication authentication) {
+        requireAdmin(authentication);
+        return ApiResponse.success(modelSignalService.generate(modelCode, date, limit));
+    }
+
+    @Operation(summary = "Quant 모델 signal 조회")
+    @GetMapping("/models/{modelCode}/signals")
+    public ApiResponse<List<QuantCoreSignalDto>> getModelSignals(
+            @PathVariable String modelCode,
+            @RequestParam String date,
+            @RequestParam(defaultValue = "20") int limit) {
+        return ApiResponse.success(modelSignalService.list(modelCode, date, limit));
     }
 
     @Operation(summary = "백테스트 실행/결과 조회")
@@ -150,5 +243,9 @@ public class QuantController {
         if (!isAdmin) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "ADMIN 권한이 필요합니다.");
         }
+    }
+
+    private String username(Authentication authentication) {
+        return authentication == null ? null : authentication.getName();
     }
 }

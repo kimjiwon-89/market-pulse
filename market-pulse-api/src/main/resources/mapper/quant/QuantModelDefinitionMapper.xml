@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.marketpulse.domain.quant.mapper.QuantModelDefinitionMapper">
+
+    <sql id="modelColumns">
+        id,
+        model_code AS modelCode,
+        display_name AS displayName,
+        description,
+        model_type AS modelType,
+        implementation_type AS implementationType,
+        implementation_key AS implementationKey,
+        config_schema::text AS configSchema,
+        default_config::text AS defaultConfig,
+        is_user_defined AS isUserDefined,
+        is_active AS isActive,
+        created_by AS createdBy,
+        created_at AS createdAt,
+        updated_at AS updatedAt
+    </sql>
+
+    <select id="findAll" resultType="QuantModelDefinitionVo">
+        SELECT <include refid="modelColumns"/>
+        FROM quant_model_definition
+        WHERE (#{includeInactive} = TRUE OR is_active = TRUE)
+        ORDER BY is_active DESC, is_user_defined ASC, id ASC
+    </select>
+
+    <select id="findById" resultType="QuantModelDefinitionVo">
+        SELECT <include refid="modelColumns"/>
+        FROM quant_model_definition
+        WHERE id = #{id}
+    </select>
+
+    <select id="findByCode" resultType="QuantModelDefinitionVo">
+        SELECT <include refid="modelColumns"/>
+        FROM quant_model_definition
+        WHERE model_code = #{modelCode}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO quant_model_definition (
+            model_code, display_name, description, model_type,
+            implementation_type, implementation_key, config_schema, default_config,
+            is_user_defined, is_active, created_by
+        )
+        VALUES (
+            #{modelCode}, #{displayName}, #{description}, #{modelType},
+            #{implementationType}, #{implementationKey}, #{configSchema}::jsonb, #{defaultConfig}::jsonb,
+            #{isUserDefined}, #{isActive}, #{createdBy}
+        )
+    </insert>
+
+    <insert id="insertIfNotExists">
+        INSERT INTO quant_model_definition (
+            model_code, display_name, description, model_type,
+            implementation_type, implementation_key, config_schema, default_config,
+            is_user_defined, is_active, created_by
+        )
+        VALUES (
+            #{modelCode}, #{displayName}, #{description}, #{modelType},
+            #{implementationType}, #{implementationKey}, #{configSchema}::jsonb, #{defaultConfig}::jsonb,
+            #{isUserDefined}, #{isActive}, #{createdBy}
+        )
+        ON CONFLICT (model_code) DO NOTHING
+    </insert>
+
+    <update id="update">
+        UPDATE quant_model_definition
+        SET display_name = #{displayName},
+            description = #{description},
+            model_type = #{modelType},
+            implementation_type = #{implementationType},
+            implementation_key = #{implementationKey},
+            config_schema = #{configSchema}::jsonb,
+            default_config = #{defaultConfig}::jsonb,
+            is_active = #{isActive},
+            updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <update id="deactivate">
+        UPDATE quant_model_definition
+        SET is_active = FALSE,
+            updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+</mapper>

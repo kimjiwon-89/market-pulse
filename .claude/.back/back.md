@@ -139,6 +139,43 @@ global/auth/InitialDataRunner.java
 | quant | GET | `/api/quant/trades?strategyId=&from=&to=` | 진행 — 매매 로그 페이지 조회 |
 | quant | POST | `/api/quant/collect?from=&to=&dataType=ALL` | 진행 — ADMIN 전용 KRX 전체 데이터 수집 |
 | quant | GET | `/api/quant/collect/status` | 진행 — ADMIN 전용 수집 상태 조회 |
+| quant | GET/POST/PATCH/DELETE | `/api/quant/models` | 진행 — 확장형 퀀트 모델 정의 레지스트리, POST/PATCH/DELETE는 ADMIN 전용 |
+
+## Quant 모델 레지스트리
+
+퀀트 모델은 기존 `quant_strategy` 하드코딩 전략 목록과 별도로 `quant_model_definition` 테이블에서 관리한다.
+코드로 실행 가능한 모델은 `domain/quant/model/<model_key>/` 폴더에 구현체를 두고, DB의 `implementation_key`로 연결한다.
+
+현재 코드 모델:
+
+| 모델 코드 | 구현 폴더 | 설명 |
+|---|---|---|
+| `MP_CORE` | `domain/quant/model/mp_core/` | 가격·유동성·변동성·베타·섹터·수급 feature 기반 코어 분류 모델 |
+
+API:
+
+```
+GET    /api/quant/models?includeInactive=false
+GET    /api/quant/models/{modelId}
+POST   /api/quant/models              # ADMIN
+PATCH  /api/quant/models/{modelId}    # ADMIN
+DELETE /api/quant/models/{modelId}    # ADMIN, soft deactivate
+POST   /api/quant/models/{modelCode}/features?from=YYYYMMDD&to=YYYYMMDD  # ADMIN
+GET    /api/quant/models/{modelCode}/features?date=YYYYMMDD&limit=50
+POST   /api/quant/models/{modelCode}/signals?date=YYYYMMDD&limit=20     # ADMIN
+GET    /api/quant/models/{modelCode}/signals?date=YYYYMMDD&limit=20
+```
+
+웹에서 사용자가 추가하는 모델은 `is_user_defined=true`, `implementation_type=USER_DEFINED`로 저장한다.
+코드 구현체가 붙은 모델만 응답의 `runnable=true`가 된다.
+
+`MP_CORE` feature snapshot은 `quant_core_feature_snapshot`에 저장한다.
+현재 1차 생성기는 `market_daily_price`에서 5/20/60/120/252일 수익률, 60일 변동성, 60일 drawdown, 20일 평균 거래대금, 60일 위험조정 수익률을 만든다.
+label은 20영업일 forward return 기준으로 `WINNER/NEUTRAL/LOSER`를 우선 생성하며, 벤치마크 대비 초과수익 label은 다음 단계에서 보강한다.
+
+`MP_CORE` signal 1차 생성기는 아직 ML 학습 모델이 아니라 feature 기반 baseline engine이다.
+`riskAdjRet60d`, `ret60d`, `tradeAmount20dAvg`, `drawdown60d`를 rank score로 합성해 `winnerProb`, `neutralProb`, `loserProb`, `score`, `targetWeight`, `reason`, `riskFlags`를 저장한다.
+응답의 `riskFlags.baselineOnly=true`는 아직 RandomForest 모델 신호가 아니라는 표시다.
 
 ## 범용 메모 도메인
 

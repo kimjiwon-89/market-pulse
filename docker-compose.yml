@@ -1,14 +1,4 @@
 services:
-  db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: marketpulse
-      POSTGRES_USER: ${DB_USERNAME}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    restart: unless-stopped
-
   redis:
     image: redis:7-alpine
     restart: unless-stopped
@@ -17,11 +7,12 @@ services:
     image: ${DOCKER_USERNAME}/market-pulse-api:latest
     environment:
       SPRING_PROFILES_ACTIVE: prod
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/marketpulse
+      SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST}:${DB_PORT:-5432}/${DB_NAME:-marketPulse}
       SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       SPRING_DATA_REDIS_HOST: redis
-APP_JWT_SECRET: ${JWT_SECRET}
+      APP_SCHEDULER_ENABLED: ${APP_SCHEDULER_ENABLED:-true}
+      APP_JWT_SECRET: ${JWT_SECRET}
       APP_AUTH_USERNAME: ${ADMIN_USERNAME}
       APP_AUTH_PASSWORD: ${ADMIN_PASSWORD}
       EXTERNAL_API_APP_KEY: ${KIS_APP_KEY}
@@ -31,7 +22,6 @@ APP_JWT_SECRET: ${JWT_SECRET}
       AWS_S3_REGION: ${AWS_S3_REGION:-ap-northeast-2}
       AWS_S3_BUCKET: ${AWS_S3_BUCKET}
     depends_on:
-      - db
       - redis
     restart: unless-stopped
 
@@ -45,6 +35,3 @@ APP_JWT_SECRET: ${JWT_SECRET}
     depends_on:
       - api
     restart: unless-stopped
-
-volumes:
-  postgres_data:

@@ -54,6 +54,90 @@ public class QuantSchemaInitRunner implements CommandLineRunner {
                 """);
 
         jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS quant_model_definition (
+                    id                  BIGSERIAL    PRIMARY KEY,
+                    model_code          VARCHAR(50)  NOT NULL UNIQUE,
+                    display_name        VARCHAR(120) NOT NULL,
+                    description         TEXT,
+                    model_type          VARCHAR(30)  NOT NULL,
+                    implementation_type VARCHAR(30)  NOT NULL,
+                    implementation_key  VARCHAR(80),
+                    config_schema       JSONB,
+                    default_config      JSONB,
+                    is_user_defined     BOOLEAN      DEFAULT FALSE,
+                    is_active           BOOLEAN      DEFAULT TRUE,
+                    created_by          VARCHAR(50),
+                    created_at          TIMESTAMP    DEFAULT NOW(),
+                    updated_at          TIMESTAMP    DEFAULT NOW()
+                )
+                """);
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_qmd_active ON quant_model_definition(is_active, model_type)");
+
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS quant_model_version (
+                    id                 BIGSERIAL   PRIMARY KEY,
+                    model_code         VARCHAR(50) NOT NULL REFERENCES quant_model_definition(model_code),
+                    version            VARCHAR(50) NOT NULL,
+                    algorithm          VARCHAR(50) NOT NULL,
+                    train_from         DATE,
+                    train_to           DATE,
+                    validation_summary JSONB,
+                    feature_schema     JSONB,
+                    label_policy       JSONB,
+                    model_path         TEXT,
+                    is_active          BOOLEAN     DEFAULT FALSE,
+                    created_at         TIMESTAMP   DEFAULT NOW(),
+                    CONSTRAINT uq_quant_model_version UNIQUE (model_code, version)
+                )
+                """);
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_qmv_active ON quant_model_version(model_code, is_active)");
+
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS quant_core_feature_snapshot (
+                    id                 BIGSERIAL    PRIMARY KEY,
+                    model_code         VARCHAR(50)  NOT NULL REFERENCES quant_model_definition(model_code),
+                    signal_date        DATE         NOT NULL,
+                    asset_code         VARCHAR(20)  NOT NULL,
+                    asset_name         VARCHAR(100),
+                    market             VARCHAR(10),
+                    sector             VARCHAR(100),
+                    features           JSONB        NOT NULL,
+                    preprocessing_meta JSONB,
+                    label              VARCHAR(20),
+                    forward_return     NUMERIC(12,6),
+                    benchmark_return   NUMERIC(12,6),
+                    created_at         TIMESTAMP    DEFAULT NOW(),
+                    CONSTRAINT uq_quant_core_feature UNIQUE (model_code, signal_date, asset_code)
+                )
+                """);
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_qcfs_model_date ON quant_core_feature_snapshot(model_code, signal_date)");
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_qcfs_asset_date ON quant_core_feature_snapshot(asset_code, signal_date)");
+
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS quant_core_signal (
+                    id               BIGSERIAL    PRIMARY KEY,
+                    model_code       VARCHAR(50)  NOT NULL REFERENCES quant_model_definition(model_code),
+                    model_version_id BIGINT       REFERENCES quant_model_version(id),
+                    signal_date      DATE         NOT NULL,
+                    asset_code       VARCHAR(20)  NOT NULL,
+                    asset_name       VARCHAR(100),
+                    market           VARCHAR(10),
+                    sector           VARCHAR(100),
+                    winner_prob      NUMERIC(10,6) NOT NULL,
+                    neutral_prob     NUMERIC(10,6),
+                    loser_prob       NUMERIC(10,6),
+                    score            NUMERIC(12,6) NOT NULL,
+                    rank             INTEGER,
+                    target_weight    NUMERIC(10,6),
+                    reason           JSONB,
+                    risk_flags       JSONB,
+                    created_at       TIMESTAMP     DEFAULT NOW(),
+                    CONSTRAINT uq_quant_core_signal UNIQUE (model_code, signal_date, asset_code)
+                )
+                """);
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_qcs_model_date ON quant_core_signal(model_code, signal_date)");
+
+        jdbcTemplate.execute("""
                 CREATE TABLE IF NOT EXISTS quant_backtest_result (
                     id              BIGSERIAL    PRIMARY KEY,
                     strategy_id     BIGINT       NOT NULL REFERENCES quant_strategy(id),

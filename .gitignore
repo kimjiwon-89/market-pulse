@@ -13,6 +13,7 @@ build
 # Spring
 target
 logs
+tmp/
 
 # Env
 .env
