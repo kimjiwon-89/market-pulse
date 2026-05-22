@@ -31,6 +31,8 @@
                    ) AS high_60d
             FROM market_daily_price p
             WHERE p.asset_type = 'STOCK'
+              AND p.trade_date BETWEEN CAST(#{fromDate} AS date) - INTERVAL '400 days'
+                                   AND CAST(#{toDate} AS date) + INTERVAL '40 days'
             WINDOW w AS (PARTITION BY p.asset_code ORDER BY p.trade_date)
         ),
         stock_window AS (
@@ -44,7 +46,17 @@
                        PARTITION BY b.asset_code
                        ORDER BY b.trade_date
                        ROWS BETWEEN 59 PRECEDING AND CURRENT ROW
-                   ) AS vol_60d
+                   ) AS vol_60d,
+                   STDDEV_POP(
+                       CASE
+                           WHEN b.prev_close > 0 THEN (b.close_price - b.prev_close) / b.prev_close
+                           ELSE NULL
+                       END
+                   ) OVER (
+                       PARTITION BY b.asset_code
+                       ORDER BY b.trade_date
+                       ROWS BETWEEN 251 PRECEDING AND CURRENT ROW
+                   ) AS vol_252d
             FROM stock_base b
         ),
         features AS (
@@ -60,6 +72,7 @@
                    CASE WHEN close_120d > 0 THEN (close_price - close_120d) / close_120d END AS ret_120d,
                    CASE WHEN close_252d > 0 THEN (close_price - close_252d) / close_252d END AS ret_252d,
                    vol_60d,
+                   vol_252d,
                    CASE WHEN high_60d > 0 THEN (close_price - high_60d) / high_60d END AS drawdown_60d,
                    trade_amount_20d_avg,
                    CASE WHEN forward_close_20d > 0 THEN (forward_close_20d - close_price) / close_price END AS forward_return
@@ -85,9 +98,11 @@
                    'ret120d', ret_120d,
                    'ret252d', ret_252d,
                    'vol60d', vol_60d,
+                   'vol252d', vol_252d,
                    'drawdown60d', drawdown_60d,
                    'tradeAmount20dAvg', trade_amount_20d_avg,
-                   'riskAdjRet60d', CASE WHEN vol_60d > 0 THEN ret_60d / vol_60d END
+                   'riskAdjRet60d', CASE WHEN vol_60d > 0 THEN ret_60d / vol_60d END,
+                   'riskAdjRet252d', CASE WHEN vol_252d > 0 THEN ret_252d / vol_252d END
                ),
                jsonb_build_object(
                    'source', 'market_daily_price',

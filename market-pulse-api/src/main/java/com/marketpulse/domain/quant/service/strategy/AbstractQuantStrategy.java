@@ -261,21 +261,26 @@ public abstract class AbstractQuantStrategy implements QuantStrategyInterface {
             return weights;
         }
 
-        BigDecimal averageScore = totalScore.divide(BigDecimal.valueOf(Math.max(1, picks.size())), 8, RoundingMode.HALF_UP);
-        BigDecimal maxInvestWeight = averageScore.compareTo(new BigDecimal("0.03")) < 0
-                ? new BigDecimal("0.55")
-                : averageScore.compareTo(new BigDecimal("0.08")) < 0
-                    ? new BigDecimal("0.75")
-                    : BigDecimal.ONE;
+        BigDecimal maxInvestWeight = BigDecimal.ONE;
 
         BigDecimal cappedTotal = BigDecimal.ZERO;
         List<BigDecimal> capped = new ArrayList<>();
+        Map<String, BigDecimal> sectorWeights = new LinkedHashMap<>();
         for (BigDecimal rawScore : rawScores) {
             BigDecimal weight = rawScore.divide(totalScore, 8, RoundingMode.HALF_UP).multiply(maxInvestWeight);
-            BigDecimal maxSingle = new BigDecimal("0.18");
+            BigDecimal maxSingle = new BigDecimal("0.30");
             if (weight.compareTo(maxSingle) > 0) {
                 weight = maxSingle;
             }
+            String sector = Objects.requireNonNullElse(picks.get(capped.size()).getSector(), "UNKNOWN");
+            BigDecimal sectorUsed = sectorWeights.getOrDefault(sector, BigDecimal.ZERO);
+            BigDecimal sectorRoom = new BigDecimal("0.70").subtract(sectorUsed);
+            if (sectorRoom.compareTo(BigDecimal.ZERO) <= 0) {
+                weight = BigDecimal.ZERO;
+            } else if (weight.compareTo(sectorRoom) > 0) {
+                weight = sectorRoom;
+            }
+            sectorWeights.put(sector, sectorUsed.add(weight));
             capped.add(weight);
             cappedTotal = cappedTotal.add(weight);
         }

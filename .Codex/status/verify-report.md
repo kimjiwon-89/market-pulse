@@ -60,3 +60,28 @@ spec: `.Codex/plans/2026-05-21_quant-mp-core-monthly-5pct-spec.md`
 
 - `market-pulse-web`: `npm run build` 성공.
 - `./mvnw`는 실행 권한이 없어 실패했고, 동일 목적의 `mvn -DskipTests compile`로 검증했습니다.
+# 2026-05-22 MP_CORE Trading Skills 3pct Verification
+
+- AC-1 PASS: 2020-2025 INDEX/STOCK collection completed through API status.
+- AC-2 PASS: KOSPI INDEX collection completed.
+- AC-3 PASS: MP_CORE feature generation completed, 3,581,824 rows.
+- AC-4 PARTIAL: signal date precedes rebalance date; execution remains monthly close-based simulation.
+- AC-5 PASS: costs/turnover included in result.
+- AC-7 FAIL: best monthlyReturn 2.4796%, target 3.0%.
+- AC-8 PASS: best MDD -25.22%, target <30%.
+- AC-10 PASS: backend compile passed.
+- AC-12 PASS: no live order API enabled.
+
+Verdict: FAIL. Continue with configurable variant grid and weekly/horizon experiments.
+
+## 2026-05-22 Full Data Verification
+
+- Data PASS: ALL collection completed for 2000-01-01~2025-12-31.
+- Feature PASS: MP_CORE feature rows generated: 8,555,359.
+- Coverage WARN: usable stock feature series starts 2010-07-30, not 2000-01-01.
+- Compile PASS: `.\mvnw.cmd -DskipTests compile`.
+- Full-range AC-7 FAIL: monthlyReturn 0.5898%, target 3.0%.
+- Full-range AC-8 FAIL: MDD -57.06%, target under -30% max drawdown.
+- Live trading PASS: no live order path enabled.
+
+Verdict: FAIL on full-range performance. Need broader factor set and configurable grid before next attempt.

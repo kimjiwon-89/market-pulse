@@ -459,6 +459,38 @@
                    ) AS signal_date
             FROM raw_months rm
         ),
+        regime AS (
+            SELECT m.rebalance_date,
+                   idx.close_price AS kospi_close,
+                   ma.ma120,
+                   ma.ma200,
+                   CASE
+                       WHEN idx.close_price IS NULL OR ma.ma120 IS NULL THEN 'UNKNOWN'
+                       WHEN idx.close_price &gt; ma.ma120 AND (ma.ma200 IS NULL OR idx.close_price &gt; ma.ma200) THEN 'RISK_ON'
+                       WHEN idx.close_price &gt; ma.ma120 THEN 'NEUTRAL'
+                       ELSE 'RISK_OFF'
+                   END AS regime_state
+            FROM months m
+            LEFT JOIN market_daily_price idx
+              ON idx.asset_type = 'INDEX'
+             AND idx.asset_code = 'KOSPI'
+             AND idx.trade_date = m.signal_date
+            LEFT JOIN LATERAL (
+                SELECT
+                    AVG(close_price) FILTER (WHERE rn &lt;= 120) AS ma120,
+                    AVG(close_price) FILTER (WHERE rn &lt;= 200) AS ma200
+                FROM (
+                    SELECT close_price,
+                           ROW_NUMBER() OVER (ORDER BY trade_date DESC) AS rn
+                    FROM market_daily_price
+                    WHERE asset_type = 'INDEX'
+                      AND asset_code = 'KOSPI'
+                      AND trade_date &lt;= m.signal_date
+                    ORDER BY trade_date DESC
+                    LIMIT 200
+                ) rows
+            ) ma ON TRUE
+        ),
         feature_rows AS (
             SELECT m.rebalance_date,
                    m.exit_date,
@@ -469,11 +501,17 @@
                    f.sector,
                    (f.features->>'ret20d')::numeric AS ret_20d,
                    (f.features->>'ret60d')::numeric AS ret_60d,
+                   (f.features->>'ret120d')::numeric AS ret_120d,
+                   (f.features->>'ret252d')::numeric AS ret_252d,
                    (f.features->>'riskAdjRet60d')::numeric AS risk_adj_ret_60d,
+                   (f.features->>'riskAdjRet252d')::numeric AS risk_adj_ret_252d,
                    (f.features->>'drawdown60d')::numeric AS drawdown_60d,
                    (f.features->>'tradeAmount20dAvg')::numeric AS trade_amount_20d_avg,
-                   (f.features->>'vol60d')::numeric AS vol_60d
+                   (f.features->>'vol60d')::numeric AS vol_60d,
+                   r.regime_state
             FROM months m
+            LEFT JOIN regime r
+              ON r.rebalance_date = m.rebalance_date
             JOIN quant_core_feature_snapshot f
               ON f.model_code = 'MP_CORE'
              AND f.signal_date = m.signal_date
@@ -482,31 +520,42 @@
         ranked_features AS (
             SELECT *,
                    COALESCE(PERCENT_RANK() OVER (PARTITION BY signal_date ORDER BY risk_adj_ret_60d), 0) AS risk_adj_rank,
+                   COALESCE(PERCENT_RANK() OVER (PARTITION BY signal_date ORDER BY risk_adj_ret_252d), 0) AS long_risk_adj_rank,
                    COALESCE(PERCENT_RANK() OVER (PARTITION BY signal_date ORDER BY ret_60d), 0) AS ret_rank,
                    COALESCE(PERCENT_RANK() OVER (PARTITION BY signal_date ORDER BY ret_20d), 0) AS short_momentum_rank,
+                   COALESCE(PERCENT_RANK() OVER (PARTITION BY signal_date ORDER BY ret_120d), 0) AS medium_momentum_rank,
                    COALESCE(PERCENT_RANK() OVER (PARTITION BY signal_date ORDER BY trade_amount_20d_avg), 0) AS liquidity_rank,
                    COALESCE(PERCENT_RANK() OVER (PARTITION BY signal_date ORDER BY vol_60d DESC), 0) AS stability_rank,
                    GREATEST(LEAST(COALESCE(1 + drawdown_60d, 0.5), 1), 0) AS drawdown_score
             FROM feature_rows
             WHERE ret_20d IS NOT NULL
               AND ret_60d IS NOT NULL
+              AND ret_120d IS NOT NULL
               AND risk_adj_ret_60d IS NOT NULL
               AND trade_amount_20d_avg IS NOT NULL
         ),
         scored AS (
             SELECT *,
                    (
-                       0.25 * risk_adj_rank
-                       + 0.20 * ret_rank
-                       + 0.30 * short_momentum_rank
-                       + 0.12 * liquidity_rank
-                       + 0.08 * drawdown_score
-                       + 0.05 * stability_rank
+                       0.20 * risk_adj_rank
+                       + 0.10 * COALESCE(long_risk_adj_rank, risk_adj_rank)
+                       + 0.25 * short_momentum_rank
+                       + 0.15 * medium_momentum_rank
+                       + 0.15 * liquidity_rank
+                       + 0.10 * stability_rank
+                       + 0.05 * drawdown_score
+                       - CASE
+                           WHEN regime_state = 'RISK_OFF' THEN 0.15
+                           WHEN regime_state = 'NEUTRAL' THEN 0.05
+                           ELSE 0
+                         END
                    ) AS score
             FROM ranked_features
             WHERE liquidity_rank &gt;= 0.20
               AND COALESCE(drawdown_60d, 0) &gt; -0.30
               AND COALESCE(vol_60d, 0) &lt;= 0.12
+              AND COALESCE(ret_60d, 0) &gt; 0
+              AND COALESCE(regime_state, 'UNKNOWN') IN ('RISK_ON', 'NEUTRAL')
         ),
         candidates AS (
             SELECT s.rebalance_date,

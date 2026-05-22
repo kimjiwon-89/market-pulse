@@ -21,7 +21,7 @@ public class MpCoreSignalStrategy extends AbstractQuantStrategy {
 
     @Override
     public BacktestExecution run(QuantStrategyVo strategy, LocalDate fromDate, LocalDate toDate, long initialCash) {
-        List<MonthlyPickVo> picks = priceMapper.findMonthlyMpCoreSignalPicks(fromDate, toDate, 10);
+        List<MonthlyPickVo> picks = priceMapper.findMonthlyMpCoreSignalPicks(fromDate, toDate, 5);
         return simulateMonthlyPicks(strategy, fromDate, toDate, initialCash, picks,
                 "MP_CORE feature score top basket",
                 "Monthly MP_CORE rebalance");
