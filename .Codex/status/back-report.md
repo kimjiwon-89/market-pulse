@@ -69,3 +69,17 @@ completed: 2026-05-21
 - Data: INDEX/STOCK 2020-2025 collection done, MP_CORE features generated: 3,581,824 rows.
 - Best run so far: monthlyReturn 2.4796%, MDD -25.22%, finalValue 582,593,574, totalCost 33,991,127, tradeCount 1,240.
 - AC status: AC-8 MDD passed; AC-7 monthlyReturn 3% failed.
+
+## 2026-05-22 MP_CORE full-data extension
+
+- Collected ALL data for 2000-01-01~2025-12-31 through quant collect API.
+- Optimized MP_CORE feature generation SQL to limit rolling-window source rows per request.
+- Generated features yearly; total generated rows: 8,555,359.
+- Data note: stock feature coverage starts 2010-07-30; 2000-2009 feature rows were 0.
+- Tested long-range settings:
+  - Baseline full-range: monthlyReturn 0.3597%, MDD -77.75%.
+  - topN 5, RISK_OFF excluded: monthlyReturn 0.5898%, MDD -57.06%.
+  - topN 3, higher concentration: monthlyReturn 0.3651%, MDD -56.10%.
+- Chosen setting: topN 5, RISK_OFF excluded, max single 30%, sector cap 70%.
+- Final full-range backtest: 2010-07-30~2025-12-30, monthlyReturn 0.5898%, MDD -57.06%, finalValue 626,302,550, totalCost 38,944,315, tradeCount 1,078.
+- Verification: `market-pulse-api`: `.\mvnw.cmd -DskipTests compile` passed.

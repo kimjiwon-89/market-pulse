@@ -73,3 +73,15 @@ spec: `.Codex/plans/2026-05-21_quant-mp-core-monthly-5pct-spec.md`
 - AC-12 PASS: no live order API enabled.
 
 Verdict: FAIL. Continue with configurable variant grid and weekly/horizon experiments.
+
+## 2026-05-22 Full Data Verification
+
+- Data PASS: ALL collection completed for 2000-01-01~2025-12-31.
+- Feature PASS: MP_CORE feature rows generated: 8,555,359.
+- Coverage WARN: usable stock feature series starts 2010-07-30, not 2000-01-01.
+- Compile PASS: `.\mvnw.cmd -DskipTests compile`.
+- Full-range AC-7 FAIL: monthlyReturn 0.5898%, target 3.0%.
+- Full-range AC-8 FAIL: MDD -57.06%, target under -30% max drawdown.
+- Live trading PASS: no live order path enabled.
+
+Verdict: FAIL on full-range performance. Need broader factor set and configurable grid before next attempt.

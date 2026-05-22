@@ -31,6 +31,8 @@
                    ) AS high_60d
             FROM market_daily_price p
             WHERE p.asset_type = 'STOCK'
+              AND p.trade_date BETWEEN CAST(#{fromDate} AS date) - INTERVAL '400 days'
+                                   AND CAST(#{toDate} AS date) + INTERVAL '40 days'
             WINDOW w AS (PARTITION BY p.asset_code ORDER BY p.trade_date)
         ),
         stock_window AS (

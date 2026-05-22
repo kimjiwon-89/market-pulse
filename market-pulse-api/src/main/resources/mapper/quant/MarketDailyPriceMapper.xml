@@ -555,7 +555,7 @@
               AND COALESCE(drawdown_60d, 0) &gt; -0.30
               AND COALESCE(vol_60d, 0) &lt;= 0.12
               AND COALESCE(ret_60d, 0) &gt; 0
-              AND COALESCE(regime_state, 'UNKNOWN') IN ('RISK_ON', 'NEUTRAL', 'RISK_OFF', 'UNKNOWN')
+              AND COALESCE(regime_state, 'UNKNOWN') IN ('RISK_ON', 'NEUTRAL')
         ),
         candidates AS (
             SELECT s.rebalance_date,
