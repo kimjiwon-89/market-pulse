@@ -59,3 +59,13 @@ completed: 2026-05-21
 
 ### Verification
 - `market-pulse-api`: `JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home mvn -DskipTests compile` passed.
+# 2026-05-22 MP_CORE trading skills 3pct implementation
+
+- Added MP_CORE 252d volatility/risk-adjusted feature fields.
+- Added KOSPI 120/200MA regime filter to monthly MP_CORE picks.
+- Added absolute 60d momentum filter and revised score weights.
+- Tuned RISK_OFF penalty and portfolio concentration variants.
+- Verification: `market-pulse-api`: `.\mvnw.cmd -DskipTests compile` passed.
+- Data: INDEX/STOCK 2020-2025 collection done, MP_CORE features generated: 3,581,824 rows.
+- Best run so far: monthlyReturn 2.4796%, MDD -25.22%, finalValue 582,593,574, totalCost 33,991,127, tradeCount 1,240.
+- AC status: AC-8 MDD passed; AC-7 monthlyReturn 3% failed.
