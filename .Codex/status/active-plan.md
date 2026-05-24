@@ -1,5 +1,5 @@
-spec: .Codex/plans/2026-05-22_quant-mp-core-trading-skills-3pct-spec.md
-html: .Codex/plans/2026-05-22_quant-mp-core-trading-skills-3pct.html
-status: PLANNED_AWAITING_USER_APPROVAL
-updated: 2026-05-22
-goal: 2020-2025 데이터 + trading skills 적용으로 월 3% 복리 목표 검증
+spec: .Codex/plans/2026-05-24_market-data-terminal-spec.md
+html: .Codex/plans/2026-05-24_market-data-terminal.html
+status: IMPLEMENTED_VERIFYING
+updated: 2026-05-24
+goal: 토스증권 수준의 종목 데이터 터미널 확장과 퀀트 입력 데이터 기반 정리

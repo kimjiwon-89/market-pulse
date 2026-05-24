@@ -1,23 +1,25 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import {
-  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
-} from "recharts";
 import { apiClient } from "@/services/apiClient";
-import type { StockDetail, StockChartItem, StockInvestor } from "@/types";
+import type {
+  StockChartItem,
+  StockDetail as StockDetailType,
+  StockDisclosure,
+  StockInvestor,
+  StockMinuteCandle,
+  StockOrderbook,
+  StockReport,
+} from "@/types";
 import { dirCls, triangle, fmtNum, fmtPct, fmtAmount } from "@/utils/format";
 import { useIsMobile } from "@/hooks";
+import { DisclosurePanel } from "./components/DisclosurePanel";
+import { OrderbookPanel } from "./components/OrderbookPanel";
+import { ReportPanel } from "./components/ReportPanel";
+import { StockCandleChart, type ChartPeriod } from "./components/StockCandleChart";
+import { StockTerminalTabs, type StockTerminalTab } from "./components/StockTerminalTabs";
 
-type Period = "1M" | "3M" | "1Y";
-
-function fmtDate8(s: string): string {
-  if (s.length !== 8) return s;
-  return `${s.slice(0, 4)}.${s.slice(4, 6)}.${s.slice(6)}`;
-}
-
-function chartColor(detail: StockDetail | null): string {
-  if (!detail) return "var(--flat)";
-  return detail.changeRate > 0 ? "var(--up)" : detail.changeRate < 0 ? "var(--down)" : "var(--flat)";
+function chartPeriodToDailyPeriod(period: ChartPeriod): "1M" | "3M" | "1Y" {
+  return period === "1D" ? "3M" : period;
 }
 
 export function StockDetail() {
@@ -25,12 +27,20 @@ export function StockDetail() {
   const navigate = useNavigate();
 
   const isMobile = useIsMobile();
-  const [period, setPeriod] = useState<Period>("3M");
-  const [detail, setDetail] = useState<StockDetail | null>(null);
+  const [activeTab, setActiveTab] = useState<StockTerminalTab>("chart");
+  const [period, setPeriod] = useState<ChartPeriod>("3M");
+  const [detail, setDetail] = useState<StockDetailType | null>(null);
   const [chart, setChart] = useState<StockChartItem[]>([]);
+  const [minuteChart, setMinuteChart] = useState<StockMinuteCandle[]>([]);
   const [investor, setInvestor] = useState<StockInvestor | null>(null);
+  const [orderbook, setOrderbook] = useState<StockOrderbook | null>(null);
+  const [disclosures, setDisclosures] = useState<StockDisclosure[]>([]);
+  const [reports, setReports] = useState<StockReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [chartLoading, setChartLoading] = useState(false);
+  const [orderbookLoading, setOrderbookLoading] = useState(false);
+  const [disclosureLoading, setDisclosureLoading] = useState(false);
+  const [reportLoading, setReportLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -50,20 +60,52 @@ export function StockDetail() {
       .finally(() => setLoading(false));
   }, [code]);
 
-  const loadChart = useCallback((p: Period) => {
+  const loadChart = useCallback((p: ChartPeriod) => {
     if (!code) return;
     setChartLoading(true);
-    apiClient
-      .get(`/stock/chart`, { params: { code, period: p } })
+    const request = p === "1D"
+      ? apiClient.get(`/stock/minute-chart`, { params: { code, includePast: true } })
+      : apiClient.get(`/stock/chart`, { params: { code, period: chartPeriodToDailyPeriod(p) } });
+
+    request
       .then(r => {
-        const items: StockChartItem[] = r.data.data ?? [];
-        setChart([...items].reverse());
+        const items = r.data.data ?? [];
+        if (p === "1D") {
+          setMinuteChart(items);
+        } else {
+          setChart([...items].reverse());
+        }
       })
-      .catch(() => {})
+      .catch(() => {
+        if (p === "1D") setMinuteChart([]);
+      })
       .finally(() => setChartLoading(false));
   }, [code]);
 
   useEffect(() => { loadChart(period); }, [loadChart, period]);
+
+  useEffect(() => {
+    if (!code || activeTab !== "chart") return;
+    setOrderbookLoading(true);
+    apiClient.get(`/stock/orderbook`, { params: { code } })
+      .then(r => setOrderbook(r.data.data))
+      .catch(() => setOrderbook(null))
+      .finally(() => setOrderbookLoading(false));
+  }, [activeTab, code]);
+
+  useEffect(() => {
+    if (!code || activeTab !== "disclosure") return;
+    setDisclosureLoading(true);
+    setReportLoading(true);
+    apiClient.get(`/stock/disclosures`, { params: { code } })
+      .then(r => setDisclosures(r.data.data ?? []))
+      .catch(() => setDisclosures([]))
+      .finally(() => setDisclosureLoading(false));
+    apiClient.get(`/stock/reports`, { params: { code } })
+      .then(r => setReports(r.data.data ?? []))
+      .catch(() => setReports([]))
+      .finally(() => setReportLoading(false));
+  }, [activeTab, code]);
 
   if (loading) {
     return (
@@ -79,25 +121,18 @@ export function StockDetail() {
     return (
       <div className="stack" style={{ padding: "var(--pad-pg)", alignItems: "center", paddingTop: 80 }}>
         <p style={{ color: "var(--text-3)" }}>{error ?? "종목을 찾을 수 없습니다."}</p>
-        <button className="btn" onClick={() => navigate(-1)}>← 돌아가기</button>
+        <button className="btn" onClick={() => navigate(-1)}>뒤로</button>
       </div>
     );
   }
 
   const dir = dirCls(detail.changeRate);
-  const color = chartColor(detail);
 
   return (
     <div className="stack" style={{ padding: "var(--pad-pg)" }}>
-
-      {/* 종목 헤더 */}
       <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 4 }}>
-        <button
-          className="btn ghost"
-          style={{ fontSize: 13 }}
-          onClick={() => navigate(-1)}
-        >
-          ← 뒤로
+        <button className="btn ghost" style={{ fontSize: 13 }} onClick={() => navigate(-1)}>
+          뒤로
         </button>
         <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>{detail.name}</h1>
         <span style={{ fontSize: 13, color: "var(--text-3)", fontFamily: "var(--font-mono)" }}>
@@ -105,40 +140,25 @@ export function StockDetail() {
         </span>
       </div>
 
-      {/* KPI stat-grid — 모바일: 2×2 */}
       <div className="card">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="stat-cell">
             <div className="stat-label">현재가</div>
-            <div className={`stat-value ${dir}`}>
-              {fmtNum(detail.currentPrice)}
-            </div>
+            <div className={`stat-value ${dir}`}>{fmtNum(detail.currentPrice)}</div>
             <div className={`stat-delta ${dir}`}>
-              {triangle(detail.changeRate)}&nbsp;
-              {fmtNum(Math.abs(detail.prdyVrss))} ({fmtPct(detail.changeRate)})
+              {triangle(detail.changeRate)} {fmtNum(Math.abs(detail.prdyVrss))} ({fmtPct(detail.changeRate)})
             </div>
           </div>
-
           <div className="stat-cell">
             <div className="stat-label">거래량</div>
-            <div className="stat-value">
-              {fmtNum(detail.volume, { compact: true })}
-            </div>
-            <div className="stat-delta" style={{ color: "var(--text-3)" }}>
-              {fmtAmount(detail.tradingValue)} 거래대금
-            </div>
+            <div className="stat-value">{fmtNum(detail.volume, { compact: true })}</div>
+            <div className="stat-delta" style={{ color: "var(--text-3)" }}>{fmtAmount(detail.tradingValue)} 거래대금</div>
           </div>
-
           <div className="stat-cell">
             <div className="stat-label">시가총액</div>
-            <div className="stat-value">
-              {fmtNum(detail.marketCap * 1e8, { compact: true })}
-            </div>
-            <div className="stat-delta" style={{ color: "var(--text-3)" }}>
-              {detail.marketCap.toLocaleString()}억
-            </div>
+            <div className="stat-value">{fmtNum(detail.marketCap * 1e8, { compact: true })}</div>
+            <div className="stat-delta" style={{ color: "var(--text-3)" }}>{detail.marketCap.toLocaleString()}억</div>
           </div>
-
           <div className="stat-cell">
             <div className="stat-label">PER / PBR</div>
             <div className="stat-value" style={{ fontSize: "var(--num-md)" }}>
@@ -151,115 +171,48 @@ export function StockDetail() {
         </div>
       </div>
 
-      {/* 차트 카드 */}
-      <div className="card">
-        <div className="card-head">
-          <div className="card-title">주가 차트</div>
-          <div className="chips">
-            {(["1M", "3M", "1Y"] as Period[]).map(p => (
-              <button
-                key={p}
-                className="chip"
-                aria-pressed={period === p}
-                onClick={() => setPeriod(p)}
-              >
-                {p}
-              </button>
-            ))}
-          </div>
-        </div>
+      <StockTerminalTabs activeTab={activeTab} onChange={setActiveTab} />
 
-        {chartLoading ? (
-          <div className="sk tall" style={{ height: isMobile ? 160 : 220 }} />
-        ) : chart.length === 0 ? (
-          <p style={{ color: "var(--text-3)", textAlign: "center", padding: "40px 0" }}>
-            차트 데이터 없음
-          </p>
-        ) : (
-          <ResponsiveContainer width="100%" height={isMobile ? 160 : 220}>
-            <AreaChart data={chart} margin={{ top: 8, right: 0, left: isMobile ? 0 : 8, bottom: 0 }}>
-              <defs>
-                <linearGradient id="stockGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={color} stopOpacity={0.15} />
-                  <stop offset="95%" stopColor={color} stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <XAxis
-                dataKey="date"
-                tickFormatter={d => `${d.slice(4, 6)}/${d.slice(6)}`}
-                tick={{ fontSize: 11, fill: "var(--text-3)", fontFamily: "var(--font-mono)" }}
-                tickLine={false}
-                axisLine={false}
-                interval="preserveStartEnd"
-              />
-              {!isMobile && (
-                <YAxis
-                  domain={["auto", "auto"]}
-                  tick={{ fontSize: 11, fill: "var(--text-3)", fontFamily: "var(--font-mono)" }}
-                  tickLine={false}
-                  axisLine={false}
-                  width={60}
-                  tickFormatter={v => fmtNum(v, { compact: true })}
-                />
-              )}
-              <Tooltip
-                contentStyle={{
-                  background: "var(--bg-panel)",
-                  border: "1px solid var(--border)",
-                  borderRadius: "var(--radius-sm)",
-                  fontSize: 12,
-                }}
-                formatter={(val: number | undefined) => [fmtNum(val ?? 0), "종가"]}
-                labelFormatter={label => fmtDate8(label)}
-              />
-              <Area
-                type="monotone"
-                dataKey="close"
-                stroke={color}
-                strokeWidth={1.5}
-                fill="url(#stockGrad)"
-                dot={false}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        )}
-      </div>
+      {activeTab === "chart" && (
+        <>
+          <StockCandleChart
+            detail={detail}
+            period={period}
+            chart={chart}
+            minuteChart={minuteChart}
+            loading={chartLoading}
+            isMobile={isMobile}
+            onPeriodChange={setPeriod}
+          />
+          <OrderbookPanel orderbook={orderbook} loading={orderbookLoading} />
+        </>
+      )}
 
-      {/* 하단 2열 — 모바일: 단일 컬럼 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-
-        {/* 시세 정보 */}
+      {activeTab === "info" && (
         <div className="card">
           <div className="card-head">
             <div className="card-title">시세 정보</div>
           </div>
           <table className="t">
             <tbody>
-              <tr>
-                <td style={{ color: "var(--text-3)" }}>시가</td>
-                <td className="num">{fmtNum(detail.openPrice)}</td>
-              </tr>
-              <tr>
-                <td style={{ color: "var(--text-3)" }}>고가</td>
-                <td className={`num up`}>{fmtNum(detail.highPrice)}</td>
-              </tr>
-              <tr>
-                <td style={{ color: "var(--text-3)" }}>저가</td>
-                <td className={`num down`}>{fmtNum(detail.lowPrice)}</td>
-              </tr>
-              <tr>
-                <td style={{ color: "var(--text-3)" }}>52주 최고</td>
-                <td className="num">{fmtNum(detail.weekHigh)}</td>
-              </tr>
-              <tr>
-                <td style={{ color: "var(--text-3)" }}>52주 최저</td>
-                <td className="num">{fmtNum(detail.weekLow)}</td>
-              </tr>
+              <tr><td style={{ color: "var(--text-3)" }}>시가</td><td className="num">{fmtNum(detail.openPrice)}</td></tr>
+              <tr><td style={{ color: "var(--text-3)" }}>고가</td><td className="num up">{fmtNum(detail.highPrice)}</td></tr>
+              <tr><td style={{ color: "var(--text-3)" }}>저가</td><td className="num down">{fmtNum(detail.lowPrice)}</td></tr>
+              <tr><td style={{ color: "var(--text-3)" }}>52주 최고</td><td className="num">{fmtNum(detail.weekHigh)}</td></tr>
+              <tr><td style={{ color: "var(--text-3)" }}>52주 최저</td><td className="num">{fmtNum(detail.weekLow)}</td></tr>
             </tbody>
           </table>
         </div>
+      )}
 
-        {/* 투자자 동향 */}
+      {activeTab === "disclosure" && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <DisclosurePanel disclosures={disclosures} loading={disclosureLoading} />
+          <ReportPanel reports={reports} loading={reportLoading} />
+        </div>
+      )}
+
+      {activeTab === "trading" && (
         <div className="card">
           <div className="card-head">
             <div className="card-title">투자자 동향</div>
@@ -278,20 +231,14 @@ export function StockDetail() {
               <tbody>
                 {[
                   { label: "외국인", net: investor.foreignNet, buy: investor.foreignBuy, sell: investor.foreignSell },
-                  { label: "기관",   net: investor.institutionNet, buy: investor.institutionBuy, sell: investor.institutionSell },
-                  { label: "개인",   net: investor.individualNet, buy: investor.individualBuy, sell: investor.individualSell },
+                  { label: "기관", net: investor.institutionNet, buy: investor.institutionBuy, sell: investor.institutionSell },
+                  { label: "개인", net: investor.individualNet, buy: investor.individualBuy, sell: investor.individualSell },
                 ].map(row => (
                   <tr key={row.label}>
                     <td className="ticker">{row.label}</td>
-                    <td className={`num ${dirCls(row.net)}`}>
-                      {fmtAmount(row.net)}
-                    </td>
-                    <td className="num" style={{ color: "var(--text-3)" }}>
-                      {fmtAmount(row.buy)}
-                    </td>
-                    <td className="num" style={{ color: "var(--text-3)" }}>
-                      {fmtAmount(row.sell)}
-                    </td>
+                    <td className={`num ${dirCls(row.net)}`}>{fmtAmount(row.net)}</td>
+                    <td className="num" style={{ color: "var(--text-3)" }}>{fmtAmount(row.buy)}</td>
+                    <td className="num" style={{ color: "var(--text-3)" }}>{fmtAmount(row.sell)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -300,8 +247,7 @@ export function StockDetail() {
             <p style={{ color: "var(--text-3)", fontSize: 13 }}>투자자 데이터 없음</p>
           )}
         </div>
-
-      </div>
+      )}
     </div>
   );
 }

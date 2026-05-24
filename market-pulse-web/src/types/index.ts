@@ -66,6 +66,52 @@ export interface StockChartItem {
   changeRate: number;
 }
 
+export interface StockMinuteCandle {
+  code: string;
+  time: string;
+  close: number;
+  open: number;
+  high: number;
+  low: number;
+  volume: number;
+  tradeAmount: number;
+  source: "KIS_REST" | string;
+}
+
+export interface StockOrderbookLevel {
+  price: number;
+  volume: number;
+  level: number;
+}
+
+export interface StockOrderbook {
+  code: string;
+  timestamp: string;
+  asks: StockOrderbookLevel[];
+  bids: StockOrderbookLevel[];
+  expectedPrice: number;
+  expectedVolume: number;
+}
+
+export interface StockDisclosure {
+  code: string;
+  title: string;
+  filedAt: string;
+  source: string;
+  url: string;
+}
+
+export type StockReportLicenseStatus = "PUBLIC_LINK_ONLY" | "LICENSED" | "UNKNOWN";
+
+export interface StockReport {
+  source: string;
+  title: string;
+  publishedAt: string;
+  url: string;
+  summary: string;
+  licenseStatus: StockReportLicenseStatus;
+}
+
 export interface StockInvestor {
   foreignBuy: number;
   foreignSell: number;
