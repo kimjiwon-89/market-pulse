@@ -83,3 +83,59 @@ completed: 2026-05-21
 - Chosen setting: topN 5, RISK_OFF excluded, max single 30%, sector cap 70%.
 - Final full-range backtest: 2010-07-30~2025-12-30, monthlyReturn 0.5898%, MDD -57.06%, finalValue 626,302,550, totalCost 38,944,315, tradeCount 1,078.
 - Verification: `market-pulse-api`: `.\mvnw.cmd -DskipTests compile` passed.
+
+## 2026-05-24 MP_TREND_CANDLE implementation
+
+spec: `.Codex/plans/2026-05-24_mp-trend-candle-spec.md`
+implementation plan: `.Codex/plans/2026-05-24_mp-trend-candle-implementation.md`
+
+### Changed Files
+- `market-pulse-api/src/main/java/com/marketpulse/domain/quant/service/strategy/CandleBreakoutStrategy.java`
+- `market-pulse-api/src/main/java/com/marketpulse/domain/quant/service/strategy/CandlePullbackStrategy.java`
+- `market-pulse-api/src/main/java/com/marketpulse/domain/quant/mapper/MarketDailyPriceMapper.java`
+- `market-pulse-api/src/main/java/com/marketpulse/domain/quant/runner/QuantStrategyInitRunner.java`
+- `market-pulse-api/src/main/resources/mapper/quant/MarketDailyPriceMapper.xml`
+- `market-pulse-api/src/test/java/com/marketpulse/domain/quant/service/strategy/CandleTrendStrategyTest.java`
+
+### Implemented
+- Added `CANDLE_BREAKOUT_V1` and `CANDLE_PULLBACK_V1` strategy components.
+- Registered both strategies as active monthly STOCK strategies.
+- Added monthly candle breakout and pullback pick queries using OHLCV, KOSPI regime, candle strength, liquidity, and trend filters.
+- Kept `MP_CORE_SIGNAL` unchanged.
+
+### Verification
+- `JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home mvn -Dtest=CandleTrendStrategyTest test` passed.
+- `JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home mvn -DskipTests compile` passed.
+- `xmllint --noout --nonet market-pulse-api/src/main/resources/mapper/quant/MarketDailyPriceMapper.xml` passed.
+- Spring Boot startup on port 18081 succeeded and `/api/quant/strategies` returned `CANDLE_BREAKOUT_V1` and `CANDLE_PULLBACK_V1`.
+
+### Runtime Note
+- Full 2020-2025 performance comparison was started but canceled after long-running DB queries. The new strategies are registered and callable, but the V1 candidate SQL needs performance tuning before full-range comparison is practical.
+
+## Backend MP_TREND_CANDLE Chart-Only Completion
+
+spec: `.Codex/plans/2026-05-24_mp-trend-candle-spec.md`
+report: `.Codex/reports/2026-05-24_mp-trend-candle-chart-only-comparison.md`
+completed: 2026-05-24
+
+### Changed Files
+- `market-pulse-api/src/main/java/com/marketpulse/domain/quant/mapper/MarketDailyPriceMapper.java`
+- `market-pulse-api/src/main/java/com/marketpulse/domain/quant/runner/QuantSchemaInitRunner.java`
+- `market-pulse-api/src/main/resources/mapper/quant/MarketDailyPriceMapper.xml`
+
+### Implemented
+- Added `quant_candle_feature_snapshot` schema initialization for pure OHLCV candle features.
+- Added `generateCandleTrendFeatures` mapper contract and SQL.
+- Reworked candle breakout/pullback picks to read from `quant_candle_feature_snapshot`, not MP_CORE feature snapshots.
+- Fixed monthly rebalance/exit dates to come from `market_daily_price`, while signal dates come from the prior candle snapshot.
+- Allowed `UNKNOWN` regime for candle strategies when local index data is missing.
+
+### Verification
+- `xmllint --noout --nonet market-pulse-api/src/main/resources/mapper/quant/MarketDailyPriceMapper.xml` passed.
+- `JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home mvn -Dtest=CandleTrendStrategyTest test` passed.
+- `JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home mvn -DskipTests compile` passed.
+
+### Tuning Add-on
+- Added `CANDLE_MOMENTUM_H20_V1`.
+- Best tested result: monthly compound 1.02%, total 47.29%, MDD -28.38%.
+- Rule: chart-only near-high momentum, 20-trading-day hold, top 5.

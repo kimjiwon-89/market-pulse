@@ -114,6 +114,41 @@ public class QuantSchemaInitRunner implements CommandLineRunner {
         jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_qcfs_asset_date ON quant_core_feature_snapshot(asset_code, signal_date)");
 
         jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS quant_candle_feature_snapshot (
+                    id                    BIGSERIAL    PRIMARY KEY,
+                    signal_date           DATE         NOT NULL,
+                    asset_code            VARCHAR(20)  NOT NULL,
+                    asset_name            VARCHAR(100),
+                    asset_type            VARCHAR(10)  NOT NULL DEFAULT 'STOCK',
+                    sector                VARCHAR(100),
+                    open_price            NUMERIC(18,4),
+                    high_price            NUMERIC(18,4),
+                    low_price             NUMERIC(18,4),
+                    close_price           NUMERIC(18,4) NOT NULL,
+                    volume                BIGINT,
+                    market_cap            BIGINT,
+                    ma20                  NUMERIC(18,6),
+                    ma60                  NUMERIC(18,6),
+                    high20                NUMERIC(18,4),
+                    high60_prior          NUMERIC(18,4),
+                    low20                 NUMERIC(18,4),
+                    ret20                 NUMERIC(14,8),
+                    ret60                 NUMERIC(14,8),
+                    drawdown20            NUMERIC(14,8),
+                    drawdown60            NUMERIC(14,8),
+                    candle_location       NUMERIC(14,8),
+                    body_ratio            NUMERIC(14,8),
+                    volume_expansion      NUMERIC(14,8),
+                    trade_amount20_avg    NUMERIC(24,4),
+                    range20               NUMERIC(14,8),
+                    created_at            TIMESTAMP    DEFAULT NOW(),
+                    CONSTRAINT uq_qcandle_feature UNIQUE (signal_date, asset_code)
+                )
+                """);
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_qcandle_date ON quant_candle_feature_snapshot(signal_date)");
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_qcandle_asset_date ON quant_candle_feature_snapshot(asset_code, signal_date)");
+
+        jdbcTemplate.execute("""
                 CREATE TABLE IF NOT EXISTS quant_core_signal (
                     id               BIGSERIAL    PRIMARY KEY,
                     model_code       VARCHAR(50)  NOT NULL REFERENCES quant_model_definition(model_code),
