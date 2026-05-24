@@ -85,3 +85,63 @@ Verdict: FAIL. Continue with configurable variant grid and weekly/horizon experi
 - Live trading PASS: no live order path enabled.
 
 Verdict: FAIL on full-range performance. Need broader factor set and configurable grid before next attempt.
+
+## 2026-05-24 MP_TREND_CANDLE Verification
+
+spec: `.Codex/plans/2026-05-24_mp-trend-candle-spec.md`
+검증일: 2026-05-24
+최종 판정: **PARTIAL PASS**
+
+### AC별 결과
+
+| AC | 판정 | 근거 |
+|----|------|------|
+| AC-1 | PASS | `QuantStrategyInitRunner`에 `CANDLE_BREAKOUT_V1` 등록. `/api/quant/strategies` 응답에서 id `202` 확인. |
+| AC-2 | PASS | `QuantStrategyInitRunner`에 `CANDLE_PULLBACK_V1` 등록. `/api/quant/strategies` 응답에서 id `203` 확인. |
+| AC-3 | PASS | `CandleBreakoutStrategy`, `CandlePullbackStrategy`가 Spring `@Component`이며 `getNameEn()` 테스트 통과. |
+| AC-4 | PARTIAL | SQL은 리밸런싱일 이전 signal date를 사용하도록 작성됨. 다만 full-range runtime은 장시간 실행되어 취소. |
+| AC-5 | PASS | 돌파형 SQL에 prior high proximity, MA trend, bullish candle, liquidity, KOSPI regime 필터 포함. |
+| AC-6 | PASS | 눌림목형 SQL에 uptrend, drawdown band, rebound candle, liquidity, KOSPI regime 필터 포함. |
+| AC-7 | PARTIAL | 전략 서비스와 endpoint 등록은 확인. 실제 장기 backtest는 SQL 성능 이슈로 완료 전 취소. |
+| AC-8 | PASS | `MP_CORE_SIGNAL` 구현과 쿼리는 변경하지 않음. |
+| AC-9 | PARTIAL | `compareAll` 전략 목록 선택은 가능. 2020-2025 비교 실행은 장시간 쿼리로 취소. |
+| AC-10 | PASS | backend compile 성공. |
+| AC-11 | PASS | frontend 변경 없음. |
+| AC-12 | PASS | 성과 미확정 상태를 숨기지 않고 SQL 튜닝 후 재실행 대상으로 기록. |
+
+### Verification Commands
+
+- `mvn -Dtest=CandleTrendStrategyTest test`: PASS
+- `mvn -DskipTests compile`: PASS
+- `xmllint --noout --nonet MarketDailyPriceMapper.xml`: PASS
+- Spring Boot startup `--server.port=18081`: PASS
+- `/api/quant/strategies`: PASS, new strategies returned
+- `/api/quant/performance?from=20200102&to=20251231&strategyIds=57,202,203`: CANCELED after long-running DB queries
+
+## 2026-05-24 MP_TREND_CANDLE Chart-Only Verification
+
+spec: `.Codex/plans/2026-05-24_mp-trend-candle-spec.md`
+report: `.Codex/reports/2026-05-24_mp-trend-candle-chart-only-comparison.md`
+검증일: 2026-05-24
+최종 판정: **FAIL - PERFORMANCE**
+
+### Result
+
+| Strategy | Total Return | Monthly Compound | MDD | Win Rate |
+|---|---:|---:|---:|---:|
+| MP_CORE_SIGNAL | 22.60% | 0.54% | -57.77% | 47.37% |
+| CANDLE_BREAKOUT_V1 | -79.63% | -4.10% | -82.37% | 36.84% |
+| CANDLE_PULLBACK_V1 | -65.68% | -2.77% | -70.24% | 34.21% |
+
+### Notes
+
+- Candle strategies used OHLCV-only `quant_candle_feature_snapshot`.
+- Existing MP_CORE rules and `quant_core_feature_snapshot` were not used by the new candle models.
+- Local DB has no index rows, so candle regime is `UNKNOWN` and fail-open.
+- Implementation verification passed; performance acceptance failed.
+
+### Follow-up PASS Variant
+
+- `CANDLE_MOMENTUM_H20_V1` reached monthly compound 1.02%.
+- Result: total return 47.29%, MDD -28.38%, active months 30 / 38.
+- Verification: `CandleTrendStrategyTest` 5 tests passed, mapper XML passed, backend compile passed.

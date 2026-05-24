@@ -82,4 +82,27 @@ public interface MarketDailyPriceMapper {
             @Param("toDate") LocalDate toDate,
             @Param("topN") int topN
     );
+
+    int generateCandleTrendFeatures(
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate
+    );
+
+    List<MonthlyPickVo> findMonthlyCandleBreakoutPicks(
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate,
+            @Param("topN") int topN
+    );
+
+    List<MonthlyPickVo> findMonthlyCandlePullbackPicks(
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate,
+            @Param("topN") int topN
+    );
+
+    List<MonthlyPickVo> findMonthlyCandleMomentumH20Picks(
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate,
+            @Param("topN") int topN
+    );
 }
