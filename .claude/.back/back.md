@@ -132,6 +132,10 @@ global/auth/InitialDataRunner.java
 | stock | GET | `/api/stock/search?q=&limit=` | 완료 — stock_master 이름 부분 일치 검색 |
 | stock | GET | `/api/stock/detail?code=` | 완료 — KIS FHKST01010100 현재가 시세 |
 | stock | GET | `/api/stock/chart?code=&period=` | 완료 — KIS FHKST01010400 일자별 차트 |
+| stock | GET | `/api/stock/minute-chart?code=&market=&time=&includePast=` | 완료 — KIS FHKST03010200 당일 1분봉, 최대 30건 |
+| stock | GET | `/api/stock/orderbook?code=&market=` | 완료 — KIS FHKST01010200 호가/예상체결, 읽기 전용 |
+| stock | GET | `/api/stock/disclosures?code=&from=&to=` | 준비 — OpenDART 키 없으면 명시적 실패 |
+| stock | GET | `/api/stock/reports?code=` | 준비 — 리포트 메타데이터/링크 전용 |
 | stock | GET | `/api/stock/investor?code=` | 완료 — KIS FHKST01010900 투자자 동향 |
 | quant | GET | `/api/quant/strategies` | 진행 — 퀀트 전략 5종 목록 |
 | quant | GET | `/api/quant/backtest?strategyId=&from=&to=` | 진행 — 전략별 백테스팅 실행/캐시 조회 |
