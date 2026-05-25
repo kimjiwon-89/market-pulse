@@ -1,9 +1,11 @@
 package com.marketpulse.domain.quant.service.strategy;
 
 import com.marketpulse.domain.quant.mapper.MarketDailyPriceMapper;
+import com.marketpulse.domain.quant.vo.MonthlyPickVo;
 import com.marketpulse.domain.quant.vo.QuantStrategyVo;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
 import java.lang.reflect.Proxy;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -52,6 +54,34 @@ class CandleTrendStrategyTest {
     }
 
     @Test
+    void mtfTrendStrategyUsesEventDrivenCandlePicks() {
+        RecordingPriceMapper mapper = new RecordingPriceMapper();
+        CandleMtfTrendStrategy strategy = new CandleMtfTrendStrategy(mapper.proxy());
+
+        BacktestExecution execution = strategy.run(strategyVo("Candle MTF Trend"), FROM, TO, 100_000_000L);
+
+        assertThat(strategy.getNameEn()).isEqualTo("CANDLE_MTF_TREND_V2");
+        assertThat(execution.response().strategyName()).isEqualTo("Candle MTF Trend");
+        assertThat(mapper.calls).containsExactly("findEventDrivenCandleMtfTrendPicks");
+        assertThat(mapper.lastArgs).containsExactly(FROM, TO, 1, 40);
+    }
+
+    @Test
+    void mtfTrendStrategyFiltersOverlappingEventPicks() {
+        RecordingPriceMapper mapper = new RecordingPriceMapper();
+        mapper.picks.add(pick("AAA", LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 12), "Alpha"));
+        mapper.picks.add(pick("BBB", LocalDate.of(2024, 1, 8), LocalDate.of(2024, 1, 18), "Beta"));
+        mapper.picks.add(pick("CCC", LocalDate.of(2024, 1, 15), LocalDate.of(2024, 1, 25), "Gamma"));
+        CandleMtfTrendStrategy strategy = new CandleMtfTrendStrategy(mapper.proxy());
+
+        BacktestExecution execution = strategy.run(strategyVo("Candle MTF Trend"), FROM, TO, 100_000_000L);
+
+        assertThat(execution.trades())
+                .extracting(trade -> trade.getAssetCode())
+                .containsExactly("AAA", "AAA", "CCC", "CCC");
+    }
+
+    @Test
     void priceMapperExposesChartOnlyFeatureGeneration() throws NoSuchMethodException {
         assertThat(MarketDailyPriceMapper.class.getMethod(
                 "generateCandleTrendFeatures",
@@ -70,6 +100,17 @@ class CandleTrendStrategyTest {
         )).isNotNull();
     }
 
+    @Test
+    void priceMapperExposesEventDrivenMtfTrendPicks() throws NoSuchMethodException {
+        assertThat(MarketDailyPriceMapper.class.getMethod(
+                "findEventDrivenCandleMtfTrendPicks",
+                LocalDate.class,
+                LocalDate.class,
+                int.class,
+                int.class
+        )).isNotNull();
+    }
+
     private QuantStrategyVo strategyVo(String name) {
         QuantStrategyVo vo = new QuantStrategyVo();
         vo.setId(100L);
@@ -77,8 +118,24 @@ class CandleTrendStrategyTest {
         return vo;
     }
 
+    private MonthlyPickVo pick(String assetCode, LocalDate rebalanceDate, LocalDate exitDate, String assetName) {
+        MonthlyPickVo vo = new MonthlyPickVo();
+        vo.setAssetCode(assetCode);
+        vo.setAssetName(assetName);
+        vo.setAssetType("STOCK");
+        vo.setRebalanceDate(rebalanceDate);
+        vo.setExitDate(exitDate);
+        vo.setBuyPrice(new BigDecimal("10000"));
+        vo.setSellPrice(new BigDecimal("11000"));
+        vo.setScore(BigDecimal.ONE);
+        vo.setPickRank(1);
+        return vo;
+    }
+
     private static class RecordingPriceMapper {
         private final List<String> calls = new ArrayList<>();
+        private final List<Object> lastArgs = new ArrayList<>();
+        private final List<MonthlyPickVo> picks = new ArrayList<>();
 
         private MarketDailyPriceMapper proxy() {
             return (MarketDailyPriceMapper) Proxy.newProxyInstance(
@@ -86,8 +143,12 @@ class CandleTrendStrategyTest {
                     new Class<?>[]{MarketDailyPriceMapper.class},
                     (proxy, method, args) -> {
                         calls.add(method.getName());
+                        lastArgs.clear();
+                        if (args != null) {
+                            lastArgs.addAll(List.of(args));
+                        }
                         if (method.getReturnType().equals(List.class)) {
-                            return List.of();
+                            return picks;
                         }
                         if (method.getReturnType().equals(int.class)) {
                             return 0;

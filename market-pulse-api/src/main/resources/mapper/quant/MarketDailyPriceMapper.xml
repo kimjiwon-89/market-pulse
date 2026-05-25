@@ -1048,4 +1048,186 @@
         ORDER BY rebalance_date, pick_rank
     </select>
 
+    <select id="findEventDrivenCandleMtfTrendPicks" resultType="MonthlyPickVo">
+        <![CDATA[
+        WITH RECURSIVE trading_days AS (
+            SELECT trade_date,
+                   ROW_NUMBER() OVER (ORDER BY trade_date) AS day_seq
+            FROM (
+                SELECT DISTINCT trade_date
+                FROM market_daily_price
+                WHERE asset_type = 'STOCK'
+                  AND trade_date <= #{toDate}
+            ) d
+        ), signal_days AS (
+            SELECT f.signal_date,
+                   td.trade_date AS execution_date,
+                   td.day_seq AS execution_seq,
+                   exit_day.trade_date AS max_exit_date
+            FROM (
+                SELECT DISTINCT signal_date
+                FROM quant_candle_feature_snapshot
+                WHERE signal_date >= #{fromDate}
+                  AND signal_date < #{toDate}
+            ) f
+            JOIN LATERAL (
+                SELECT trade_date, day_seq
+                FROM trading_days
+                WHERE trade_date > f.signal_date
+                ORDER BY trade_date
+                LIMIT 1
+            ) td ON TRUE
+            JOIN LATERAL (
+                SELECT trade_date
+                FROM trading_days
+                WHERE day_seq >= td.day_seq + GREATEST(1, #{holdDays}) - 1
+                ORDER BY day_seq
+                LIMIT 1
+            ) exit_day ON TRUE
+            WHERE ((td.day_seq - 1) % 10) = 0
+        ), filtered AS (
+            SELECT sd.execution_date AS rebalance_date,
+                   sd.max_exit_date,
+                   f.*,
+                   f.close_price / NULLIF(f.high60_prior, 0) AS high60_ratio,
+                   COALESCE(f.ret20, 0) + COALESCE(f.ret60, 0) AS mtf_return_score,
+                   COALESCE(f.candle_location, 0) + COALESCE(f.body_ratio, 0) AS daily_candle_score
+            FROM signal_days sd
+            JOIN quant_candle_feature_snapshot f
+              ON f.signal_date = sd.signal_date
+            WHERE f.high60_prior IS NOT NULL
+              AND f.ma20 IS NOT NULL
+              AND f.ma60 IS NOT NULL
+              AND f.trade_amount20_avg >= 100000000
+              AND f.close_price >= f.high60_prior * 0.92
+              AND f.close_price <= f.high60_prior * 1.02
+              AND f.close_price > f.ma20
+              AND f.close_price > f.ma60
+              AND f.ma20 >= f.ma60 * 0.96
+              AND COALESCE(f.ret20, 0) >= 0.09
+              AND COALESCE(f.ret60, 0) >= 0.00
+              AND COALESCE(f.volume_expansion, 0) <= 1.00
+              AND COALESCE(f.candle_location, 0) >= 0.50
+              AND COALESCE(f.body_ratio, 0) >= -0.05
+              AND COALESCE(f.range20, 0) <= 0.25
+        ), ranked AS (
+            SELECT *
+            FROM filtered
+        ), scored AS (
+            SELECT *,
+                   (1 - COALESCE(volume_expansion, 0))
+                   + COALESCE(ret60, 0)
+                   + COALESCE(ret20, 0)
+                   - ABS(COALESCE(high60_ratio, 0) - 0.94)
+                   + (1 - COALESCE(range20, 0)) * 0.10 AS score
+            FROM ranked
+        ), picked AS MATERIALIZED (
+            SELECT *
+            FROM (
+                SELECT s.*,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY s.rebalance_date
+                           ORDER BY s.score DESC, s.trade_amount20_avg DESC, s.market_cap DESC NULLS LAST, s.asset_code
+                       ) AS pick_rank
+                FROM scored s
+            ) q
+            WHERE pick_rank <= #{topN}
+        ), candidates AS MATERIALIZED (
+            SELECT s.rebalance_date,
+                   COALESCE(confirm_exit.trade_date, profit_exit.exit_date, s.max_exit_date) AS exit_date,
+                   buy.asset_code,
+                   buy.asset_name,
+                   buy.asset_type,
+                   buy.sector,
+                   COALESCE(buy.open_price, buy.close_price) AS buy_price,
+                   CASE
+                       WHEN confirm_exit.trade_date IS NOT NULL
+                           THEN COALESCE(buy.open_price, buy.close_price) * 0.97
+                   ELSE COALESCE(sell.open_price, sell.close_price)
+                   END AS sell_price,
+                   s.score,
+                   buy.market_cap,
+                   s.pick_rank
+            FROM picked s
+            JOIN market_daily_price buy
+              ON buy.asset_type = 'STOCK'
+             AND buy.asset_code = s.asset_code
+             AND buy.trade_date = s.rebalance_date
+            LEFT JOIN LATERAL (
+                SELECT p.trade_date
+                FROM market_daily_price p
+                WHERE p.asset_type = 'STOCK'
+                  AND p.asset_code = s.asset_code
+                  AND p.trade_date >= s.rebalance_date
+                  AND p.trade_date <= (
+                      SELECT td.trade_date
+                      FROM trading_days td
+                      WHERE td.trade_date >= s.rebalance_date
+                      ORDER BY td.trade_date
+                      OFFSET 2
+                      LIMIT 1
+                  )
+                  AND p.low_price <= COALESCE(buy.open_price, buy.close_price) * 0.97
+                ORDER BY p.trade_date
+                LIMIT 1
+            ) confirm_exit ON TRUE
+            LEFT JOIN LATERAL (
+                SELECT next_day.trade_date AS exit_date
+                FROM (
+                    SELECT pf.signal_date AS trade_date
+                    FROM quant_candle_feature_snapshot pf
+                    WHERE pf.asset_code = s.asset_code
+                      AND pf.signal_date > (
+                          SELECT trade_date
+                          FROM trading_days
+                          WHERE trade_date >= s.rebalance_date
+                          ORDER BY trade_date
+                          OFFSET 4
+                          LIMIT 1
+                      )
+                      AND pf.signal_date < s.max_exit_date
+                      AND pf.close_price > COALESCE(buy.open_price, buy.close_price) * 1.03
+                      AND (
+                          pf.close_price < pf.ma20
+                          OR (
+                              COALESCE(pf.body_ratio, 0) < -0.02
+                              AND COALESCE(pf.volume_expansion, 0) >= 1.20
+                          )
+                          OR COALESCE(pf.candle_location, 1) <= 0.35
+                      )
+                    ORDER BY pf.signal_date
+                    LIMIT 1
+                ) trigger
+                JOIN LATERAL (
+                    SELECT trade_date
+                    FROM trading_days
+                    WHERE trade_date > trigger.trade_date
+                    ORDER BY trade_date
+                    LIMIT 1
+                ) next_day ON TRUE
+            ) profit_exit ON confirm_exit.trade_date IS NULL
+            JOIN market_daily_price sell
+              ON sell.asset_type = 'STOCK'
+             AND sell.asset_code = s.asset_code
+             AND sell.trade_date = COALESCE(confirm_exit.trade_date, profit_exit.exit_date, s.max_exit_date)
+            WHERE COALESCE(buy.open_price, buy.close_price) > 0
+              AND COALESCE(sell.open_price, sell.close_price) > 0
+              AND COALESCE(sell.open_price, sell.close_price) / NULLIF(COALESCE(buy.open_price, buy.close_price), 0) - 1 BETWEEN -0.95 AND 5.0
+        )
+        SELECT rebalance_date AS rebalanceDate,
+               exit_date AS exitDate,
+               asset_code AS assetCode,
+               asset_name AS assetName,
+               asset_type AS assetType,
+               sector,
+               buy_price AS buyPrice,
+               sell_price AS sellPrice,
+               score,
+               market_cap AS marketCap,
+               pick_rank AS pickRank
+        FROM candidates
+        ORDER BY rebalance_date, pick_rank
+        ]]>
+    </select>
+
 </mapper>

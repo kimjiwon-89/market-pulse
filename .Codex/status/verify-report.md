@@ -145,3 +145,142 @@ report: `.Codex/reports/2026-05-24_mp-trend-candle-chart-only-comparison.md`
 - `CANDLE_MOMENTUM_H20_V1` reached monthly compound 1.02%.
 - Result: total return 47.29%, MDD -28.38%, active months 30 / 38.
 - Verification: `CandleTrendStrategyTest` 5 tests passed, mapper XML passed, backend compile passed.
+
+## 2026-05-24 MTF Candle Trend Verification
+
+spec: `.Codex/plans/2026-05-24_mtf-candle-trend-spec.md`
+implementation: `.Codex/plans/2026-05-24_mtf-candle-trend-implementation.md`
+report: `.Codex/reports/2026-05-24_mtf-candle-trend-backtest.md`
+최종 판정: **FAIL - PERFORMANCE TARGET**
+
+### Result
+
+| Strategy / Variant | Avg Monthly | Compound Monthly | Total Return | Worst Month | Events |
+|---|---:|---:|---:|---:|---:|
+| CANDLE_MTF_TREND_V2 h5 top3 lenient | 1.56% | 0.41% | 16.66% | -32.95% | 153 |
+| h5 top1 high-ratio greedy | 1.81% | -4.41% | -81.98% | -46.01% | 152 |
+
+### Notes
+
+- Target was clarified as average monthly return 15%, not monthly rebalance.
+- Implemented `CANDLE_MTF_TREND_V2` as a daily-signal/event-style strategy shell.
+- Local `quant_candle_feature_snapshot` was expanded to 2,062,662 daily rows for MTF testing.
+- Historical minute bars are not available locally; minute gate remains `NO_MINUTE_DATA` fallback.
+- Local DB has no `INDEX` rows, so market regime filtering could not be tested.
+
+### Verification Commands
+
+- `xmllint --noout --nonet market-pulse-api/src/main/resources/mapper/quant/MarketDailyPriceMapper.xml`: PASS
+- `JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home mvn -Dtest=CandleTrendStrategyTest test`: PASS, 7 tests
+- `JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home mvn -DskipTests compile`: PASS
+
+## 2026-05-25 MTF Candle Trend Retest
+
+최종 판정: **FAIL - TARGET, IMPROVED**
+
+### Result
+
+| Period | Avg Monthly | Compound Monthly | Total Return | Worst Month | Events |
+|---|---:|---:|---:|---:|---:|
+| 2022-05-01 ~ 2025-06-30 | 5.07% | 3.01% | 208.71% | -23.62% | 76 |
+| 2022-01-03 ~ 2025-06-30 full available | 4.80% | 2.71% | 207.97% | -23.46% | 77 |
+
+### Root Cause
+
+- Previous event cadence depended on `fromDate`, causing unstable trade schedules.
+- Strong volume/candle chase was short-term overheat; lower-volume continuation performed better.
+
+### Verification Commands
+
+- `xmllint --noout --nonet market-pulse-api/src/main/resources/mapper/quant/MarketDailyPriceMapper.xml`: PASS
+- `JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home mvn -Dtest=CandleTrendStrategyTest test`: PASS, 7 tests
+- `JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home mvn -DskipTests compile`: PASS
+
+## 2026-05-25 MTF Exit Risk Retest
+
+최종 판정: **PASS - RISK REDUCTION, TARGET STILL FAIL**
+
+### Result
+
+| Variant | Avg Monthly | Compound Monthly | Total Return | Worst Month | Best Trade | Worst Trade |
+|---|---:|---:|---:|---:|---:|---:|
+| fixed10 | 4.73% | 2.64% | 198.75% | -23.46% | 143.87% | -20.12% |
+| confirmLow2 | 4.14% | 2.36% | 166.88% | -12.11% | 143.87% | -6.45% |
+
+### Notes
+
+- `confirmLow2` exits at -4% if the position touches -4% intraday during entry day through entry+2 trading days.
+- The best winner, 알에프세미, remains intact.
+- The worst left-tail trade improves materially.
+- The 15% average monthly target remains unmet.
+
+### Verification Commands
+
+- `xmllint --noout --nonet market-pulse-api/src/main/resources/mapper/quant/MarketDailyPriceMapper.xml`: PASS
+- `JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home mvn -Dtest=CandleTrendStrategyTest test`: PASS, 7 tests
+- `JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home mvn -DskipTests compile`: PASS
+
+## 2026-05-25 MTF Confirm-Low Profit Retest
+
+최종 판정: **PASS - IMPROVED, TARGET STILL FAIL**
+
+| Variant | Avg Monthly | Compound Monthly | Total Return | Worst Month | Events |
+|---|---:|---:|---:|---:|---:|
+| confirmLow2 previous | 4.14% | 2.36% | 166.88% | -12.11% | 77 |
+| confirmLow3pct ret20>=6 | 4.60% | 2.82% | 221.98% | -9.77% | 78 |
+
+### Notes
+
+- Kept early-failure exit concept.
+- Tightened to -3% confirm exit and stronger 20-day return threshold.
+- Worst month improved while average monthly also improved.
+- 15% average monthly target remains unmet.
+
+### Verification Commands
+
+- `xmllint --noout --nonet market-pulse-api/src/main/resources/mapper/quant/MarketDailyPriceMapper.xml`: PASS
+- `JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home mvn -Dtest=CandleTrendStrategyTest test`: PASS, 7 tests
+- `JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home mvn -DskipTests compile`: PASS
+
+## 2026-05-25 MTF Average Monthly 5pct Retest
+
+최종 판정: **PASS - 5PCT INTERMEDIATE TARGET**
+
+| Variant | Avg Monthly | Compound Monthly | Total Return | Worst Month | Events |
+|---|---:|---:|---:|---:|---:|
+| previous ret20>=6 | 4.60% | 2.82% | 221.98% | -9.77% | 78 |
+| ret20>=9 | 5.03% | 3.22% | 278.21% | -9.32% | 78 |
+
+### Notes
+
+- The applied variant keeps confirm-low risk control.
+- The intermediate 5% average monthly target is reached.
+- Original 15% average monthly target remains unmet.
+
+### Verification Commands
+
+- `xmllint --noout --nonet market-pulse-api/src/main/resources/mapper/quant/MarketDailyPriceMapper.xml`: PASS
+- `JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home mvn -Dtest=CandleTrendStrategyTest test`: PASS, 7 tests
+- `JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home mvn -DskipTests compile`: PASS
+
+## 2026-05-25 MTF Pattern Exit V3 Retest
+
+최종 판정: **PASS - IMPROVED, TARGET STILL FAIL**
+
+| Variant | Avg Monthly | Total Return | Avg Trade | Worst Trade | Best Trade | Events |
+|---|---:|---:|---:|---:|---:|---:|
+| fixed10 ret20>=9 | 5.03% | 278.21% | n/a | n/a | n/a | 78 |
+| patternExitV3 non-overlap | 10.19% | 486.94% | 6.23% | -17.46% | 114.65% | 42 |
+
+### Notes
+
+- Fixed 10-day take profit was replaced with max 40-day pattern exits.
+- Java strategy now filters overlapping picks so the portfolio does not reuse capital before prior exit.
+- Full mapper SQL execution from local DB exceeded interactive timeout; result is from exported candidate/path retest.
+- 15% average monthly target remains unmet.
+
+### Verification Commands
+
+- `xmllint --noout --nonet market-pulse-api/src/main/resources/mapper/quant/MarketDailyPriceMapper.xml`: PASS
+- `JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home mvn -Dtest=CandleTrendStrategyTest test`: PASS, 8 tests
+- `JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home mvn -DskipTests compile`: PASS
