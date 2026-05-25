@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MTF Candle Trend V2 Plan</title>
+  <style>
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f7f8fa; color: #171a1f; }
+    main { max-width: 980px; margin: 0 auto; padding: 40px 20px 64px; }
+    h1 { font-size: 34px; margin: 0 0 8px; letter-spacing: 0; }
+    h2 { font-size: 21px; margin: 32px 0 12px; }
+    p, li { line-height: 1.65; font-size: 15px; }
+    .meta { color: #5d6675; margin-bottom: 28px; }
+    .band { background: #ffffff; border: 1px solid #e4e7ec; border-radius: 8px; padding: 20px; margin: 16px 0; }
+    .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+    .tile { background: #ffffff; border: 1px solid #e4e7ec; border-radius: 8px; padding: 16px; min-height: 150px; }
+    .tile strong { display: block; margin-bottom: 8px; font-size: 16px; }
+    code { background: #eef1f5; padding: 2px 5px; border-radius: 4px; }
+    table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e4e7ec; border-radius: 8px; overflow: hidden; }
+    th, td { padding: 12px; border-bottom: 1px solid #e4e7ec; text-align: left; font-size: 14px; vertical-align: top; }
+    th { background: #eef1f5; }
+    tr:last-child td { border-bottom: 0; }
+    .warn { border-left: 4px solid #d97706; }
+    .ok { border-left: 4px solid #0f766e; }
+    @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } h1 { font-size: 28px; } }
+  </style>
+</head>
+<body>
+<main>
+  <h1>CANDLE_MTF_TREND_V2</h1>
+  <p class="meta">월봉/주봉/일봉/분봉을 함께 보는 이벤트 기반 추세추종 계획</p>
+
+  <section class="band ok">
+    <h2>핵심 판단</h2>
+    <p>월말마다 억지로 종목을 갈아끼우는 구조는 추세추종과 맞지 않습니다. 새 모델은 달력보다 차트 상태 변화를 우선합니다. 월봉은 시장 위험 모드, 주봉은 후보 추세, 일봉은 실제 진입과 청산, 분봉은 체결 품질 필터로 씁니다.</p>
+  </section>
+
+  <section>
+    <h2>4개 시간축 역할</h2>
+    <div class="grid">
+      <div class="tile"><strong>월봉</strong><p>큰 시장 방향. 위험 회피, 현금 비중, 신규 매수 허용 여부를 결정합니다.</p></div>
+      <div class="tile"><strong>주봉</strong><p>후보 선정. 상승 추세, 박스 돌파 준비, 과열, 분산 매도 흔적을 구분합니다.</p></div>
+      <div class="tile"><strong>일봉</strong><p>진입/청산 트리거. 돌파, 눌림 반등, 실패 돌파, 이동평균 이탈을 판단합니다.</p></div>
+      <div class="tile"><strong>분봉</strong><p>체결 게이트. VWAP, 장초 추격 위험, 갭상승 후 밀림, 막판 돌파를 확인합니다.</p></div>
+    </div>
+  </section>
+
+  <section class="band warn">
+    <h2>분봉 데이터 주의</h2>
+    <p>현재 KIS 분봉 API는 당일/최근 조회 중심입니다. 과거 전체 분봉 백테스트를 하려면 저장된 <code>stock_minute_bar</code> 데이터나 별도 벤더 데이터가 필요합니다. 그래서 V2는 분봉 데이터가 있으면 체결 필터로 쓰고, 없으면 <code>NO_MINUTE_DATA</code>로 기록합니다.</p>
+  </section>
+
+  <section>
+    <h2>리밸런싱 변경</h2>
+    <table>
+      <thead><tr><th>기존</th><th>변경</th></tr></thead>
+      <tbody>
+        <tr><td>월별 날짜 도착</td><td>매일 신호 스캔</td></tr>
+        <tr><td>상위 N개 강제 교체</td><td>이미 보유 중이면 유지, 추세 깨지면 청산</td></tr>
+        <tr><td>월말 매수/월말 매도</td><td>신호일 다음 거래일 체결, 분봉 있으면 체결 품질 확인</td></tr>
+        <tr><td>월 수익률 중심</td><td>거래 이벤트, 비용, 회전율, MDD, 승률 중심</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>작업 단계</h2>
+    <ol>
+      <li>계획 승인: 이 문서와 agent spec 확인.</li>
+      <li>일봉/주봉/월봉 기반 이벤트 엔진 추가.</li>
+      <li>분봉 저장 테이블과 사용 가능한 경우의 체결 게이트 추가.</li>
+      <li>기존 H20, MP_CORE와 성과 비교.</li>
+    </ol>
+  </section>
+
+  <section class="band">
+    <h2>추천 범위</h2>
+    <p>처음부터 분봉을 빼지 않습니다. 다만 과거 분봉이 없는 구간은 거짓 백테스트를 하지 않습니다. V2는 일봉/주봉/월봉으로 장기 검증을 돌리고, 분봉은 데이터가 있는 구간에서 체결 필터로 적용합니다.</p>
+  </section>
+</main>
+</body>
+</html>
