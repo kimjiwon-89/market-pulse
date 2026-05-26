@@ -284,3 +284,22 @@ report: `.Codex/reports/2026-05-24_mtf-candle-trend-backtest.md`
 - `xmllint --noout --nonet market-pulse-api/src/main/resources/mapper/quant/MarketDailyPriceMapper.xml`: PASS
 - `JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home mvn -Dtest=CandleTrendStrategyTest test`: PASS, 8 tests
 - `JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home mvn -DskipTests compile`: PASS
+
+## 2026-05-26 MTF Pattern Exit V4 Implementation
+
+Final verdict: **PASS - IMPLEMENTED, PERFORMANCE RETEST PENDING**
+
+| Check | Result | Evidence |
+|---|---|---|
+| TDD RED | PASS | `CandleTrendStrategyTest.mtfTrendMapperUsesV4CheckpointExits` first failed because `checkpoint_profit_exit` was absent. |
+| V4 SQL contract | PASS | Mapper SQL includes `checkpoint_profit_exit`, `checkpoint_rollover_exit`, +20% checkpoint threshold, and ordered exit priority. |
+| Existing early defense | PASS | Exit priority preserves `confirm_exit` before V4 checkpoint exits. |
+| Focused backend test | PASS | `.\mvnw.cmd -q -Dtest=CandleTrendStrategyTest test`, 9 tests. |
+| XML well-formed parse | PASS | PowerShell XML reader parsed `MarketDailyPriceMapper.xml`. |
+| Backend compile | PASS | `.\mvnw.cmd -q -DskipTests compile`. |
+| Local API smoke | WARN | Spring Boot on port 18081 started and `/api/quant/backtest?strategyId=278&from=20220501&to=20250630&initialCash=100000000` responded, but current local DB returned 0 trades. `CANDLE_MOMENTUM_H20_V1` also returned 0 trades, so this DB is not a valid performance retest basis. |
+
+Notes:
+
+- Performance target remains unresolved until the exported candidate/path retest used for V3 is rerun.
+- Rough V4 estimate remains unverified: 12.31% average monthly, 845.29% total return, worst month -9.32%.

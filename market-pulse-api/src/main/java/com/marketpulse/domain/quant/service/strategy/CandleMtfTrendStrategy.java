@@ -29,7 +29,7 @@ public class CandleMtfTrendStrategy extends AbstractQuantStrategy {
         List<MonthlyPickVo> picks = priceMapper.findEventDrivenCandleMtfTrendPicks(fromDate, toDate, TOP_N, MAX_HOLD_DAYS);
         return simulateMonthlyPicks(strategy, fromDate, toDate, initialCash, filterNonOverlappingPicks(picks),
                 "MTF trend entry: monthly/weekly/daily candle alignment, minute gate NO_MINUTE_DATA fallback",
-                "MTF trend exit: early weakness defense plus event-driven profit-taking on trend exhaustion");
+                "MTF trend exit: early weakness defense, 10-day checkpoint exits, and trend exhaustion exits");
     }
 
     private List<MonthlyPickVo> filterNonOverlappingPicks(List<MonthlyPickVo> picks) {
