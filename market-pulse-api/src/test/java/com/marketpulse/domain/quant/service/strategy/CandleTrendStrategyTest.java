@@ -7,6 +7,8 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.lang.reflect.Proxy;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -109,6 +111,17 @@ class CandleTrendStrategyTest {
                 int.class,
                 int.class
         )).isNotNull();
+    }
+
+    @Test
+    void mtfTrendMapperUsesV4CheckpointExits() throws Exception {
+        String mapperXml = Files.readString(Path.of("src/main/resources/mapper/quant/MarketDailyPriceMapper.xml"));
+
+        assertThat(mapperXml)
+                .contains("checkpoint_profit_exit")
+                .contains("checkpoint_rollover_exit")
+                .contains(">= COALESCE(buy.open_price, buy.close_price) * 1.20")
+                .contains("COALESCE(confirm_exit.trade_date, checkpoint_profit_exit.trade_date, checkpoint_rollover_exit.trade_date, profit_exit.exit_date, s.max_exit_date)");
     }
 
     private QuantStrategyVo strategyVo(String name) {

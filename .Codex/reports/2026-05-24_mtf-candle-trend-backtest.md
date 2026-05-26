@@ -315,3 +315,39 @@ Implementation notes:
 - `xmllint --noout --nonet market-pulse-api/src/main/resources/mapper/quant/MarketDailyPriceMapper.xml`: PASS
 - `JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home mvn -Dtest=CandleTrendStrategyTest test`: PASS, 8 tests
 - `JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home mvn -DskipTests compile`: PASS
+
+## 2026-05-26 Pattern Exit V4 Implementation
+
+Goal: keep the V3 non-overlap and pattern exits, but avoid giving back large checkpoint profits and stale losers around the 10-trading-day checkpoint.
+
+V4 implementation:
+
+```text
+entry candidate cadence: every 10 trading days
+max hold: 40 trading days
+priority 1: confirm-low early weakness exit
+priority 2: checkpoint profit exit when checkpoint close/open is >= entry price * 1.20
+priority 3: checkpoint rollover exit when close loses ma20 and ret20 rolls over near the checkpoint
+priority 4: V3 pattern exit or max-hold exit
+```
+
+Implementation notes:
+
+- Added mapper contract coverage in `CandleTrendStrategyTest` before changing SQL.
+- Mapper SQL now includes `checkpoint_profit_exit` and `checkpoint_rollover_exit`.
+- Strategy metadata now records `checkpointProfit: 0.20` and `profitExit: CHECKPOINT_OR_PATTERN`.
+- Existing confirm-low defense remains first in the exit priority.
+
+Performance status:
+
+- Not yet a valid performance verdict.
+- Local API smoke on `strategyId=278`, `20220501~20250630`, returned 0 trades.
+- `CANDLE_MOMENTUM_H20_V1` also returned 0 trades in the same local API smoke, so the current local DB is not the exported/path retest dataset used for the V3 10.19% result.
+- The rough pre-implementation V4 estimate remains unverified: 12.31% average monthly, 845.29% total return, worst month -9.32%.
+
+### Verification
+
+- `.\mvnw.cmd -q -Dtest=CandleTrendStrategyTest test`: PASS, 9 tests
+- PowerShell XML reader parse of `market-pulse-api/src/main/resources/mapper/quant/MarketDailyPriceMapper.xml`: PASS
+- `.\mvnw.cmd -q -DskipTests compile`: PASS
+- Spring Boot local smoke on port 18081: PASS startup and endpoint response, but 0-trade dataset

@@ -1134,7 +1134,7 @@
             WHERE pick_rank <= #{topN}
         ), candidates AS MATERIALIZED (
             SELECT s.rebalance_date,
-                   COALESCE(confirm_exit.trade_date, profit_exit.exit_date, s.max_exit_date) AS exit_date,
+                   COALESCE(confirm_exit.trade_date, checkpoint_profit_exit.trade_date, checkpoint_rollover_exit.trade_date, profit_exit.exit_date, s.max_exit_date) AS exit_date,
                    buy.asset_code,
                    buy.asset_name,
                    buy.asset_type,
@@ -1172,6 +1172,70 @@
                 LIMIT 1
             ) confirm_exit ON TRUE
             LEFT JOIN LATERAL (
+                SELECT checkpoint_price.trade_date
+                FROM (
+                    SELECT td.trade_date
+                    FROM trading_days td
+                    WHERE td.trade_date >= s.rebalance_date
+                    ORDER BY td.trade_date
+                    OFFSET 9
+                    LIMIT 1
+                ) checkpoint_day
+                JOIN market_daily_price checkpoint_price
+                  ON checkpoint_price.asset_type = 'STOCK'
+                 AND checkpoint_price.asset_code = s.asset_code
+                 AND checkpoint_price.trade_date = checkpoint_day.trade_date
+                WHERE confirm_exit.trade_date IS NULL
+                  AND COALESCE(checkpoint_price.close_price, checkpoint_price.open_price) >= COALESCE(buy.open_price, buy.close_price) * 1.20
+                LIMIT 1
+            ) checkpoint_profit_exit ON TRUE
+            LEFT JOIN LATERAL (
+                SELECT next_day.trade_date
+                FROM (
+                    SELECT pf.signal_date AS trade_date
+                    FROM quant_candle_feature_snapshot pf
+                    JOIN LATERAL (
+                        SELECT prev.ret20
+                        FROM quant_candle_feature_snapshot prev
+                        WHERE prev.asset_code = pf.asset_code
+                          AND prev.signal_date < pf.signal_date
+                        ORDER BY prev.signal_date DESC
+                        LIMIT 1
+                    ) prior_feature ON TRUE
+                    WHERE pf.asset_code = s.asset_code
+                      AND pf.signal_date >= (
+                          SELECT trade_date
+                          FROM trading_days
+                          WHERE trade_date >= s.rebalance_date
+                          ORDER BY trade_date
+                          OFFSET 9
+                          LIMIT 1
+                      )
+                      AND pf.signal_date <= (
+                          SELECT trade_date
+                          FROM trading_days
+                          WHERE trade_date >= s.rebalance_date
+                          ORDER BY trade_date
+                          OFFSET 11
+                          LIMIT 1
+                      )
+                      AND pf.signal_date < s.max_exit_date
+                      AND pf.close_price < pf.ma20
+                      AND COALESCE(pf.ret20, 0) < COALESCE(prior_feature.ret20, 0)
+                    ORDER BY pf.signal_date
+                    LIMIT 1
+                ) trigger
+                JOIN LATERAL (
+                    SELECT trade_date
+                    FROM trading_days
+                    WHERE trade_date > trigger.trade_date
+                    ORDER BY trade_date
+                    LIMIT 1
+                ) next_day ON TRUE
+                WHERE confirm_exit.trade_date IS NULL
+                  AND checkpoint_profit_exit.trade_date IS NULL
+            ) checkpoint_rollover_exit ON TRUE
+            LEFT JOIN LATERAL (
                 SELECT next_day.trade_date AS exit_date
                 FROM (
                     SELECT pf.signal_date AS trade_date
@@ -1206,10 +1270,12 @@
                     LIMIT 1
                 ) next_day ON TRUE
             ) profit_exit ON confirm_exit.trade_date IS NULL
+                         AND checkpoint_profit_exit.trade_date IS NULL
+                         AND checkpoint_rollover_exit.trade_date IS NULL
             JOIN market_daily_price sell
               ON sell.asset_type = 'STOCK'
              AND sell.asset_code = s.asset_code
-             AND sell.trade_date = COALESCE(confirm_exit.trade_date, profit_exit.exit_date, s.max_exit_date)
+             AND sell.trade_date = COALESCE(confirm_exit.trade_date, checkpoint_profit_exit.trade_date, checkpoint_rollover_exit.trade_date, profit_exit.exit_date, s.max_exit_date)
             WHERE COALESCE(buy.open_price, buy.close_price) > 0
               AND COALESCE(sell.open_price, sell.close_price) > 0
               AND COALESCE(sell.open_price, sell.close_price) / NULLIF(COALESCE(buy.open_price, buy.close_price), 0) - 1 BETWEEN -0.95 AND 5.0
