@@ -112,4 +112,11 @@ public interface MarketDailyPriceMapper {
             @Param("topN") int topN,
             @Param("holdDays") int holdDays
     );
+
+    List<MonthlyPickVo> findEventDrivenCandleMtfTrendNbPicks(
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate,
+            @Param("topN") int topN,
+            @Param("holdDays") int holdDays
+    );
 }

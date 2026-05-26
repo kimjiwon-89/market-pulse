@@ -1,50 +1,45 @@
-status: W4_V3FIN_EARLY_FAIL_REDUCTION
+status: W4_V3FIN_NB_EXIT_GRID_NEXT
 updated: 2026-05-26
 workspace_root: D:\market-pulse\quant-model-lab
 
-## Scope
+## Latest Candidate
 
-- Quant work root is `D:\market-pulse\quant-model-lab`.
-- Plans, reports, logs, CSV outputs, and status files stay under this folder's `.Codex/`.
+```text
+V3-FIN-NB-BOTH-MA20-RISK-NEXTBODY1
+```
 
-## Latest Result (V3-FIN)
+Extended-period metrics:
 
-Rule family: W4 filtered + range cap + entry confirmation 강화 + KOSPI regime + trail 20/20 + hold 30d
+- pre 2012-2022: avg monthly 13.53%, total 1145.02%, worst -12.30%, 26 trades, win 50.0%.
+- train to 2025-06: avg monthly 33.34%, total 545.52%, worst -6.30%, 7 trades, win 85.7%.
+- train to 2025-07: avg monthly 33.34%, total 545.52%, worst -6.30%, 7 trades, win 85.7%.
+- post from 2025-07: avg monthly -2.90%, total -5.83%, worst -6.30%, 2 trades, win 50.0%.
+- post from 2025-08: avg monthly -2.90%, total -5.83%, worst -6.30%, 2 trades, win 50.0%.
 
-| period | avg monthly | total | worst | N | win rate |
-|--------|-------------|-------|-------|---|----------|
-| pre (2015-2022-04) | +4.24% | +76.85% | -25.30% | 32 | 34.4% |
-| train (2022-05~2025-07) | +12.79% | +182.84% | -8.30% | 11 | 36.4% |
-| post (2025-08~2026-05) | +41.79% | +72.05% | -12.06% | 2 | 50.0% |
+## Rule
 
-Verdict: 3구간 모두 양수 달성. train 목표 15% 미달(12.79%). EARLY_FAIL 5/11건 개선 여지.
+- W4 filtered winner pattern.
+- KOSPI and KOSDAQ both above MA20.
+- Exact 5-trading-day entry delay.
+- Entry confirmation: drawdown >= -5%, candle_loc >= 0.65, upper_shadow <= 0.08, body_ret >= 0%, MA20 distance >= 5%.
+- Execution confirmation: next trading day's body_ret >= 1%.
+- Exit: -6% early fail / -12% stop / 20-20 trail / 30 trading-day max hold.
 
-## V3-FIN Rule
+## Code Status
 
-- Candidate filter: `range20 >= 0.25 AND <= 0.55`, `ret60 >= 0.20`, `ma60_dist > 0.05`, `close > ma20 AND ma60`, `vol_exp <= 3.0`, `ma20_slope5 > 0`, `ma60_slope5 > 0`, `candle_loc >= 0.45`, `upper_shadow <= 0.08`, `trade_amount >= 500M`
-- Score: `range20 + ret60 + ma60_dist`
-- Cadence: every 5 trading days, non-overlap
-- Entry delay: 5 trading days after signal
-- Entry confirmation: `drawdown >= -5%`, `candle_loc >= 0.65`, `upper_shadow <= 0.05`, `body_ret >= 0%`, top10 fallback
-- KOSPI regime: `KOSPI close > KOSPI MA60`
-- Exit: stop -25%, early_fail -8%/3d, trail after +20% open profit with 20% trail, max hold 30d, monthly loss stop -15%
-
-## Key Finding (2026-05-26)
-
-- 이전 38.51% train avg는 소샘플(13건) + overfit 확인. 확장 기간 재테스트에서 재현 불가.
-- quant_candle_feature_snapshot 비어있음. 모든 피처는 market_daily_price window function으로 계산.
-- KOSPI regime + 빠른 trail(20/20) + hold 30d 조합이 3구간 모두 양수로 전환시킨 핵심 변경.
+- Backend candidate strategy added: `CANDLE_MTF_TREND_V3_FIN_NB`.
+- Mapper query added: `findEventDrivenCandleMtfTrendNbPicks`.
+- Strategy registry updated.
+- Tests/compile passed.
+- Backend code still reflects prior coded candidate, not newest risk/nextbody1 research variant.
 
 ## Next Work
 
-- EARLY_FAIL 감소: train 5/11건(45%) → 추가 진입 필터 탐색
-- train avg 12.79% → 15% 달성 시도
-- post 샘플 확장 확인 (현재 2건)
-- 안정성 충분히 확인 후 mapper/service 코드 변환
-
-## Artifacts
-
-- Report: `.Codex/reports/2026-05-26_w4-final-sensitivity.md`
-- Sensitivity: `.Codex/reports/2026-05-26_w4-extended-sensitivity.md`
-- Log: `.Codex/.logs/2026-05-26-log.md`
-- Scripts: `backtest_w4_sensitivity.py`, `backtest_w4_v2.py`, `backtest_final.py`, `analyze_v3.py`
+- Next target: push train average monthly toward 50% while keeping worst <= -12.30% and win >= 70%.
+- Main lever is exit logic, not entry logic. Entry is already selective and high win.
+- Test hold extension: max hold 30 -> 45/60 days with conditional extension only if trend remains alive.
+- Test early_fail grace: if price dips -6% but MA20/volume/market regime remain healthy, delay cut or allow recovery/re-entry.
+- Test trail variants: 20/20 baseline vs 30/20, 40/25, and MA5/MA10 breakdown trail.
+- Inspect post loser `2025-09-17 코세스`: early_fail cut lost -6.30%, then +93.23% after 20 trading days and +155.16% after 60 trading days.
+- If robust, update backend mapper params to stop -12%, early_fail -6%, entry MA20 distance >= 5%, next body_ret >= 1%, plus final exit rule.
+- Optimize backend mapper SQL before full DB/API smoke; previous full-range API smoke timed out.

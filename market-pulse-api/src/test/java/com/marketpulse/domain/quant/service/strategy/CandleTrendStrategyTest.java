@@ -69,6 +69,19 @@ class CandleTrendStrategyTest {
     }
 
     @Test
+    void mtfTrendNbStrategyUsesV3FinNbPicks() {
+        RecordingPriceMapper mapper = new RecordingPriceMapper();
+        CandleMtfTrendNbStrategy strategy = new CandleMtfTrendNbStrategy(mapper.proxy());
+
+        BacktestExecution execution = strategy.run(strategyVo("Candle MTF Trend V3 FIN NB"), FROM, TO, 100_000_000L);
+
+        assertThat(strategy.getNameEn()).isEqualTo("CANDLE_MTF_TREND_V3_FIN_NB");
+        assertThat(execution.response().strategyName()).isEqualTo("Candle MTF Trend V3 FIN NB");
+        assertThat(mapper.calls).containsExactly("findEventDrivenCandleMtfTrendNbPicks");
+        assertThat(mapper.lastArgs).containsExactly(FROM, TO, 10, 30);
+    }
+
+    @Test
     void mtfTrendStrategyFiltersOverlappingEventPicks() {
         RecordingPriceMapper mapper = new RecordingPriceMapper();
         mapper.picks.add(pick("AAA", LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 12), "Alpha"));
@@ -114,6 +127,17 @@ class CandleTrendStrategyTest {
     }
 
     @Test
+    void priceMapperExposesEventDrivenMtfTrendNbPicks() throws NoSuchMethodException {
+        assertThat(MarketDailyPriceMapper.class.getMethod(
+                "findEventDrivenCandleMtfTrendNbPicks",
+                LocalDate.class,
+                LocalDate.class,
+                int.class,
+                int.class
+        )).isNotNull();
+    }
+
+    @Test
     void mtfTrendMapperUsesV4CheckpointExits() throws Exception {
         String mapperXml = Files.readString(Path.of("src/main/resources/mapper/quant/MarketDailyPriceMapper.xml"));
 
@@ -122,6 +146,23 @@ class CandleTrendStrategyTest {
                 .contains("checkpoint_rollover_exit")
                 .contains(">= COALESCE(buy.open_price, buy.close_price) * 1.20")
                 .contains("COALESCE(confirm_exit.trade_date, checkpoint_profit_exit.trade_date, checkpoint_rollover_exit.trade_date, profit_exit.exit_date, s.max_exit_date)");
+    }
+
+    @Test
+    void mtfTrendNbMapperUsesV3FinNbRules() throws Exception {
+        String mapperXml = Files.readString(Path.of("src/main/resources/mapper/quant/MarketDailyPriceMapper.xml"));
+
+        assertThat(mapperXml)
+                .contains("findEventDrivenCandleMtfTrendNbPicks")
+                .contains("entry_check.candle_location >= 0.65")
+                .contains("entry_check.upper_shadow <= 0.08")
+                .contains("execution_check.body_ret >= 0")
+                .contains("ir.kospi_ma20")
+                .contains("ir.kosdaq_ma20")
+                .contains("early_fail_exit")
+                .contains("stop_loss_exit")
+                .contains("trail_exit")
+                .contains("max_hold_exit");
     }
 
     private QuantStrategyVo strategyVo(String name) {
