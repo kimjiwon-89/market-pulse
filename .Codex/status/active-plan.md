@@ -2,7 +2,7 @@ status: LIVE_QUANT_SIMULATION_PLANNED_NEEDS_USER_REVIEW
 updated: 2026-05-27
 spec: .Codex/plans/2026-05-27_live-quant-simulation-spec.md
 html: .Codex/plans/2026-05-27_live-quant-simulation.html
-summary: Replace the current quant backtesting-first page with a live simulated trading console for index, bull-v4, sideways, and bear models. Reports are deterministic post-close reports generated without AI/LLM. Closed trades are tracked after exit at fixed horizons to produce auditable model learning feedback.
+summary: Replace the current quant backtesting-first page with a live simulated trading console for index, bull-v4, sideways, and bear models. Reports are deterministic post-close reports generated without AI/LLM. Closed trades and watched-but-not-traded assets are tracked at fixed horizons to produce auditable model learning feedback and report checkpoint analyses.
 
 ## Previous Active Notes
 

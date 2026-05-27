@@ -98,6 +98,7 @@ Report detail shows:
 - exits
 - current positions
 - expected exit plans
+- post-decision checkpoint analyses
 - risk flags
 - next-session observation points
 
@@ -116,16 +117,25 @@ model candidate generation
 -> position
 -> exit plan
 -> simulated exit
--> post-exit outcome tracking
+-> post-decision outcome tracking
 -> model learning feedback
 -> daily/weekly report
 ```
 
-## Post-Exit Outcome Tracking And Learning
+## Post-Decision Outcome Tracking And Learning
 
-Models must not stop caring about a stock after exit.
+Models must not stop caring about a stock after exit or after choosing not to enter.
 
-After each simulated exit, the system tracks the exited asset's forward path at fixed horizons:
+The system tracks both traded assets and watched-but-not-traded assets.
+
+Tracked asset sources:
+
+- `TRADE_EXIT`: a stock that the model bought and later sold.
+- `ENTRY_REJECTED`: a raw or filtered candidate that did not become an actual entry.
+- `WATCHLIST_ONLY`: a stock the model explicitly marked as interesting even without an entry signal.
+- `REENTRY_WATCH`: a previously exited stock that may deserve another entry later.
+
+After each model decision or simulated exit, the system tracks the asset's forward path at fixed horizons:
 
 - 1 trading day after exit
 - 7 calendar days or the nearest later trading day
@@ -135,6 +145,10 @@ After each simulated exit, the system tracks the exited asset's forward path at 
 
 For each horizon, store:
 
+- tracking source
+- original decision type
+- original model reason
+- decision price
 - exit price
 - horizon close price
 - max high after exit until horizon
@@ -143,14 +157,16 @@ For each horizon, store:
 - max missed upside after exit
 - max avoided downside after exit
 - whether the exit was early, late, effective, or neutral
+- whether the skipped entry was correct, missed opportunity, or neutral
 - whether a re-entry signal would have been useful
+- deterministic checkpoint analysis text
 
 This creates a deterministic learning loop:
 
 ```text
-exit event
+model decision or exit event
 -> forward outcome snapshots
--> exit quality score
+-> decision quality score
 -> entry/exit rule feedback
 -> model improvement candidate
 -> explicit rule/version update
@@ -171,9 +187,12 @@ Example learning questions:
 
 - Did Bull v4 exit too early before a 7-day or 1-month continuation?
 - Did the stop rule correctly avoid a 1-day or 2-week drawdown?
+- Did Bull v4 reject a raw candidate that later rose strongly?
+- Did a watched stock fail exactly as expected, proving the filter was useful?
 - Did a sideways model exit capture mean reversion but miss a later breakout?
 - Did a bear model avoid losses but miss too many strong reversals?
 - Which exit condition has the worst missed-upside profile?
+- Which rejection reason has the highest missed-opportunity rate?
 
 ### Real-Time Fill Policy
 
@@ -239,6 +258,8 @@ Each model writes structured facts after each run/day:
 - monthly return
 - warnings
 - next-session watch list
+- post-decision checkpoint updates
+- learning feedback candidates
 
 ### Rule-Based Report Writer
 
@@ -250,6 +271,7 @@ Rules:
 - report text cannot invent numbers, tickers, or reasons
 - all numbers come from stored logs/facts
 - missing data is written as missing data, not inferred
+- each newly completed 1-day, 7-day, 2-week, 1-month, or 6-month checkpoint is summarized in the next daily/weekly report
 - daily reports run after market close
 - weekly reports run after the last market session of the week
 
@@ -276,6 +298,7 @@ Suggested core services:
 - `LivePositionService`
 - `LiveTradeLogService`
 - `PostExitOutcomeTracker`
+- `WatchedAssetOutcomeTracker`
 - `ModelLearningFeedbackService`
 - `MarketRegimeService`
 - `RuleBasedReportWriter`
@@ -286,7 +309,7 @@ Suggested scheduled jobs:
 - market-open model initialization
 - 1-minute monitoring loop during market hours
 - market-close position/account valuation
-- post-exit outcome snapshot update
+- post-decision outcome snapshot update
 - model learning feedback generation
 - daily report generation
 - weekly report generation
@@ -303,6 +326,8 @@ Likely new tables:
 - `quant_live_position`
 - `quant_live_exit_plan`
 - `quant_live_post_exit_outcome`
+- `quant_live_watched_asset`
+- `quant_live_outcome_checkpoint`
 - `quant_live_learning_feedback`
 - `quant_live_model_version`
 - `quant_live_model_fact`
@@ -325,6 +350,8 @@ GET /api/quant/live/models/{modelCode}/trades?from=YYYYMMDD&to=YYYYMMDD
 GET /api/quant/live/models/{modelCode}/exit-plans
 GET /api/quant/live/models/{modelCode}/learning-feedback
 GET /api/quant/live/trades/{tradeId}/post-exit-outcomes
+GET /api/quant/live/models/{modelCode}/watched-assets?date=YYYYMMDD
+GET /api/quant/live/watched-assets/{watchId}/outcome-checkpoints
 GET /api/quant/live/reports?period=DAILY|WEEKLY&modelCode=&from=&to=
 GET /api/quant/live/reports/{reportId}
 ```
@@ -371,13 +398,15 @@ Suggested archive:
 - AC-9: Reports are viewable in the homepage report tab with list and detail views.
 - AC-10: Reports are deterministic from stored facts/logs and do not invent values.
 - AC-11: After exit, each closed trade is tracked at 1 trading day, 7 days, 2 weeks, 1 month, and 6 months where data is available.
-- AC-12: Post-exit tracking records missed upside, avoided downside, forward return, and exit quality classification.
-- AC-13: Models generate deterministic learning feedback from post-exit outcomes without AI/LLM.
-- AC-14: Production model rule/version changes require an explicit recorded update and are not silently self-modified.
-- AC-15: Old quant models are removed from active code paths.
-- AC-16: Old model history is preserved in a single HTML archive.
-- AC-17: Existing non-quant site pages remain unaffected.
-- AC-18: Backend compile, frontend build, and focused quant tests pass.
+- AC-12: Watched-but-not-traded assets are also tracked at the same horizons when a model marks them as raw, rejected, watchlist, or re-entry watch.
+- AC-13: Outcome tracking records missed upside, avoided downside, forward return, decision quality, and exit/rejection quality classification.
+- AC-14: Newly completed outcome checkpoints appear in daily/weekly reports with deterministic analysis text.
+- AC-15: Models generate deterministic learning feedback from outcome checkpoints without AI/LLM.
+- AC-16: Production model rule/version changes require an explicit recorded update and are not silently self-modified.
+- AC-17: Old quant models are removed from active code paths.
+- AC-18: Old model history is preserved in a single HTML archive.
+- AC-19: Existing non-quant site pages remain unaffected.
+- AC-20: Backend compile, frontend build, and focused quant tests pass.
 
 ## Open Implementation Notes
 
