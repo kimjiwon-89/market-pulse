@@ -24,13 +24,6 @@ const NAV_ITEMS = [
     end: false,
   },
   {
-    id: "investor",
-    to: "/investor",
-    label: "투자자 동향",
-    icon: "M3 3v18h18M7 14l4-4 4 3 5-7",
-    end: false,
-  },
-  {
     id: "memo",
     to: "/memo",
     label: "메모",
@@ -54,8 +47,15 @@ const NAV_ITEMS = [
   {
     id: "quant",
     to: "/quant",
-    label: "MP_CORE",
+    label: "Models",
     icon: "M3 3v18h18M7 16l4-8 4 4 4-6",
+    end: false,
+  },
+  {
+    id: "reports",
+    to: "/reports",
+    label: "Report",
+    icon: "M6 3h9l3 3v15H6V3zM14 3v4h4M9 12h6M9 16h6",
     end: false,
   },
 ];

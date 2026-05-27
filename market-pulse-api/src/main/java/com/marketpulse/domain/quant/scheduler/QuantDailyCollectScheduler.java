@@ -25,4 +25,20 @@ public class QuantDailyCollectScheduler {
         log.info("Quant daily collect start: {}", date);
         collectService.collect(date, date, "ALL");
     }
+
+    @Scheduled(cron = "0 10 16 * * MON-FRI")
+    public void dailyEtfCollect() {
+        LocalDate target = LocalDate.now().minusDays(1);
+        String date = target.format(BASIC);
+        log.info("Quant ETF daily collect start: {}", date);
+        collectService.collect(date, date, "ETF");
+    }
+
+    @Scheduled(cron = "0 15 16 * * MON-FRI")
+    public void dailyEtnCollect() {
+        LocalDate target = LocalDate.now().minusDays(1);
+        String date = target.format(BASIC);
+        log.info("Quant ETN daily collect start: {}", date);
+        collectService.collect(date, date, "ETN");
+    }
 }

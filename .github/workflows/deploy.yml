@@ -42,6 +42,16 @@ jobs:
             ${{ secrets.DOCKER_USERNAME }}/market-pulse-web:latest
             ${{ secrets.DOCKER_USERNAME }}/market-pulse-web:${{ steps.date.outputs.tag }}
 
+      - name: docker-compose.yml 동기화
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "docker-compose.yml"
+          target: "/app"
+          overwrite: true
+
       - name: EC2 배포
         uses: appleboy/ssh-action@v1
         with:

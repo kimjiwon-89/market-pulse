@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { apiClient } from "@/services/apiClient";
 import type {
   StockChartItem,
@@ -24,7 +24,6 @@ function chartPeriodToDailyPeriod(period: ChartPeriod): "1M" | "3M" | "1Y" {
 
 export function StockDetail() {
   const { code } = useParams<{ code: string }>();
-  const navigate = useNavigate();
 
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState<StockTerminalTab>("chart");
@@ -121,7 +120,6 @@ export function StockDetail() {
     return (
       <div className="stack" style={{ padding: "var(--pad-pg)", alignItems: "center", paddingTop: 80 }}>
         <p style={{ color: "var(--text-3)" }}>{error ?? "종목을 찾을 수 없습니다."}</p>
-        <button className="btn" onClick={() => navigate(-1)}>뒤로</button>
       </div>
     );
   }
@@ -131,9 +129,6 @@ export function StockDetail() {
   return (
     <div className="stack" style={{ padding: "var(--pad-pg)" }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 4 }}>
-        <button className="btn ghost" style={{ fontSize: 13 }} onClick={() => navigate(-1)}>
-          뒤로
-        </button>
         <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>{detail.name}</h1>
         <span style={{ fontSize: 13, color: "var(--text-3)", fontFamily: "var(--font-mono)" }}>
           {detail.code}

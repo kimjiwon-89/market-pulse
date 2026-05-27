@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Legacy Quant Model Archive</title>
+  <style>
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #18181b; background: #f7f7f6; }
+    main { max-width: 960px; margin: 0 auto; padding: 40px 20px 64px; }
+    h1 { margin: 0 0 8px; font-size: 30px; }
+    h2 { margin: 30px 0 12px; font-size: 20px; }
+    p, li, td, th { font-size: 14px; line-height: 1.65; }
+    .panel { background: #fff; border: 1px solid #e7e5e4; border-radius: 8px; padding: 20px; margin: 16px 0; }
+    table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e7e5e4; border-radius: 8px; overflow: hidden; }
+    th, td { padding: 12px; border-bottom: 1px solid #e7e5e4; text-align: left; vertical-align: top; }
+    th { background: #f1f1ef; }
+    tr:last-child td { border-bottom: 0; }
+    code { background: #f1f1ef; padding: 2px 5px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Legacy Quant Model Archive</h1>
+  <p>작성일: 2026-05-27 · 목적: 기존 백테스트 중심 quant 모델 작업 이력을 보존하고, 새 실시간 모의매매 콘솔로 전환한 이유를 기록한다.</p>
+
+  <section class="panel">
+    <h2>전환 사유</h2>
+    <p>기존 `/quant` 화면은 MP_CORE 및 여러 백테스트 전략 비교에 초점이 있었다. 새 방향은 실제 홈페이지에서 모델별 시드머니, 실시간 모의 체결, 보유 종목, 청산 계획, 관심종목 추적, 장 종료 리포트를 운영하는 것이다.</p>
+    <p>따라서 기존 모델은 사용자-facing active path에서 제거하고, 새 `quant/live` 계약을 중심으로 교체한다.</p>
+  </section>
+
+  <section>
+    <h2>기존 모델 계열</h2>
+    <table>
+      <thead>
+        <tr><th>모델/전략</th><th>기존 목적</th><th>새 구조에서의 처리</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>MP_CORE_SIGNAL</code></td><td>팩터 기반 후보/포트폴리오 백테스트</td><td>운영 콘솔의 active model path에서 제외. 과거 비교 기준으로만 보존.</td></tr>
+        <tr><td><code>CANDLE_BREAKOUT_V1</code></td><td>일봉 기반 돌파형 전략</td><td>레거시 백테스트 기록으로 보존.</td></tr>
+        <tr><td><code>CANDLE_PULLBACK_V1</code></td><td>눌림목 반등 전략</td><td>레거시 백테스트 기록으로 보존.</td></tr>
+        <tr><td><code>CANDLE_MOMENTUM_H20_V1</code></td><td>20거래일 보유 모멘텀 후보</td><td>레거시 백테스트 기록으로 보존.</td></tr>
+        <tr><td><code>CANDLE_MTF_TREND_V2</code></td><td>다중 시간대 이벤트 기반 추세 후보</td><td>Bull v4 실시간 모델 설계의 참고 자료로만 남김.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="panel">
+    <h2>새 Active Model Path</h2>
+    <ul>
+      <li><code>INDEX_REGIME</code>: 시장/지수 상태 감지</li>
+      <li><code>BULL_V4</code>: bull-v4 신호 + 실시간 execution gate</li>
+      <li><code>SIDEWAYS_MODEL</code>: 횡보장 전용 모델</li>
+      <li><code>BEAR_MODEL</code>: 하락장 방어 모델</li>
+      <li><code>MASTER_MODEL</code>: 내부 총괄 모델, 화면 비노출</li>
+    </ul>
+  </section>
+</main>
+</body>
+</html>

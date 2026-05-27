@@ -106,6 +106,13 @@ public interface MarketDailyPriceMapper {
             @Param("topN") int topN
     );
 
+    List<MonthlyPickVo> findDailyMomentumReplayPicks(
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate,
+            @Param("lookbackDays") int lookbackDays,
+            @Param("topN") int topN
+    );
+
     List<MonthlyPickVo> findEventDrivenCandleMtfTrendPicks(
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate,

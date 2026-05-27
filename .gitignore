@@ -14,10 +14,14 @@ build
 target
 logs
 tmp/
+*.log
+*.err.log
 
 # Env
 .env
 .env.local
+_kis_token_cache.json
+scheduled_tasks.lock
 
 # AWS 키 / 서버 접속 정보 (절대 커밋 금지)
 secrets/
