@@ -113,6 +113,11 @@ public interface MarketDailyPriceMapper {
             @Param("topN") int topN
     );
 
+    List<MonthlyPickVo> findBullV4PaperReplayPicks(
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate
+    );
+
     List<MonthlyPickVo> findEventDrivenCandleMtfTrendPicks(
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate,

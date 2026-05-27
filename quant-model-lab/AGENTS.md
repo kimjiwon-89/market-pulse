@@ -2,6 +2,19 @@
 
 This folder is the working root for all quant, MP_CORE, candle-strategy, and backtest work.
 
+## Hard Deployment Ban
+
+This folder is not a production deploy root.
+
+- Do not deploy from `quant-model-lab`.
+- Do not deploy to `main`.
+- Do not push Docker images, run EC2 `/app/deploy.sh`, run remote `docker compose up`, copy files into EC2 `/app`, or trigger production GitHub Actions from this folder.
+- RDS writes are allowed for explicitly requested data ingestion, backfill, model-cache generation, and quant validation jobs. Keep them scoped to the requested dataset/date range/config, and report what was written.
+- Do not treat RDS data writes as deployment approval. RDS work from this folder must not change EC2 `/app`, Docker images, production compose files, production containers, or GitHub deploy workflows.
+- Do not convert quant model versioning requests into app/API/web version changes.
+- Quant model versions such as `Bull 5.0.0` belong to model metadata/configs/backtest artifacts, not application release versions.
+- If production verification is needed, prefer read-only checks. Any write to EC2, Docker Hub, `/app`, production compose files, or production containers must stop and ask first.
+
 ## Scope Rule
 
 - Treat `D:\market-pulse\quant-model-lab` as the root for quant work.

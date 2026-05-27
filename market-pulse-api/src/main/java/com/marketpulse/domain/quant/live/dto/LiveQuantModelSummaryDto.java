@@ -4,6 +4,8 @@ import java.math.BigDecimal;
 
 public record LiveQuantModelSummaryDto(
         String modelCode,
+        String modelVersion,
+        String configKey,
         String modelName,
         String status,
         BigDecimal seedMoney,

@@ -13,7 +13,13 @@ import psycopg2
 
 warnings.filterwarnings("ignore")
 
-DB = dict(host="localhost", port=5432, dbname="marketpulse", user="postgres", password="postgreskh")
+DB = dict(
+    host=os.getenv("MP_DB_HOST", "localhost"),
+    port=int(os.getenv("MP_DB_PORT", "5432")),
+    dbname=os.getenv("MP_DB_NAME", "marketpulse"),
+    user=os.getenv("MP_DB_USER", "postgres"),
+    password=os.getenv("MP_DB_PASSWORD", "postgreskh"),
+)
 PRE_START = os.getenv("W4_PRE_START", "2015-01-01")
 PRE_END = os.getenv("W4_PRE_END", "2022-04-30")
 TRAIN_START = os.getenv("W4_TRAIN_START", "2022-05-01")

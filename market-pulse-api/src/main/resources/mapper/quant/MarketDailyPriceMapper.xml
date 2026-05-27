@@ -1049,7 +1049,7 @@
     </select>
 
     <select id="findDailyMomentumReplayPicks" resultType="MonthlyPickVo">
-        WITH trading_days AS (
+        WITH trading_days AS MATERIALIZED (
             SELECT trade_date,
                    ROW_NUMBER() OVER (ORDER BY trade_date) AS day_seq
             FROM (
@@ -1122,6 +1122,356 @@
         FROM candidates
         WHERE pick_rank &lt;= #{topN}
         ORDER BY rebalance_date, pick_rank
+    </select>
+
+    <select id="findBullV4PaperReplayPicks" resultType="MonthlyPickVo">
+        <![CDATA[
+        WITH trading_days AS (
+            SELECT trade_date,
+                   ROW_NUMBER() OVER (ORDER BY trade_date) AS day_seq
+            FROM (
+                SELECT DISTINCT trade_date
+                FROM market_daily_price
+                WHERE asset_type = 'STOCK'
+                  AND trade_date BETWEEN CAST(#{fromDate} AS date) - INTERVAL '180 days' AND #{toDate}
+            ) d
+        ), stock_base AS MATERIALIZED (
+            SELECT p.trade_date,
+                   p.asset_code,
+                   p.asset_name,
+                   p.asset_type,
+                   p.sector,
+                   p.open_price::numeric AS open_price,
+                   p.high_price::numeric AS high_price,
+                   p.low_price::numeric AS low_price,
+                   p.close_price::numeric AS close_price,
+                   p.volume::numeric AS volume,
+                   p.market_cap::numeric AS market_cap,
+                   (p.close_price::numeric * p.volume::numeric) AS trade_amount,
+                   AVG(p.close_price::numeric) OVER w5 AS ma5,
+                   AVG(p.close_price::numeric) OVER w20 AS ma20,
+                   AVG(p.close_price::numeric) OVER w60 AS ma60,
+                   AVG(p.volume::numeric) OVER w20 AS avg_vol20,
+                   LAG(p.close_price::numeric, 20) OVER asset_window AS close_20d,
+                   LAG(p.close_price::numeric, 60) OVER asset_window AS close_60d,
+                   MAX(p.high_price::numeric) OVER w20 AS max_high20,
+                   MIN(p.low_price::numeric) OVER w20 AS min_low20
+            FROM market_daily_price p
+            WHERE p.asset_type = 'STOCK'
+              AND p.trade_date BETWEEN CAST(#{fromDate} AS date) - INTERVAL '180 days' AND #{toDate}
+              AND p.open_price > 0
+              AND p.high_price > 0
+              AND p.low_price > 0
+              AND p.close_price > 0
+              AND p.volume > 0
+            WINDOW asset_window AS (PARTITION BY p.asset_code ORDER BY p.trade_date),
+                   w5 AS (PARTITION BY p.asset_code ORDER BY p.trade_date ROWS BETWEEN 4 PRECEDING AND CURRENT ROW),
+                   w20 AS (PARTITION BY p.asset_code ORDER BY p.trade_date ROWS BETWEEN 19 PRECEDING AND CURRENT ROW),
+                   w60 AS (PARTITION BY p.asset_code ORDER BY p.trade_date ROWS BETWEEN 59 PRECEDING AND CURRENT ROW)
+        ), stock_features AS MATERIALIZED (
+            SELECT b.*,
+                   (b.close_price - b.close_20d) / NULLIF(b.close_20d, 0) AS ret20,
+                   (b.close_price - b.close_60d) / NULLIF(b.close_60d, 0) AS ret60,
+                   (b.max_high20 - b.min_low20) / NULLIF(b.close_price, 0) AS range20,
+                   (b.close_price - b.ma60) / NULLIF(b.ma60, 0) AS ma60_dist,
+                   (b.close_price - b.ma20) / NULLIF(b.ma20, 0) AS ma20_dist,
+                   b.volume / NULLIF(b.avg_vol20, 0) AS vol_exp,
+                   (b.close_price - b.low_price) / NULLIF(b.high_price - b.low_price, 0) AS candle_location,
+                   (b.high_price - GREATEST(b.open_price, b.close_price)) / NULLIF(b.high_price - b.low_price, 0) AS upper_shadow,
+                   (b.close_price - b.open_price) / NULLIF(b.open_price, 0) AS body_ret,
+                   (b.ma20 - LAG(b.ma20, 5) OVER (PARTITION BY b.asset_code ORDER BY b.trade_date))
+                       / NULLIF(LAG(b.ma20, 5) OVER (PARTITION BY b.asset_code ORDER BY b.trade_date), 0) AS ma20_slope5,
+                   (b.ma60 - LAG(b.ma60, 5) OVER (PARTITION BY b.asset_code ORDER BY b.trade_date))
+                       / NULLIF(LAG(b.ma60, 5) OVER (PARTITION BY b.asset_code ORDER BY b.trade_date), 0) AS ma60_slope5
+            FROM stock_base b
+        ), index_features AS MATERIALIZED (
+            SELECT k.trade_date,
+                   k.asset_code,
+                   k.close_price::numeric AS close_price,
+                   AVG(k.close_price::numeric) OVER (
+                       PARTITION BY k.asset_code
+                       ORDER BY k.trade_date
+                       ROWS BETWEEN 19 PRECEDING AND CURRENT ROW
+                   ) AS ma20
+            FROM market_daily_price k
+            WHERE k.asset_type = 'INDEX'
+              AND k.asset_code IN ('KOSPI', 'KOSDAQ')
+              AND k.trade_date BETWEEN CAST(#{fromDate} AS date) - INTERVAL '120 days' AND #{toDate}
+              AND k.close_price > 0
+        ), index_regime AS MATERIALIZED (
+            SELECT trade_date,
+                   BOOL_OR(asset_code = 'KOSPI' AND close_price > ma20) AS kospi_ma20,
+                   BOOL_OR(asset_code = 'KOSDAQ' AND close_price > ma20) AS kosdaq_ma20
+            FROM index_features
+            GROUP BY trade_date
+        ), raw_candidates AS MATERIALIZED (
+            SELECT sf.*,
+                   td.day_seq,
+                   COALESCE(sf.range20, 0) + COALESCE(sf.ret60, 0) + COALESCE(sf.ma60_dist, 0) AS score
+            FROM stock_features sf
+            JOIN trading_days td
+              ON td.trade_date = sf.trade_date
+            JOIN index_regime ir
+              ON ir.trade_date = sf.trade_date
+            WHERE sf.trade_date >= #{fromDate}
+              AND sf.trade_date < #{toDate}
+              AND ir.kospi_ma20
+              AND ir.kosdaq_ma20
+              AND COALESCE(sf.range20, 0) BETWEEN 0.25 AND 0.40
+              AND COALESCE(sf.ret60, 0) >= 0.20
+              AND COALESCE(sf.ma60_dist, 0) > 0.05
+              AND sf.close_price > sf.ma20
+              AND sf.close_price > sf.ma60
+              AND COALESCE(sf.vol_exp, 99) <= 3.0
+              AND COALESCE(sf.ma20_slope5, 0) > 0
+              AND COALESCE(sf.ma60_slope5, 0) > 0
+              AND COALESCE(sf.candle_location, 0) >= 0.45
+              AND COALESCE(sf.upper_shadow, 1) <= 0.08
+              AND COALESCE(sf.trade_amount, 0) >= 500000000
+        ), candidate_days AS MATERIALIZED (
+            SELECT DISTINCT trade_date,
+                   day_seq
+            FROM raw_candidates
+        ), signal_days AS MATERIALIZED (
+            WITH RECURSIVE cadence AS (
+                SELECT trade_date,
+                       day_seq
+                FROM candidate_days
+                WHERE day_seq = (SELECT MIN(day_seq) FROM candidate_days)
+
+                UNION ALL
+
+                SELECT next_day.trade_date,
+                       next_day.day_seq
+                FROM cadence c
+                JOIN LATERAL (
+                    SELECT cd.trade_date,
+                           cd.day_seq
+                    FROM candidate_days cd
+                    WHERE cd.day_seq >= c.day_seq + 5
+                    ORDER BY cd.day_seq
+                    LIMIT 1
+                ) next_day ON TRUE
+            )
+            SELECT trade_date AS signal_date,
+                   day_seq
+            FROM cadence
+        ), raw_ranked AS MATERIALIZED (
+            SELECT rc.*,
+                   ROW_NUMBER() OVER (
+                       PARTITION BY rc.trade_date
+                       ORDER BY rc.score DESC, rc.trade_amount DESC, rc.market_cap DESC NULLS LAST, rc.asset_code
+                   ) AS raw_rank
+            FROM raw_candidates rc
+            JOIN signal_days sd
+              ON sd.signal_date = rc.trade_date
+        ), entry_confirmed AS MATERIALIZED (
+            SELECT rr.*,
+                   entry_check.trade_date AS entry_check_date,
+                   execution_check.trade_date AS rebalance_date,
+                   execution_check.open_price AS buy_price,
+                   execution_check.body_ret AS next_body_ret,
+                   (entry_check.close_price * entry_check.volume) AS entry_trade_amount,
+                   ROW_NUMBER() OVER (
+                       PARTITION BY rr.trade_date
+                       ORDER BY rr.raw_rank
+                   ) AS pick_rank
+            FROM raw_ranked rr
+            JOIN LATERAL (
+                SELECT ef.*
+                FROM stock_features ef
+                WHERE ef.asset_code = rr.asset_code
+                  AND ef.trade_date > rr.trade_date
+                ORDER BY ef.trade_date
+                OFFSET 4
+                LIMIT 1
+            ) entry_check ON TRUE
+            JOIN LATERAL (
+                SELECT ef.*
+                FROM stock_features ef
+                WHERE ef.asset_code = rr.asset_code
+                  AND ef.trade_date > entry_check.trade_date
+                ORDER BY ef.trade_date
+                LIMIT 1
+            ) execution_check ON TRUE
+            WHERE rr.raw_rank <= 50
+              AND (entry_check.close_price - rr.close_price) / NULLIF(rr.close_price, 0) >= -0.05
+              AND entry_check.candle_location >= 0.55
+              AND entry_check.upper_shadow <= 0.08
+              AND entry_check.body_ret >= 0
+              AND (entry_check.close_price - entry_check.ma20) / NULLIF(entry_check.ma20, 0) >= 0.02
+              AND execution_check.body_ret >= 0.005
+              AND execution_check.open_price > 0
+              AND (entry_check.close_price * entry_check.volume) >= 3333333334
+        ), picked AS MATERIALIZED (
+            SELECT *
+            FROM entry_confirmed
+            WHERE pick_rank <= 5
+        ), exit_paths AS (
+            SELECT p.*,
+                   path.trade_date AS path_date,
+                   path.open_price AS path_open_price,
+                   path.high_price AS path_high_price,
+                   path.low_price AS path_low_price,
+                   path.close_price AS path_close_price,
+                   path.ma20 AS path_ma20,
+                   path.rn,
+                   MAX(path.high_price) OVER (
+                       PARTITION BY p.asset_code, p.trade_date
+                       ORDER BY path.rn
+                       ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+                   ) AS peak_price
+            FROM picked p
+            JOIN LATERAL (
+                SELECT sf.trade_date,
+                       sf.open_price,
+                       sf.high_price,
+                       sf.low_price,
+                       sf.close_price,
+                       sf.ma20,
+                       ROW_NUMBER() OVER (ORDER BY sf.trade_date) - 1 AS rn
+                FROM stock_features sf
+                WHERE sf.asset_code = p.asset_code
+                  AND sf.trade_date >= p.rebalance_date
+                ORDER BY sf.trade_date
+                LIMIT 61
+            ) path ON TRUE
+        ), early_fail_exit AS (
+            SELECT DISTINCT ON (asset_code, trade_date)
+                   asset_code,
+                   trade_date,
+                   path_date AS exit_date,
+                   buy_price * (1 - 0.06 - 0.003) AS sell_price,
+                   1 AS exit_priority
+            FROM exit_paths
+            WHERE rn BETWEEN 1 AND 3
+              AND (path_close_price - buy_price) / NULLIF(buy_price, 0) <= -0.06
+            ORDER BY asset_code, trade_date, path_date
+        ), stop_loss_exit AS (
+            SELECT DISTINCT ON (asset_code, trade_date)
+                   asset_code,
+                   trade_date,
+                   path_date AS exit_date,
+                   buy_price * (1 - 0.12 - 0.003) AS sell_price,
+                   2 AS exit_priority
+            FROM exit_paths
+            WHERE rn >= 1
+              AND path_low_price <= buy_price * (1 - 0.12)
+            ORDER BY asset_code, trade_date, path_date
+        ), base_max_exit AS (
+            SELECT DISTINCT ON (asset_code, trade_date)
+                   asset_code,
+                   trade_date,
+                   path_date,
+                   path_close_price,
+                   path_ma20,
+                   buy_price
+            FROM exit_paths
+            WHERE rn >= 30
+            ORDER BY asset_code, trade_date, rn
+        ), non_extended_max_exit AS (
+            SELECT asset_code,
+                   trade_date,
+                   path_date AS exit_date,
+                   path_close_price * (1 - 0.003) AS sell_price,
+                   4 AS exit_priority
+            FROM base_max_exit
+            WHERE NOT (
+                (path_close_price - buy_price) / NULLIF(buy_price, 0) >= 0.25
+                AND path_close_price > path_ma20
+            )
+        ), trail_candidates AS (
+            SELECT ep.asset_code,
+                   ep.trade_date,
+                   ep.path_date AS exit_date,
+                   ep.path_close_price * (1 - 0.003) AS sell_price,
+                   3 AS exit_priority
+            FROM exit_paths ep
+            JOIN base_max_exit bm
+              ON bm.asset_code = ep.asset_code
+             AND bm.trade_date = ep.trade_date
+            WHERE ep.rn >= 1
+              AND (
+                  ep.rn < 30
+                  OR (
+                      (bm.path_close_price - bm.buy_price) / NULLIF(bm.buy_price, 0) >= 0.25
+                      AND bm.path_close_price > bm.path_ma20
+                  )
+              )
+              AND ep.peak_price >= ep.buy_price * 1.20
+              AND ep.path_close_price <= ep.peak_price * 0.80
+        ), trail_exit AS (
+            SELECT DISTINCT ON (asset_code, trade_date)
+                   asset_code,
+                   trade_date,
+                   exit_date,
+                   sell_price,
+                   exit_priority
+            FROM trail_candidates
+            ORDER BY asset_code, trade_date, exit_date
+        ), final_max_exit AS (
+            SELECT DISTINCT ON (asset_code, trade_date)
+                   asset_code,
+                   trade_date,
+                   path_date AS exit_date,
+                   path_close_price * (1 - 0.003) AS sell_price,
+                   5 AS exit_priority
+            FROM exit_paths
+            WHERE rn >= 1
+            ORDER BY asset_code, trade_date, rn DESC
+        ), exit_events AS (
+            SELECT * FROM early_fail_exit
+            UNION ALL
+            SELECT * FROM stop_loss_exit
+            UNION ALL
+            SELECT * FROM trail_exit
+            UNION ALL
+            SELECT * FROM non_extended_max_exit
+            UNION ALL
+            SELECT * FROM final_max_exit
+        ), selected_exit AS (
+            SELECT DISTINCT ON (asset_code, trade_date)
+                   asset_code,
+                   trade_date,
+                   exit_date,
+                   sell_price
+            FROM exit_events
+            ORDER BY asset_code, trade_date, exit_date, exit_priority
+        ), candidates AS (
+            SELECT p.rebalance_date,
+                   se.exit_date,
+                   p.asset_code,
+                   p.asset_name,
+                   p.asset_type,
+                   p.sector,
+                   p.buy_price,
+                   se.sell_price,
+                   p.score,
+                   p.market_cap,
+                   p.pick_rank
+            FROM picked p
+            JOIN selected_exit se
+              ON se.asset_code = p.asset_code
+             AND se.trade_date = p.trade_date
+            WHERE p.buy_price > 0
+              AND se.sell_price > 0
+              AND se.sell_price / NULLIF(p.buy_price, 0) - 1 BETWEEN -0.95 AND 5.0
+              AND se.exit_date <= #{toDate}
+        )
+        SELECT rebalance_date AS rebalanceDate,
+               exit_date AS exitDate,
+               asset_code AS assetCode,
+               asset_name AS assetName,
+               asset_type AS assetType,
+               sector,
+               buy_price AS buyPrice,
+               sell_price AS sellPrice,
+               score,
+               market_cap AS marketCap,
+               pick_rank AS pickRank
+        FROM candidates
+        ORDER BY rebalance_date, pick_rank
+        ]]>
     </select>
 
     <select id="findEventDrivenCandleMtfTrendPicks" resultType="MonthlyPickVo">
