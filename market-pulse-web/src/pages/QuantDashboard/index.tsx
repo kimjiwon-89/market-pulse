@@ -10,6 +10,8 @@ interface ApiResponse<T> {
 
 interface LiveQuantModelSummary {
   modelCode: string;
+  modelVersion?: string | null;
+  configKey?: string | null;
   modelName: string;
   status: string;
   seedMoney: number;
@@ -151,6 +153,7 @@ interface ReportDetail {
 }
 
 type DetailTab = "summary" | "positions" | "candidates" | "trades" | "exitPlans" | "learning";
+type ReportPeriodFilter = "ALL" | "WEEKLY" | "DAILY";
 
 const DETAIL_TABS: Array<{ value: DetailTab; label: string }> = [
   { value: "summary", label: "요약" },
@@ -159,6 +162,12 @@ const DETAIL_TABS: Array<{ value: DetailTab; label: string }> = [
   { value: "trades", label: "매매" },
   { value: "exitPlans", label: "청산" },
   { value: "learning", label: "학습" },
+];
+
+const REPORT_PERIOD_FILTERS: Array<{ value: ReportPeriodFilter; label: string }> = [
+  { value: "ALL", label: "전체" },
+  { value: "WEEKLY", label: "주간" },
+  { value: "DAILY", label: "일간" },
 ];
 
 const STATUS_LABEL: Record<string, string> = {
@@ -205,6 +214,15 @@ function sameMonth(value: string, date: Date) {
     && target.getMonth() === date.getMonth();
 }
 
+function yesterdayBasicDate() {
+  const target = new Date();
+  target.setDate(target.getDate() - 1);
+  const year = target.getFullYear();
+  const month = String(target.getMonth() + 1).padStart(2, "0");
+  const day = String(target.getDate()).padStart(2, "0");
+  return `${year}${month}${day}`;
+}
+
 function formatReportDate(value: string) {
   if (/^\d{8}$/.test(value)) {
     return `${value.slice(0, 4)}.${value.slice(4, 6)}.${value.slice(6, 8)}`;
@@ -215,6 +233,10 @@ function formatReportDate(value: string) {
     return formatDateDot(monday);
   }
   return value;
+}
+
+function compareDateTimeDesc(a: string, b: string) {
+  return new Date(b).getTime() - new Date(a).getTime();
 }
 
 function isoWeekStart(year: number, week: number) {
@@ -244,6 +266,14 @@ function paginationPages(page: number, totalPages: number) {
   return Array.from({ length: maxVisible }, (_, index) => start + index);
 }
 
+function sortReports(reports: ReportSummary[]) {
+  return [...reports].sort((a, b) => {
+    const generatedDiff = new Date(b.generatedAt).getTime() - new Date(a.generatedAt).getTime();
+    if (Number.isFinite(generatedDiff) && generatedDiff !== 0) return generatedDiff;
+    return b.reportDate.localeCompare(a.reportDate);
+  });
+}
+
 function statusTone(status: string) {
   if (status === "RUNNING") return "text-[var(--up)] border-[var(--up)] bg-[var(--up-soft)]";
   if (status === "BLOCKED" || status === "ERROR") return "text-[var(--down)] border-[var(--down)] bg-[var(--down-soft)]";
@@ -265,7 +295,7 @@ export function QuantDashboard() {
 
 export function QuantReportsPage() {
   const [reports, setReports] = useState<ReportSummary[]>([]);
-  const [period, setPeriod] = useState("WEEKLY");
+  const [period, setPeriod] = useState<ReportPeriodFilter>("ALL");
   const [modelCode, setModelCode] = useState("");
   const [reportDate, setReportDate] = useState("");
   const [assetQuery, setAssetQuery] = useState("");
@@ -280,10 +310,14 @@ export function QuantReportsPage() {
       setLoading(true);
       setError(null);
       try {
-        const response = await apiClient.get<ApiResponse<ReportSummary[]>>("/quant/live/reports", {
-          params: { period, modelCode: modelCode || undefined },
-        });
-        setReports(dataOf(response) ?? []);
+        const periods = period === "ALL" ? ["WEEKLY", "DAILY"] : [period];
+        const responses = await Promise.all(
+          periods.map((reportPeriod) => apiClient.get<ApiResponse<ReportSummary[]>>("/quant/live/reports", {
+            params: { period: reportPeriod, modelCode: modelCode || undefined },
+          }))
+        );
+        const nextReports = responses.flatMap((response) => dataOf(response) ?? []);
+        setReports(sortReports(nextReports));
         setPage(1);
       } catch {
         setError("리포트 목록을 불러오지 못했습니다.");
@@ -306,26 +340,47 @@ export function QuantReportsPage() {
   return (
     <div className="stack pb-20 lg:pb-0">
       <section className="space-y-2">
-        <h1 className="m-0 text-xl font-bold">Report</h1>
+        <h1 className="m-0 text-xl font-bold">리포트</h1>
         <p className="m-0 text-sm text-[var(--text-3)]">
-          장 종료 후 생성된 모델 리포트를 전체 조회하고 기간, 모델, 날짜 기준으로 필터링합니다.
+          장 종료 후 생성된 모델 리포트를 구분, 모델, 작성일 기준으로 필터링합니다.
         </p>
       </section>
 
       {error && <div className="card border-[var(--up)] text-[var(--up)]">{error}</div>}
 
       <section className="card">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
-          <label className="text-sm">
-            <span className="stat-label">기간</span>
-            <select className="mt-1 h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3" value={period} onChange={(event) => setPeriod(event.target.value)}>
-              <option value="WEEKLY">Weekly</option>
-              <option value="DAILY">Daily</option>
-            </select>
-          </label>
+        <div className="card-head">
+          <div className="card-title">리포트 필터</div>
+          <span className="tag">주간 / 일간</span>
+        </div>
+        <div className="flex flex-col gap-4">
+          <div className="flex gap-4 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+            <div className="flex shrink-0 flex-col gap-1.5">
+              <span style={{ fontSize: 11, color: "var(--text-4)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                리포트 구분
+              </span>
+              <div className="chips">
+                {REPORT_PERIOD_FILTERS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className="chip"
+                    aria-pressed={period === option.value}
+                    onClick={() => {
+                      setPeriod(option.value);
+                      setPage(1);
+                    }}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(180px,240px)_minmax(160px,220px)_minmax(180px,1fr)_minmax(120px,160px)]">
           <label className="text-sm">
             <span className="stat-label">모델</span>
-            <select className="mt-1 h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3" value={modelCode} onChange={(event) => setModelCode(event.target.value)}>
+            <select className="mt-1 w-full" value={modelCode} onChange={(event) => setModelCode(event.target.value)}>
               <option value="">전체</option>
               <option value="INDEX_REGIME">지수 감지 모델</option>
               <option value="BULL_V4">Bull v4 모델</option>
@@ -334,13 +389,13 @@ export function QuantReportsPage() {
             </select>
           </label>
           <label className="text-sm">
-            <span className="stat-label">날짜</span>
-            <input className="mt-1 h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3" type="date" value={reportDate} onChange={(event) => { setReportDate(event.target.value); setPage(1); }} />
+            <span className="stat-label">작성일</span>
+            <input className="mt-1 w-full" type="date" value={reportDate} onChange={(event) => { setReportDate(event.target.value); setPage(1); }} />
           </label>
           <label className="text-sm">
             <span className="stat-label">종목</span>
             <input
-              className="mt-1 h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3"
+              className="mt-1 w-full"
               value={assetQuery}
               onChange={(event) => { setAssetQuery(event.target.value); setPage(1); }}
               placeholder="체크포인트 추적 후 지원"
@@ -349,7 +404,7 @@ export function QuantReportsPage() {
           <label className="text-sm">
             <span className="stat-label">표시 개수</span>
             <select
-              className="mt-1 h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3"
+              className="mt-1 w-full"
               value={pageSize}
               onChange={(event) => {
                 setPageSize(Number(event.target.value));
@@ -361,6 +416,7 @@ export function QuantReportsPage() {
               <option value={100}>100개</option>
             </select>
           </label>
+          </div>
         </div>
         {assetQuery.trim() && (
           <div className="mt-3 rounded-lg border border-[var(--border)] bg-[var(--bg-alt)] p-3 text-sm text-[var(--text-3)]">
@@ -426,7 +482,7 @@ export function QuantReportDetailPage() {
               </div>
               <div className="grid min-w-[260px] grid-cols-2 gap-x-5 gap-y-3 rounded-lg border border-[var(--border)] bg-[var(--bg-alt)] p-4 text-sm">
                 <ReportMeta label="작성 모델" value={report.modelCode} />
-                <ReportMeta label="기간" value={reportPeriodLabel(report.period)} />
+                <ReportMeta label="리포트 구분" value={reportPeriodLabel(report.period)} />
                 <ReportMeta label="작성 기준" value={formatReportDate(report.reportDate)} />
                 <ReportMeta label="생성 방식" value={report.generatedBy} />
               </div>
@@ -525,8 +581,8 @@ function ReportKpi({ label, value }: { label: string; value: string }) {
 }
 
 function reportPeriodLabel(period: string) {
-  if (period === "WEEKLY") return "Weekly Report";
-  if (period === "DAILY") return "Daily Report";
+  if (period === "WEEKLY") return "주간 리포트";
+  if (period === "DAILY") return "일간 리포트";
   return period;
 }
 
@@ -639,7 +695,7 @@ function QuantModelDetailPage({ modelCode }: { modelCode: string }) {
             <div>
               <h1 className="m-0 text-xl font-bold">{summary?.modelName ?? modelCode}</h1>
               <p className="mt-2 text-sm text-[var(--text-3)]">
-                시드 {money(summary?.seedMoney)} · 현재 평가 시드 {money((summary?.seedMoney ?? 0) + (summary?.totalProfit ?? 0))} · 최신 리포트 {summary?.latestReportTime ?? "생성 전"}
+                {summary?.modelCode ?? modelCode}{summary?.modelVersion ? ` @ ${summary.modelVersion}` : ""} · 시드 {money(summary?.seedMoney)} · 현재 평가 시드 {money((summary?.seedMoney ?? 0) + (summary?.totalProfit ?? 0))} · 최신 리포트 {summary?.latestReportTime ?? "생성 전"}
               </p>
             </div>
             {summary && (
@@ -698,7 +754,9 @@ function ModelCard({ model, onOpen }: { model: LiveQuantModelSummary; onOpen: ()
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="card-title truncate">{model.modelName}</div>
-          <div className="mt-1 text-xs text-[var(--text-3)]">{model.modelCode}</div>
+          <div className="mt-1 text-xs text-[var(--text-3)]">
+            {model.modelCode}{model.modelVersion ? ` @ ${model.modelVersion}` : ""}
+          </div>
         </div>
         <span className={`shrink-0 rounded-full border px-2 py-1 text-xs ${statusTone(model.status)}`}>
           {STATUS_LABEL[model.status] ?? model.status}
@@ -777,7 +835,7 @@ function ModelDetailContent({
     return (
       <SimpleTable
         columns={["종목", "구분", "시각", "신호가", "관측가", "체결가", "체결소스", "슬리피지", "사유"]}
-        rows={detail.trades.map((item) => [
+        rows={[...detail.trades].sort((a, b) => compareDateTimeDesc(a.fillTime, b.fillTime)).map((item) => [
           `${item.assetName} (${item.assetCode})`,
           item.side,
           item.fillTime,
@@ -857,14 +915,16 @@ function ModelSummaryDashboard({
   const monthWinCount = monthClosedTrades.filter((trade) => (trade.realizedReturnPct ?? 0) > 0).length;
   const monthRealizedAvg = average(monthClosedTrades.map((trade) => trade.realizedReturnPct ?? null));
   const expectedAvg = average(detail.candidates.map((candidate) => candidate.expectedReturnPct));
-  const latestDailyReport = reports
+  const yesterday = yesterdayBasicDate();
+  const dailyReports = reports
     .filter((report) => report.period === "DAILY")
-    .sort((a, b) => b.reportDate.localeCompare(a.reportDate))[0];
-  const latestWeeklyReport = reports
-    .filter((report) => report.period === "WEEKLY")
-    .sort((a, b) => b.reportDate.localeCompare(a.reportDate))[0];
+    .sort((a, b) => b.reportDate.localeCompare(a.reportDate));
+  const yesterdayDailyReport = dailyReports.find((report) => report.reportDate === yesterday) ?? dailyReports[0];
   const recentCandidates = detail.candidates.slice(0, 5);
-  const recentTrades = monthClosedTrades.slice(-5).reverse();
+  const recentTrades = [...monthClosedTrades].sort((a, b) => compareDateTimeDesc(a.fillTime, b.fillTime)).slice(0, 5);
+  const reportSummaryText = yesterdayDailyReport
+    ? `${formatReportDate(yesterdayDailyReport.reportDate)} 기준 ${yesterdayDailyReport.modelCode}는 수익률 ${pct(yesterdayDailyReport.totalReturnPct)}, Entry ${yesterdayDailyReport.entryCount}건, Exit ${yesterdayDailyReport.exitCount}건으로 마감했습니다.`
+    : "어제 일간 리포트가 아직 생성되지 않았습니다.";
 
   return (
     <div className="space-y-4">
@@ -877,7 +937,40 @@ function ModelSummaryDashboard({
         <Metric label="후보 예상 수익률" value={pct(expectedAvg)} />
       </section>
 
-      <section className="grid grid-cols-1 gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+      <section className="card">
+        <div className="card-head">
+          <div>
+            <div className="card-title">리포트 요약</div>
+            <div className="card-sub">어제 일간 리포트를 기준으로 핵심 결과를 정리합니다.</div>
+          </div>
+        </div>
+        {yesterdayDailyReport ? (
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.3fr_1fr]">
+            <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-alt)] p-4">
+              <div className="text-xs font-semibold text-[var(--text-3)]">어제 리포트 요약</div>
+              <div className="mt-2 text-base font-semibold text-[var(--text)]">{reportSummaryText}</div>
+              <div className="mt-2 text-sm text-[var(--text-2)]">
+                경고 {yesterdayDailyReport.warningCount}건 · 생성 {yesterdayDailyReport.generatedAt.replace("T", " ")}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <MetricInline label="작성일" value={formatReportDate(yesterdayDailyReport.reportDate)} />
+              <MetricInline label="작성 모델" value={yesterdayDailyReport.modelCode} />
+              <MetricInline label="수익률" value={pct(yesterdayDailyReport.totalReturnPct)} />
+              <MetricInline label="Entry / Exit" value={`${yesterdayDailyReport.entryCount} / ${yesterdayDailyReport.exitCount}`} />
+            </div>
+            <div className="lg:col-span-2">
+              <button type="button" className="btn sm" onClick={() => onOpenReport(yesterdayDailyReport.reportId)}>
+                어제 리포트 열기
+              </button>
+            </div>
+          </div>
+        ) : (
+          <EmptyState text="어제 일간 리포트가 없습니다." />
+        )}
+      </section>
+
+      <section className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <div className="card">
           <div className="card-head">
             <div>
@@ -904,22 +997,6 @@ function ModelSummaryDashboard({
             />
           </div>
         </div>
-
-        <div className="card">
-          <div className="card-head">
-            <div>
-              <div className="card-title">리포트 요약</div>
-              <div className="card-sub">오늘/최신 daily와 최신 weekly 리포트입니다.</div>
-            </div>
-          </div>
-          <div className="space-y-3">
-            <ReportSummaryButton title="최신 Daily" report={latestDailyReport} onOpenReport={onOpenReport} />
-            <ReportSummaryButton title="최신 Weekly" report={latestWeeklyReport} onOpenReport={onOpenReport} />
-          </div>
-        </div>
-      </section>
-
-      <section className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_1fr]">
         <div className="card">
           <div className="card-head">
             <div>
@@ -938,7 +1015,9 @@ function ModelSummaryDashboard({
             empty="이번주 후보가 없습니다."
           />
         </div>
+      </section>
 
+      <section className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_1fr]">
         <div className="card">
           <div className="card-head">
             <div>
@@ -968,27 +1047,6 @@ function ModelSummaryDashboard({
   );
 }
 
-function ReportSummaryButton({
-  title,
-  report,
-  onOpenReport,
-}: {
-  title: string;
-  report?: ReportSummary;
-  onOpenReport: (reportId: number) => void;
-}) {
-  if (!report) {
-    return <div className="rounded-lg border border-[var(--border)] p-3 text-sm text-[var(--text-3)]">{title}: 생성 전</div>;
-  }
-  return (
-    <button type="button" className="w-full rounded-lg border border-[var(--border)] p-3 text-left transition hover:border-[var(--accent)]" onClick={() => onOpenReport(report.reportId)}>
-      <div className="text-xs text-[var(--text-3)]">{title}</div>
-      <div className="mt-1 font-semibold">{formatReportDate(report.reportDate)} ? {report.modelCode}</div>
-      <div className="mt-1 text-sm text-[var(--text-2)]">수익률 {pct(report.totalReturnPct)} · Entry {report.entryCount} · Exit {report.exitCount}</div>
-    </button>
-  );
-}
-
 function ReportPanel({
   reports,
   totalCount,
@@ -1014,8 +1072,8 @@ function ReportPanel({
     <section className="card">
       <div className="card-head">
         <div>
-          <div className="card-title">Report</div>
-          <div className="card-sub">장 종료 후 생성된 규칙 기반 daily/weekly 리포트입니다.</div>
+          <div className="card-title">리포트</div>
+          <div className="card-sub">장 종료 후 생성된 규칙 기반 주간/일간 리포트입니다.</div>
         </div>
         <div className="text-sm text-[var(--text-3)]">
           {from}-{to} / {totalCount}
@@ -1026,26 +1084,26 @@ function ReportPanel({
         <EmptyState text="아직 생성된 리포트가 없습니다." />
       ) : (
         <div className="overflow-x-auto rounded-lg border border-[var(--border)]">
-          <table className="w-full min-w-[760px] border-collapse text-sm">
-            <thead className="bg-[var(--bg-alt)] text-left text-xs text-[var(--text-3)]">
+          <table className="t w-full min-w-[760px]">
+            <thead>
               <tr>
-                <th className="px-4 py-3 font-medium">제목</th>
-                <th className="px-4 py-3 font-medium">작성일</th>
-                <th className="px-4 py-3 font-medium">작성 모델</th>
-                <th className="px-4 py-3 font-medium">기간</th>
-                <th className="px-4 py-3 font-medium">수익률</th>
-                <th className="px-4 py-3 font-medium">Entry/Exit</th>
+                <th>제목</th>
+                <th>작성일</th>
+                <th>작성 모델</th>
+                <th>구분</th>
+                <th>수익률</th>
+                <th>Entry/Exit</th>
               </tr>
             </thead>
             <tbody>
               {reports.map((report) => (
-                <tr key={report.reportId} className="cursor-pointer border-t border-[var(--border)] transition hover:bg-[var(--bg-alt)]" onClick={() => onOpenReport(report.reportId)}>
-                  <td className="px-4 py-4 font-semibold">{report.title}</td>
-                  <td className="px-4 py-4 text-[var(--text-2)]">{formatReportDate(report.reportDate)}</td>
-                  <td className="px-4 py-4 text-[var(--text-2)]">{report.modelCode}</td>
-                  <td className="px-4 py-4 text-[var(--text-2)]">{report.period}</td>
-                  <td className="px-4 py-4 font-semibold">{pct(report.totalReturnPct)}</td>
-                  <td className="px-4 py-4 text-[var(--text-2)]">{report.entryCount}/{report.exitCount}</td>
+                <tr key={report.reportId} className="clickable" onClick={() => onOpenReport(report.reportId)}>
+                  <td className="font-semibold">{report.title}</td>
+                  <td className="num text-[var(--text-2)]">{formatReportDate(report.reportDate)}</td>
+                  <td className="text-[var(--text-2)]">{report.modelCode}</td>
+                  <td className="text-[var(--text-2)]">{reportPeriodLabel(report.period)}</td>
+                  <td className="num font-semibold">{pct(report.totalReturnPct)}</td>
+                  <td className="num text-[var(--text-2)]">{report.entryCount}/{report.exitCount}</td>
                 </tr>
               ))}
             </tbody>
@@ -1053,20 +1111,21 @@ function ReportPanel({
         </div>
       )}
 
-      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mt-4 flex flex-col items-center justify-center gap-3">
         <div className="text-sm text-[var(--text-3)]">페이지 {page} / {totalPages}</div>
-        <div className="flex flex-wrap items-center gap-1 text-sm">
+        <div className="flex flex-wrap items-center justify-center gap-1 text-sm">
+          <button type="button" className="btn sm ghost" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>이전</button>
           {pageNumbers.map((pageNumber) => (
             <button
               key={pageNumber}
               type="button"
-              className={["min-w-8 rounded-md px-3 py-2 font-semibold", pageNumber === page ? "bg-[var(--text)] text-[var(--bg)]" : "text-[var(--text-2)] hover:bg-[var(--bg-alt)]"].join(" ")}
+              className={["btn sm min-w-8", pageNumber === page ? "primary" : "ghost"].join(" ")}
               onClick={() => onPageChange(pageNumber)}
             >
               {pageNumber}
             </button>
           ))}
-          <button type="button" className="px-3 py-2 font-semibold text-[var(--text)] disabled:text-[var(--text-3)]" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)}>다음</button>
+          <button type="button" className="btn sm ghost" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)}>다음</button>
         </div>
       </div>
     </section>

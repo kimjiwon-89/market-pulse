@@ -1,15 +1,18 @@
 package com.marketpulse.domain.quant.live.controller;
 
 import com.marketpulse.domain.quant.live.dto.*;
+import com.marketpulse.domain.quant.live.service.BullV4ReplayPrecomputeService;
 import com.marketpulse.domain.quant.live.service.LiveQuantSimulationService;
 import com.marketpulse.global.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -17,6 +20,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class LiveQuantController {
     private final LiveQuantSimulationService service;
+    private final BullV4ReplayPrecomputeService precomputeService;
 
     @GetMapping("/models")
     public ApiResponse<List<LiveQuantModelSummaryDto>> getModels() {
@@ -83,5 +87,21 @@ public class LiveQuantController {
     @GetMapping("/reports/{reportId}")
     public ApiResponse<LiveQuantReportDetailDto> getReport(@PathVariable Long reportId) {
         return ApiResponse.success(service.getReport(reportId));
+    }
+
+    @PostMapping("/bull-v4/replay/precompute")
+    public ApiResponse<BullV4ReplayPrecomputeResultDto> precomputeBullV4Replay(
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate) {
+        LocalDate targetToDate = toDate == null || toDate.isBlank() ? LocalDate.now() : LocalDate.parse(toDate);
+        if (fromDate == null || fromDate.isBlank()) {
+            return ApiResponse.success(precomputeService.precomputeDaily(targetToDate));
+        }
+        return ApiResponse.success(precomputeService.precompute(LocalDate.parse(fromDate), targetToDate));
+    }
+
+    @GetMapping("/bull-v4/replay/cache-status")
+    public ApiResponse<BullV4ReplayCacheStatusDto> getBullV4ReplayCacheStatus() {
+        return ApiResponse.success(precomputeService.cacheStatus());
     }
 }

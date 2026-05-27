@@ -30,14 +30,16 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class LiveQuantSimulationService {
-    private static final BigDecimal MODEL_SEED = new BigDecimal("100000000");
+    private static final BigDecimal MODEL_SEED = new BigDecimal("1000000000");
+    private static final BigDecimal POSITION_CASH = new BigDecimal("100000000");
+    private static final BigDecimal ONE_HUNDRED = new BigDecimal("100");
     private static final BigDecimal ZERO = BigDecimal.ZERO;
     private static final Duration QUOTE_CACHE_TTL = Duration.ofSeconds(30);
     private static final Duration REPLAY_CACHE_TTL = Duration.ofMinutes(5);
     private static final Duration EMPTY_REPLAY_CACHE_TTL = Duration.ofSeconds(10);
     private static final String BULL_MODEL_CODE = "BULL_V4";
+    private static final BullV4ReplayConfig BULL_CONFIG = BullV4ReplayConfig.BALANCED_PAPER;
     private static final String REALTIME_PROBE_ASSET = "005930";
-    private static final LocalDate REPLAY_FROM = LocalDate.of(2026, 5, 1);
     private static final LocalDate DAILY_REPORT_MONTH = LocalDate.of(2026, 5, 1);
     private static final DateTimeFormatter BASIC_DATE = DateTimeFormatter.BASIC_ISO_DATE;
 
@@ -58,8 +60,10 @@ public class LiveQuantSimulationService {
     }
 
     public List<LiveQuantModelSummaryDto> getVisibleModels() {
-        String bullStatus = quote(REALTIME_PROBE_ASSET).isPresent() ? "RUNNING" : "DATA_DELAYED";
         List<ReplayTradeFact> facts = replayFacts();
+        String bullStatus = quote(REALTIME_PROBE_ASSET).isPresent() && !facts.isEmpty()
+                ? "RUNNING"
+                : "DATA_DELAYED";
         return List.of(
                 model("INDEX_REGIME", "지수 감지 모델", "SERVICE_PREPARING", List.of()),
                 model(BULL_MODEL_CODE, "Bull v4 모델", bullStatus, facts),
@@ -314,15 +318,17 @@ public class LiveQuantSimulationService {
     }
 
     private LiveQuantModelSummaryDto model(String code, String name, String status, List<ReplayTradeFact> facts) {
-        BigDecimal totalReturnPct = BULL_MODEL_CODE.equals(code) ? compoundedReturnPct(facts) : ZERO;
-        BigDecimal totalProfit = MODEL_SEED.multiply(totalReturnPct)
-                .divide(new BigDecimal("100"), 0, RoundingMode.HALF_UP);
-        BigDecimal monthlyReturnPct = aggregateReturnPct(facts.stream()
+        List<ReplayTradeFact> monthlyFacts = facts.stream()
                 .filter(fact -> fact.exitDate().getYear() == DAILY_REPORT_MONTH.getYear()
                         && fact.exitDate().getMonth() == DAILY_REPORT_MONTH.getMonth())
-                .toList());
+                .toList();
+        BigDecimal totalProfit = BULL_MODEL_CODE.equals(code) ? capitalProfit(facts) : ZERO;
+        BigDecimal totalReturnPct = BULL_MODEL_CODE.equals(code) ? capitalReturnPct(totalProfit) : ZERO;
+        BigDecimal monthlyReturnPct = BULL_MODEL_CODE.equals(code) ? capitalReturnPct(capitalProfit(monthlyFacts)) : ZERO;
         return new LiveQuantModelSummaryDto(
                 code,
+                BULL_MODEL_CODE.equals(code) ? BULL_CONFIG.modelVersion() : null,
+                BULL_MODEL_CODE.equals(code) ? BULL_CONFIG.configKey() : null,
                 name,
                 status,
                 MODEL_SEED,
@@ -347,7 +353,7 @@ public class LiveQuantSimulationService {
                 return cached.facts();
             }
         }
-        List<ReplayTradeFact> facts = replayProvider.bullV4ReplayFacts(REPLAY_FROM, today()).stream()
+        List<ReplayTradeFact> facts = replayProvider.bullV4ReplayFacts(replayFrom(), today()).stream()
                 .filter(fact -> fact.entryDate() != null && fact.exitDate() != null)
                 .filter(fact -> !fact.entryDate().isAfter(today()) && !fact.exitDate().isAfter(today()))
                 .sorted(Comparator.comparing(ReplayTradeFact::entryDate))
@@ -366,12 +372,14 @@ public class LiveQuantSimulationService {
                 .divide(new BigDecimal(facts.size()), 2, RoundingMode.HALF_UP);
     }
 
-    private BigDecimal compoundedReturnPct(List<ReplayTradeFact> facts) {
-        BigDecimal equity = BigDecimal.ONE;
-        for (ReplayTradeFact fact : facts) {
-            equity = equity.multiply(BigDecimal.ONE.add(fact.returnPct().divide(new BigDecimal("100"), 8, RoundingMode.HALF_UP)));
-        }
-        return equity.subtract(BigDecimal.ONE).multiply(new BigDecimal("100")).setScale(2, RoundingMode.HALF_UP);
+    private BigDecimal capitalProfit(List<ReplayTradeFact> facts) {
+        return facts.stream()
+                .map(fact -> POSITION_CASH.multiply(fact.returnPct()).divide(ONE_HUNDRED, 0, RoundingMode.HALF_UP))
+                .reduce(ZERO, BigDecimal::add);
+    }
+
+    private BigDecimal capitalReturnPct(BigDecimal profit) {
+        return profit.multiply(ONE_HUNDRED).divide(MODEL_SEED, 2, RoundingMode.HALF_UP);
     }
 
     private Optional<BigDecimal> quote(String assetCode) {
@@ -387,6 +395,10 @@ public class LiveQuantSimulationService {
 
     private LocalDate today() {
         return LocalDate.now(ZoneId.of("Asia/Seoul"));
+    }
+
+    private LocalDate replayFrom() {
+        return LocalDate.of(today().getYear(), 1, 1);
     }
 
     private String weekKey(LocalDate date) {

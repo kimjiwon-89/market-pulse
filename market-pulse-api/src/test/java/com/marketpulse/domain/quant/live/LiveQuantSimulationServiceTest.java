@@ -36,10 +36,17 @@ class LiveQuantSimulationServiceTest {
 
         assertThat(models).extracting(LiveQuantModelSummaryDto::modelCode)
                 .containsExactly("INDEX_REGIME", "BULL_V4", "SIDEWAYS_MODEL", "BEAR_MODEL");
+        assertThat(models)
+                .filteredOn(model -> model.modelCode().equals("BULL_V4"))
+                .singleElement()
+                .satisfies(model -> {
+                    assertThat(model.modelVersion()).isEqualTo("5.0.0");
+                    assertThat(model.configKey()).isEqualTo("BULL_V4_5_0_0_BALANCED_PAPER");
+                });
         assertThat(models).extracting(LiveQuantModelSummaryDto::modelCode)
                 .doesNotContain("MASTER_MODEL");
         assertThat(models).allSatisfy(model ->
-                assertThat(model.seedMoney()).isEqualByComparingTo(new BigDecimal("100000000")));
+                assertThat(model.seedMoney()).isEqualByComparingTo(new BigDecimal("1000000000")));
         assertThat(models)
                 .filteredOn(model -> !model.modelCode().equals("BULL_V4"))
                 .allSatisfy(model -> {
@@ -51,13 +58,30 @@ class LiveQuantSimulationServiceTest {
     }
 
     @Test
+    void bullModelIsDataDelayedWhenFrozenReplayHasNoFacts() {
+        LiveQuantSimulationService emptyReplayService = new LiveQuantSimulationService(
+                new RuleBasedReportWriter(),
+                assetCode -> java.util.Optional.of(new BigDecimal("312000")),
+                (fromDate, toDate) -> List.of()
+        );
+
+        assertThat(emptyReplayService.getVisibleModels())
+                .filteredOn(model -> model.modelCode().equals("BULL_V4"))
+                .singleElement()
+                .satisfies(model -> {
+                    assertThat(model.status()).isEqualTo("DATA_DELAYED");
+                    assertThat(model.actualEntryCountToday()).isZero();
+                });
+    }
+
+    @Test
     void modelsExposeHistoricalReplayWatchedAssets() {
         List<WatchedAssetDto> watchedAssets = service.getWatchedAssets("BULL_V4", "20260527");
 
         assertThat(watchedAssets).extracting(WatchedAssetDto::assetCode)
                 .contains("111111", "222222");
         assertThat(watchedAssets).allSatisfy(asset ->
-                assertThat(asset.trackingSource()).isEqualTo("HISTORICAL_REPLAY"));
+                assertThat(asset.trackingSource()).isEqualTo("BULL_V4_5_0_0_REPLAY_BALANCED_PAPER"));
     }
 
     @Test
@@ -127,7 +151,7 @@ class LiveQuantSimulationServiceTest {
                             new BigDecimal("12000"),
                             new BigDecimal("20.00"),
                             new BigDecimal("0.91"),
-                            "HISTORICAL_REPLAY"
+                            "BULL_V4_5_0_0_REPLAY_BALANCED_PAPER"
                     ),
                     new ReplayTradeFact(
                             LocalDate.of(2026, 5, 21),
@@ -138,7 +162,7 @@ class LiveQuantSimulationServiceTest {
                             new BigDecimal("21000"),
                             new BigDecimal("5.00"),
                             new BigDecimal("0.82"),
-                            "HISTORICAL_REPLAY"
+                            "BULL_V4_5_0_0_REPLAY_BALANCED_PAPER"
                     )
             );
         }

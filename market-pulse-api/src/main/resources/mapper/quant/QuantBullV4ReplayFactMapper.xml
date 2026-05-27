@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.marketpulse.domain.quant.mapper.QuantBullV4ReplayFactMapper">
+
+    <delete id="deleteByConfigAndExitDateRange">
+        DELETE FROM quant_bull_v4_replay_fact
+        WHERE config_key = #{configKey}
+          AND exit_date BETWEEN #{fromDate} AND #{toDate}
+    </delete>
+
+    <insert id="upsertBatch">
+        INSERT INTO quant_bull_v4_replay_fact (
+            config_key, signal_date, entry_check_date, entry_date, exit_date,
+            asset_code, asset_name, entry_price, exit_price, return_pct, score,
+            exit_reason, position_cash, pnl_krw, capital_return_pct
+        )
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+                #{item.configKey},
+                #{item.signalDate},
+                #{item.entryCheckDate},
+                #{item.entryDate},
+                #{item.exitDate},
+                #{item.assetCode},
+                #{item.assetName},
+                #{item.entryPrice}::numeric,
+                #{item.exitPrice}::numeric,
+                #{item.returnPct}::numeric,
+                #{item.score}::numeric,
+                #{item.exitReason},
+                #{item.positionCash}::numeric,
+                #{item.pnlKrw}::numeric,
+                #{item.capitalReturnPct}::numeric
+            )
+        </foreach>
+        ON CONFLICT (config_key, entry_date, asset_code, exit_date) DO UPDATE
+            SET signal_date = EXCLUDED.signal_date,
+                entry_check_date = EXCLUDED.entry_check_date,
+                asset_name = EXCLUDED.asset_name,
+                entry_price = EXCLUDED.entry_price,
+                exit_price = EXCLUDED.exit_price,
+                return_pct = EXCLUDED.return_pct,
+                score = EXCLUDED.score,
+                exit_reason = EXCLUDED.exit_reason,
+                position_cash = EXCLUDED.position_cash,
+                pnl_krw = EXCLUDED.pnl_krw,
+                capital_return_pct = EXCLUDED.capital_return_pct,
+                updated_at = NOW()
+    </insert>
+
+    <select id="findByConfigAndExitDateRange" resultType="QuantBullV4ReplayFactVo">
+        SELECT id,
+               config_key AS configKey,
+               signal_date AS signalDate,
+               entry_check_date AS entryCheckDate,
+               entry_date AS entryDate,
+               exit_date AS exitDate,
+               asset_code AS assetCode,
+               asset_name AS assetName,
+               entry_price AS entryPrice,
+               exit_price AS exitPrice,
+               return_pct AS returnPct,
+               score,
+               exit_reason AS exitReason,
+               position_cash AS positionCash,
+               pnl_krw AS pnlKrw,
+               capital_return_pct AS capitalReturnPct
+        FROM quant_bull_v4_replay_fact
+        WHERE config_key = #{configKey}
+          AND exit_date BETWEEN #{fromDate} AND #{toDate}
+        ORDER BY entry_date, asset_code
+    </select>
+
+    <select id="findCacheStatus" resultType="QuantBullV4ReplayCacheStatusVo">
+        SELECT #{configKey} AS configKey,
+               COUNT(*) AS cachedRows,
+               MIN(exit_date) AS firstExitDate,
+               MAX(exit_date) AS latestExitDate,
+               MAX(updated_at) AS latestUpdatedAt
+        FROM quant_bull_v4_replay_fact
+        WHERE config_key = #{configKey}
+    </select>
+</mapper>

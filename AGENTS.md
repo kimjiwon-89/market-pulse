@@ -20,6 +20,20 @@ Keep this root guide small. Do not paste domain specs here.
 - Do not revert user changes. Current dirty files may be unrelated.
 - Do not commit or work on `main` directly.
 
+## Production / Main Deploy Guard
+
+Agents must not deploy to production or mutate production infrastructure unless the user explicitly approves that exact action in the current message.
+
+- Never deploy from `main` directly.
+- Never push Docker images, run `/app/deploy.sh`, run `docker compose up` on EC2, copy files into `/app`, or trigger GitHub production deploy workflows without explicit approval.
+- Never use `quant-model-lab` as a production deploy root. That folder is for quant research, model/backtest work, reports, and local/runtime experiments only.
+- RDS writes are allowed for explicitly requested data ingestion, backfill, model-cache generation, and quant validation jobs. Keep them scoped to the requested dataset/date range/config, and report what was written.
+- Do not treat RDS data writes as deployment approval. RDS data work does not authorize EC2, Docker Hub, `/app`, production compose, or app container changes.
+- Read-only production checks are allowed when needed to diagnose a user-reported production state; infrastructure/app deployment write actions require approval first.
+- If the user asks to "배포", "운영 반영", "서비스에 올려", or similar, restate the exact target and wait for confirmation before touching EC2, Docker Hub, GitHub Actions, or production app infrastructure.
+- If the user asks to "RDS에 올려", "데이터 넣어", "백필", or similar data work, RDS writes are permitted for that data task only; do not deploy application code as part of it.
+- Normal code changes must go through a feature/fix branch targeting `develop`; `develop` later goes to `main` by the agreed release process.
+
 ## Branch Rule
 
 Use `develop` as the base.

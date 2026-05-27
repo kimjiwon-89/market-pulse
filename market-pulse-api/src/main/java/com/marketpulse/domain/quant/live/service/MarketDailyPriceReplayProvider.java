@@ -1,46 +1,39 @@
 package com.marketpulse.domain.quant.live.service;
 
-import com.marketpulse.domain.quant.mapper.MarketDailyPriceMapper;
-import com.marketpulse.domain.quant.vo.MonthlyPickVo;
+import com.marketpulse.domain.quant.mapper.QuantBullV4ReplayFactMapper;
+import com.marketpulse.domain.quant.vo.QuantBullV4ReplayFactVo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.List;
 
 @Component
 @RequiredArgsConstructor
 public class MarketDailyPriceReplayProvider implements HistoricalReplayProvider {
-    private static final int DAILY_LOOKBACK_DAYS = 5;
+    private static final BullV4ReplayConfig DEFAULT_CONFIG = BullV4ReplayConfig.BALANCED_PAPER;
 
-    private final MarketDailyPriceMapper priceMapper;
+    private final QuantBullV4ReplayFactMapper factMapper;
 
     @Override
     public List<ReplayTradeFact> bullV4ReplayFacts(LocalDate fromDate, LocalDate toDate) {
-        return priceMapper.findDailyMomentumReplayPicks(fromDate, toDate, DAILY_LOOKBACK_DAYS, 1)
+        return factMapper.findByConfigAndExitDateRange(DEFAULT_CONFIG.configKey(), fromDate, toDate)
                 .stream()
-                .map(pick -> toFact(pick, "HISTORICAL_REPLAY_DAILY_MOMENTUM"))
+                .map(this::toFact)
                 .toList();
     }
 
-    private ReplayTradeFact toFact(MonthlyPickVo pick, String source) {
-        BigDecimal returnPct = pick.getSellPrice()
-                .subtract(pick.getBuyPrice())
-                .divide(pick.getBuyPrice(), 8, RoundingMode.HALF_UP)
-                .multiply(new BigDecimal("100"))
-                .setScale(2, RoundingMode.HALF_UP);
+    private ReplayTradeFact toFact(QuantBullV4ReplayFactVo fact) {
         return new ReplayTradeFact(
-                pick.getRebalanceDate(),
-                pick.getExitDate(),
-                pick.getAssetCode(),
-                pick.getAssetName(),
-                pick.getBuyPrice(),
-                pick.getSellPrice(),
-                returnPct,
-                pick.getScore(),
-                source
+                fact.getEntryDate(),
+                fact.getExitDate(),
+                fact.getAssetCode(),
+                fact.getAssetName(),
+                fact.getEntryPrice(),
+                fact.getExitPrice(),
+                fact.getReturnPct(),
+                fact.getScore(),
+                DEFAULT_CONFIG.sourceLabel()
         );
     }
 }
