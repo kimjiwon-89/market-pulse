@@ -1,3 +1,11 @@
+status: LIVE_QUANT_SIMULATION_PLANNED_NEEDS_USER_REVIEW
+updated: 2026-05-27
+spec: .Codex/plans/2026-05-27_live-quant-simulation-spec.md
+html: .Codex/plans/2026-05-27_live-quant-simulation.html
+summary: Replace the current quant backtesting-first page with a live simulated trading console for index, bull-v4, sideways, and bear models. Reports are deterministic post-close reports generated without AI/LLM.
+
+## Previous Active Notes
+
 status: W4_ENTRY_CONFIRMATION_NEEDS_SENSITIVITY_TEST
 updated: 2026-05-26
 latest_result: filtered W4 + range20 cap + entry confirmation passed train target
