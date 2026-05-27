@@ -55,7 +55,7 @@ src/
 | `/net-buy` | NetBuyingList | ❌ | 완료 |
 | `/memo` | MemoList | ✅ | 완료 — 범용 메모 필터 리스트 |
 | `/news` | NewsList | ❌ | 완료 |
-| `/stock/:code` | StockDetail | ❌ | 완료 |
+| `/stock/:code` | StockDetail | ❌ | 완료 — 탭형 종목 터미널(차트·호가/종목정보/뉴스·공시/거래현황) |
 | `/admin` | Admin | ✅ ADMIN | 완료 |
 | `/lotto` | LottoAnalysis | ❌ (내 조합 저장/조회/삭제만 필요) | 완료 |
 | `/quant` | QuantBacktest | ❌ | 진행 — 퀀트 백테스팅 |

@@ -3,6 +3,7 @@ package com.marketpulse.domain.quant.controller;
 import com.marketpulse.domain.quant.dto.*;
 import com.marketpulse.domain.quant.service.QuantBacktestService;
 import com.marketpulse.domain.quant.service.QuantCollectService;
+import com.marketpulse.domain.quant.service.QuantCoreDashboardService;
 import com.marketpulse.domain.quant.service.QuantExperimentService;
 import com.marketpulse.domain.quant.service.QuantModelDefinitionService;
 import com.marketpulse.domain.quant.service.QuantModelFeatureService;
@@ -34,6 +35,7 @@ public class QuantController {
     private final QuantModelDefinitionService modelDefinitionService;
     private final QuantModelFeatureService modelFeatureService;
     private final QuantModelSignalService modelSignalService;
+    private final QuantCoreDashboardService coreDashboardService;
 
     @Operation(summary = "전략 목록 조회")
     @GetMapping("/strategies")
@@ -125,6 +127,98 @@ public class QuantController {
             @RequestParam String date,
             @RequestParam(defaultValue = "20") int limit) {
         return ApiResponse.success(modelSignalService.list(modelCode, date, limit));
+    }
+
+    @Operation(summary = "MP_CORE summary")
+    @GetMapping("/core/summary")
+    public ApiResponse<QuantCoreSummaryDto> getCoreSummary(@RequestParam(required = false) String date) {
+        try {
+            return ApiResponse.success(coreDashboardService.getSummary(date));
+        } catch (IllegalStateException e) {
+            return ApiResponse.failure(e.getMessage());
+        }
+    }
+
+    @Operation(summary = "MP_CORE signal view")
+    @GetMapping("/core/signals")
+    public ApiResponse<List<QuantCoreSignalViewDto>> getCoreSignals(
+            @RequestParam String date,
+            @RequestParam(defaultValue = "20") int limit) {
+        return ApiResponse.success(coreDashboardService.getSignals(date, limit));
+    }
+
+    @Operation(summary = "MP_CORE candidates")
+    @GetMapping("/core/candidates")
+    public ApiResponse<List<QuantCandidateSignalDto>> getCoreCandidates(
+            @RequestParam String date,
+            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "50") int limit) {
+        return ApiResponse.success(coreDashboardService.getCandidates(date, status, limit));
+    }
+
+    @Operation(summary = "MP_CORE candidate detail")
+    @GetMapping("/core/candidates/{assetCode}")
+    public ApiResponse<QuantCandidateDetailDto> getCoreCandidateDetail(
+            @PathVariable String assetCode,
+            @RequestParam String date) {
+        return ApiResponse.success(coreDashboardService.getCandidateDetail(assetCode, date));
+    }
+
+    @Operation(summary = "MP_CORE portfolio target")
+    @GetMapping("/core/portfolio-target")
+    public ApiResponse<QuantPortfolioTargetDto> getCorePortfolioTarget(@RequestParam String date) {
+        return ApiResponse.success(coreDashboardService.getPortfolioTarget(date));
+    }
+
+    @Operation(summary = "MP_CORE latest backtest")
+    @GetMapping("/core/backtests/latest")
+    public ApiResponse<QuantBacktestEvidenceDto> getLatestCoreBacktest() {
+        return ApiResponse.success(coreDashboardService.getLatestBacktest());
+    }
+
+    @Operation(summary = "MP_CORE backtest trades")
+    @GetMapping("/core/backtests/{runId}/trades")
+    public ApiResponse<TradeLogPageDto> getCoreBacktestTrades(
+            @PathVariable Long runId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+        return ApiResponse.success(coreDashboardService.getBacktestTrades(runId, page, size));
+    }
+
+    @Operation(summary = "MP_CORE diagnostics")
+    @GetMapping("/core/diagnostics")
+    public ApiResponse<QuantDiagnosticsDto> getCoreDiagnostics(@RequestParam(required = false) String date) {
+        return ApiResponse.success(coreDashboardService.getDiagnostics(date));
+    }
+
+    @Operation(summary = "MP_CORE feature snapshot generation (ADMIN)")
+    @PostMapping("/core/features")
+    public ApiResponse<QuantFeatureGenerateResponse> generateCoreFeatures(
+            @RequestParam String from,
+            @RequestParam String to,
+            Authentication authentication) {
+        requireAdmin(authentication);
+        return ApiResponse.success(modelFeatureService.generate("MP_CORE", from, to));
+    }
+
+    @Operation(summary = "MP_CORE signal generation (ADMIN)")
+    @PostMapping("/core/signals/generate")
+    public ApiResponse<QuantSignalGenerateResponse> generateCoreSignals(
+            @RequestParam(required = false) String date,
+            @RequestParam(defaultValue = "20") int limit,
+            Authentication authentication) {
+        requireAdmin(authentication);
+        return ApiResponse.success(modelSignalService.generate("MP_CORE", date, limit));
+    }
+
+    @Operation(summary = "MP_CORE backtest execution (ADMIN)")
+    @PostMapping("/core/backtests")
+    public ApiResponse<QuantBacktestEvidenceDto> runCoreBacktest(
+            @RequestBody BacktestRequestDto request,
+            Authentication authentication) {
+        requireAdmin(authentication);
+        backtestService.backtestCore(request);
+        return ApiResponse.success(coreDashboardService.getLatestBacktest());
     }
 
     @Operation(summary = "백테스트 실행/결과 조회")

@@ -25,6 +25,7 @@ import java.util.List;
 public class QuantBacktestService {
     private static final DateTimeFormatter BASIC = DateTimeFormatter.BASIC_ISO_DATE;
     private static final double TARGET_MONTHLY_RETURN = 0.10;
+    private static final String MP_CORE_SIGNAL_STRATEGY = "MP_CORE_SIGNAL";
 
     private final QuantStrategyService strategyService;
     private final QuantBacktestResultMapper resultMapper;
@@ -35,14 +36,31 @@ public class QuantBacktestService {
     public BacktestResponseDto backtest(BacktestRequestDto req) {
         LocalDate fromDate = parse(req.from());
         LocalDate toDate = parse(req.to());
-        QuantStrategyVo strategy = strategyService.getStrategy(req.strategyId());
+        QuantStrategyVo strategy = strategyService.getStrategy(req.normalizedStrategyId());
+        return runBacktest(strategy, fromDate, toDate, req.normalizedInitialCash(), false);
+    }
+
+    @Transactional
+    public BacktestResponseDto backtestCore(BacktestRequestDto req) {
+        LocalDate fromDate = parse(req.from());
+        LocalDate toDate = parse(req.to());
+        QuantStrategyVo strategy = strategyService.getStrategyByNameEn(MP_CORE_SIGNAL_STRATEGY);
+        return runBacktest(strategy, fromDate, toDate, req.normalizedInitialCash(), true);
+    }
+
+    private BacktestResponseDto runBacktest(QuantStrategyVo strategy, LocalDate fromDate, LocalDate toDate,
+                                            long initialCash, boolean refresh) {
+        if (refresh) {
+            resultMapper.deleteByStrategyAndPeriod(strategy.getId(), fromDate, toDate);
+            tradeLogMapper.deleteByStrategyAndPeriod(strategy.getId(), fromDate, toDate);
+        }
         List<QuantBacktestResultVo> cached = resultMapper.findByStrategyAndPeriod(strategy.getId(), fromDate, toDate);
         if (!cached.isEmpty()) {
-            return toResponse(strategy, fromDate, toDate, req.normalizedInitialCash(), cached);
+            return toResponse(strategy, fromDate, toDate, initialCash, cached);
         }
 
         QuantStrategyInterface impl = strategyService.getStrategyImpl(strategy.getNameEn());
-        BacktestExecution execution = impl.run(strategy, fromDate, toDate, req.normalizedInitialCash());
+        BacktestExecution execution = impl.run(strategy, fromDate, toDate, initialCash);
         if (!execution.results().isEmpty()) {
             resultMapper.insertBatch(execution.results());
         }

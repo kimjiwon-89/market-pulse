@@ -36,7 +36,7 @@ public class MpCoreModelDefinition implements QuantModelDefinition {
     @Override
     public Map<String, Object> configSchema() {
         return Map.of(
-                "targetMonthlyReturn", Map.of("type", "number", "default", 0.15, "guarantee", false),
+                "targetMonthlyReturn", Map.of("type", "number", "default", 0.05, "guarantee", false),
                 "labelHorizonDays", Map.of("type", "integer", "default", 20),
                 "winnerReturnThreshold", Map.of("type", "number", "default", 0.08),
                 "winnerExcessThreshold", Map.of("type", "number", "default", 0.03),
@@ -52,7 +52,7 @@ public class MpCoreModelDefinition implements QuantModelDefinition {
     @Override
     public Map<String, Object> defaultConfig() {
         return Map.ofEntries(
-                Map.entry("targetMonthlyReturn", 0.15),
+                Map.entry("targetMonthlyReturn", 0.05),
                 Map.entry("targetIsGuarantee", false),
                 Map.entry("labelHorizonDays", 20),
                 Map.entry("winnerReturnThreshold", 0.08),

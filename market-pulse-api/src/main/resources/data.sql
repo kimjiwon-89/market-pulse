@@ -7,7 +7,8 @@ CREATE SEQUENCE IF NOT EXISTS users_id_seq                 AS integer;
 CREATE SEQUENCE IF NOT EXISTS index_snapshot_id_seq        AS bigint;
 CREATE SEQUENCE IF NOT EXISTS news_snapshot_id_seq         AS bigint;
 CREATE SEQUENCE IF NOT EXISTS ranking_snapshot_id_seq      AS bigint;
-CREATE SEQUENCE IF NOT EXISTS market_flow_snapshot_id_seq  AS bigint;
+CREATE SEQUENCE IF NOT EXISTS market_flow_snapshot_id_seq    AS bigint;
+CREATE SEQUENCE IF NOT EXISTS market_leading_snapshot_id_seq AS bigint;
 CREATE SEQUENCE IF NOT EXISTS lotto_analysis_pool_id_seq   AS bigint;
 CREATE SEQUENCE IF NOT EXISTS lotto_analysis_result_id_seq AS bigint;
 CREATE SEQUENCE IF NOT EXISTS lotto_user_combo_id_seq      AS bigint;
@@ -103,6 +104,19 @@ CREATE TABLE IF NOT EXISTS market_flow_snapshot (
     indv_sell  BIGINT      NOT NULL DEFAULT 0,
     indv_net   BIGINT      NOT NULL DEFAULT 0,
     updated_at TIMESTAMP            DEFAULT NOW(),
+    UNIQUE (snap_date, market)
+);
+
+-- 선행 지표 스냅샷 (공매도·ETF 레버리지/인버스 — 장 마감 후 수집)
+CREATE TABLE IF NOT EXISTS market_leading_snapshot (
+    id             BIGSERIAL   PRIMARY KEY,
+    snap_date      DATE        NOT NULL,
+    market         VARCHAR(10) NOT NULL,  -- KOSPI | KOSDAQ | ALL
+    short_sell_vol BIGINT,
+    short_sell_amt BIGINT,
+    lvrg_vol       BIGINT,               -- 122630 KODEX 레버리지
+    invrs_vol      BIGINT,               -- 114800 KODEX 인버스
+    updated_at     TIMESTAMP   DEFAULT NOW(),
     UNIQUE (snap_date, market)
 );
 

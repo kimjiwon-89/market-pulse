@@ -76,4 +76,59 @@ public interface MarketDailyPriceMapper {
             @Param("minMarketCap") long minMarketCap,
             @Param("minVolume") long minVolume
     );
+
+    List<MonthlyPickVo> findMonthlyMpCoreSignalPicks(
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate,
+            @Param("topN") int topN
+    );
+
+    int generateCandleTrendFeatures(
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate
+    );
+
+    List<MonthlyPickVo> findMonthlyCandleBreakoutPicks(
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate,
+            @Param("topN") int topN
+    );
+
+    List<MonthlyPickVo> findMonthlyCandlePullbackPicks(
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate,
+            @Param("topN") int topN
+    );
+
+    List<MonthlyPickVo> findMonthlyCandleMomentumH20Picks(
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate,
+            @Param("topN") int topN
+    );
+
+    List<MonthlyPickVo> findDailyMomentumReplayPicks(
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate,
+            @Param("lookbackDays") int lookbackDays,
+            @Param("topN") int topN
+    );
+
+    List<MonthlyPickVo> findBullV4PaperReplayPicks(
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate
+    );
+
+    List<MonthlyPickVo> findEventDrivenCandleMtfTrendPicks(
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate,
+            @Param("topN") int topN,
+            @Param("holdDays") int holdDays
+    );
+
+    List<MonthlyPickVo> findEventDrivenCandleMtfTrendNbPicks(
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate,
+            @Param("topN") int topN,
+            @Param("holdDays") int holdDays
+    );
 }

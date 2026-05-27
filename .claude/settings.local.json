@@ -57,7 +57,8 @@
       "PowerShell($env:PGPASSWORD = \"postgreskh\"; & \"C:\\\\Program Files\\\\PostgreSQL\\\\18\\\\bin\\\\psql.exe\" -d marketpulse -U postgres -f \"d:\\\\market-pulse\\\\market-pulse-api\\\\src\\\\main\\\\resources\\\\lotto_seed.sql\" 2>&1 | Select-Object -Last 5)",
       "PowerShell(Get-Process -Name \"java\" -ErrorAction SilentlyContinue)",
       "Bash(mvn --version)",
-      "Bash(where java *)"
+      "Bash(where java *)",
+      "WebFetch(domain:brunch.co.kr)"
     ]
   }
 }

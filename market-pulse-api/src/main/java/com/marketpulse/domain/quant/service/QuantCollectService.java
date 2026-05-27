@@ -108,6 +108,12 @@ public class QuantCollectService {
         if ("ALL".equals(dataType) || "GOLD".equals(dataType)) {
             rows.addAll(fetchEndpoint("/gen/gold_bydd_trd", basDd, "GOLD", "GOLD"));
         }
+        if ("ETF".equals(dataType)) {
+            rows.addAll(fetchEndpoint("/eto/etf_bydd_trd", basDd, "ETF", "KOSPI"));
+        }
+        if ("ETN".equals(dataType)) {
+            rows.addAll(fetchEndpoint("/etn/etn_bydd_trd", basDd, "ETN", "KOSPI"));
+        }
         return rows;
     }
 
@@ -115,9 +121,11 @@ public class QuantCollectService {
         return switch (dataType) {
             case "INDEX" -> hasData(date, "INDEX");
             case "STOCK" -> hasData(date, "STOCK");
-            case "BOND" -> hasData(date, "BOND");
-            case "GOLD" -> hasData(date, "GOLD");
-            case "ALL" -> hasData(date, "INDEX") && hasData(date, "STOCK") && hasData(date, "BOND") && hasData(date, "GOLD");
+            case "BOND"  -> hasData(date, "BOND");
+            case "GOLD"  -> hasData(date, "GOLD");
+            case "ETF"   -> hasData(date, "ETF");
+            case "ETN"   -> hasData(date, "ETN");
+            case "ALL"   -> hasData(date, "INDEX") && hasData(date, "STOCK") && hasData(date, "BOND") && hasData(date, "GOLD");
             default -> false;
         };
     }

@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Market Pulse 실시간 모의매매 모델 운영 콘솔 기획</title>
+  <style>
+    :root {
+      --bg: #f7f7f6;
+      --panel: #ffffff;
+      --line: #e7e5e4;
+      --text: #18181b;
+      --muted: #78716c;
+      --up: #d62828;
+      --down: #1e5edb;
+      --flat: #57534e;
+      --ok: #0f766e;
+      --warn: #a16207;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Pretendard Variable", Pretendard, "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    main { max-width: 1120px; margin: 0 auto; padding: 44px 22px 72px; }
+    h1 { margin: 0; font-size: 34px; letter-spacing: 0; }
+    h2 { margin: 34px 0 14px; font-size: 22px; }
+    h3 { margin: 0 0 8px; font-size: 16px; }
+    p, li { font-size: 15px; line-height: 1.7; }
+    .meta { margin: 10px 0 28px; color: var(--muted); }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 22px;
+      margin: 16px 0;
+    }
+    .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .tile {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 18px;
+      min-height: 180px;
+    }
+    .tag {
+      display: inline-block;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 4px 9px;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+    .ok { border-left: 4px solid var(--ok); }
+    .warn { border-left: 4px solid var(--warn); }
+    .up { color: var(--up); }
+    .down { color: var(--down); }
+    table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+    th, td { text-align: left; vertical-align: top; padding: 12px; border-bottom: 1px solid var(--line); font-size: 14px; line-height: 1.55; }
+    th { background: #f1f1ef; }
+    tr:last-child td { border-bottom: 0; }
+    code { background: #f1f1ef; border-radius: 4px; padding: 2px 5px; }
+    .flow { white-space: pre-wrap; font-family: "IBM Plex Mono", "SF Mono", ui-monospace, monospace; font-size: 13px; line-height: 1.7; background: #f1f1ef; border-radius: 8px; padding: 16px; }
+    @media (max-width: 860px) {
+      main { padding: 28px 16px 56px; }
+      h1 { font-size: 28px; }
+      .grid, .grid-2 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Market Pulse 실시간 모의매매 모델 운영 콘솔</h1>
+  <p class="meta">작성일: 2026-05-27 · 목표: 기존 퀀트 백테스팅 화면을 실시간 모의매매 모델 운영 화면으로 전환</p>
+
+  <section class="panel ok">
+    <h2>핵심 방향</h2>
+    <p>기존 퀀트 모델들은 더 이상 홈페이지의 중심 기능으로 쓰지 않는다. 기존 작업 이력은 HTML 아카이브 한 파일로 남기고, 코드는 새 실시간 모의매매 구조로 교체한다.</p>
+    <p>새 구조는 지수 감지, Bull v4, 횡보장, 하락장, 총괄 모델로 나뉜다. 화면에는 총괄 모델을 제외한 네 개 모델만 노출한다.</p>
+  </section>
+
+  <section>
+    <h2>모델 구조</h2>
+    <div class="grid">
+      <div class="tile">
+        <span class="tag">INDEX_REGIME</span>
+        <h3>지수 감지 모델</h3>
+        <p>KOSPI/KOSDAQ 방향, 변동성, 거래대금, 급락 위험을 감지한다. 총괄 모델이 어떤 시장 모드를 선택할지 판단하는 입력이 된다.</p>
+      </div>
+      <div class="tile">
+        <span class="tag">BULL_V4</span>
+        <h3>불장 모델</h3>
+        <p>현재 bull-v4 모델을 실시간 모의매매로 승격한다. 후보 생성은 bull-v4가 담당하고, 실제 모의 체결은 실시간 execution gate가 처리한다.</p>
+      </div>
+      <div class="tile">
+        <span class="tag">SIDEWAYS_MODEL</span>
+        <h3>횡보장 모델</h3>
+        <p>추세 추격보다 박스권, 짧은 익절/손절, 변동성 축소와 재확장을 다루는 모델이다. 상세 규칙은 후속 구현에서 정의한다.</p>
+      </div>
+      <div class="tile">
+        <span class="tag">BEAR_MODEL</span>
+        <h3>하락장 모델</h3>
+        <p>기본은 방어와 현금 보존이다. 제한적인 단기 반등이나 관망 신호만 허용하는 방향으로 설계한다.</p>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>총괄 모델</h3>
+      <p><code>MASTER_MODEL</code>은 화면에 직접 노출하지 않는다. 지수 감지 결과를 받아 Bull/횡보/하락 모델을 실행, 차단, 관망 상태로 조정하는 내부 오케스트레이터다.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>운영 규칙</h2>
+    <table>
+      <thead>
+        <tr><th>항목</th><th>결정</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>시드머니</td><td>화면에 보이는 각 모델별 KRW 100,000,000. 모델끼리 자금을 공유하지 않는다.</td></tr>
+        <tr><td>동시 보유 종목</td><td>공통 제한을 두지 않고 각 모델 내부 규칙이 결정한다.</td></tr>
+        <tr><td>실시간 감시 주기</td><td>가능한 최소 단위. MVP는 분봉/현재가 제약을 고려해 1분 단위로 잡는다.</td></tr>
+        <tr><td>체결가</td><td>execution gate 통과 시점의 실시간 현재가 또는 호가를 모의 체결가로 저장한다.</td></tr>
+        <tr><td>결정 후 추적</td><td>청산한 종목뿐 아니라 raw 후보, 미진입 후보, 관심종목도 1일, 7일, 2주, 1개월, 6개월 뒤 향방을 추적한다.</td></tr>
+        <tr><td>리포트</td><td>매일 장 종료 후 자동 생성. 주간 리포트도 마지막 거래일 장 종료 후 자동 생성.</td></tr>
+        <tr><td>AI 사용</td><td>사용하지 않는다. 리포트는 모델 로그와 고정 템플릿 기반으로 생성한다.</td></tr>
+        <tr><td>레거시</td><td>기존 모델 코드는 제거하고, 어떤 작업이 있었는지만 HTML 아카이브로 보존한다.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>화면 구조</h2>
+    <div class="grid-2">
+      <div class="tile">
+        <h3>모델 리스트</h3>
+        <p><code>/quant</code> 진입 시 바로 상세 화면을 열지 않는다. 지수, Bull, 횡보, 하락 모델을 리스트로 보여주고 사용자가 모델을 선택해 상세로 들어간다.</p>
+        <p>리스트에는 상태, 시드머니, 누적 수익률, 누적 수익금, 이번달 수익률, 보유 종목 수, 오늘 raw 후보 수, 실제 entry 수, 최신 리포트 시간을 표시한다.</p>
+      </div>
+      <div class="tile">
+        <h3>모델 상세</h3>
+        <p>상세는 요약, 보유 종목, 오늘 후보, 매매 내역, 청산 계획, 진단 탭으로 구성한다.</p>
+        <p>청산 계획에는 언제 청산할지, 어떤 조건을 기다리는지, 해당 종목 예상 수익률과 위험 플래그를 함께 보여준다.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>실시간 모의매매 흐름</h2>
+    <div class="flow">모델 후보 생성
+-> raw candidate 저장
+-> 실시간 execution gate 감시
+-> entry 조건 통과
+-> simulated order 생성
+-> simulated fill 저장
+-> position 업데이트
+-> exit plan 생성/갱신
+-> exit 조건 통과
+-> simulated sell fill 저장
+-> 거래/관심/미진입 종목 1일/7일/2주/1개월/6개월 향방 추적
+-> 모델별 학습 피드백 생성
+-> 장 종료 후 daily report 생성</div>
+  </section>
+
+  <section>
+    <h2>결정 후 추적 학습</h2>
+    <p>모델은 실제 거래한 종목뿐 아니라 관심 있게 본 종목도 계속 확인한다. raw 후보, 필터에서 탈락한 후보, watchlist 종목, 청산 후 재진입 관찰 종목을 모두 추적 대상으로 남길 수 있다.</p>
+    <p>1거래일, 7일, 2주, 1개월, 6개월 기준으로 결정가 대비 수익률, 이후 최고가, 최저가, 놓친 상승폭, 회피한 하락폭을 저장한다.</p>
+    <p>이 데이터로 청산이 너무 빨랐는지, 진입하지 않은 판단이 맞았는지, 놓친 기회가 반복되는지, 재진입 신호가 필요했는지 평가한다. 모델은 이 평가를 바탕으로 개선 후보를 만들 수 있지만, 운영 규칙을 몰래 바꾸지는 않는다.</p>
+    <table>
+      <thead>
+        <tr><th>학습 항목</th><th>의미</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>missed upside</td><td>청산 뒤 더 상승한 폭. 익절/트레일링이 너무 빨랐는지 확인한다.</td></tr>
+        <tr><td>avoided downside</td><td>청산 뒤 하락을 피한 폭. 손절/위험 회피가 맞았는지 확인한다.</td></tr>
+        <tr><td>missed entry</td><td>관심 후보였지만 진입하지 않은 종목이 이후 상승했는지 확인한다.</td></tr>
+        <tr><td>correct rejection</td><td>탈락시킨 후보가 이후 부진했는지 확인해 필터가 유효했는지 검증한다.</td></tr>
+        <tr><td>exit quality</td><td>청산을 early, late, effective, neutral로 분류한다.</td></tr>
+        <tr><td>learning feedback</td><td>모델 버전 업데이트 후보. 실제 운영 반영은 기록된 규칙 변경으로만 처리한다.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="panel warn">
+    <h2>체결가 기록 원칙</h2>
+    <p>모의매매라도 체결 근거를 숨기지 않는다. 모든 체결 로그에는 신호 가격, 관측 가격, 모의 체결가, 데이터 시각, 체결 소스, 슬리피지 가정을 저장한다.</p>
+    <p>호가 데이터가 있으면 매수는 매도호가, 매도는 매수호가를 우선 사용한다. 현재가만 있으면 현재가와 슬리피지 가정으로 체결한다.</p>
+  </section>
+
+  <section>
+    <h2>리포트</h2>
+    <p>Report 탭은 홈페이지 내부에서만 조회 가능하다. 전체 리포트 목록과 상세 리포트를 제공한다.</p>
+    <table>
+      <thead>
+        <tr><th>리포트</th><th>내용</th><th>생성 방식</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Daily</td><td>오늘 시장 상태, 모델별 후보/진입/청산/보유/손익/위험/완료된 추적 체크포인트 분석/내일 관찰 포인트</td><td>장 종료 후 자동 생성</td></tr>
+        <tr><td>Weekly</td><td>주간 성과, 모델별 승패, 보유 변화, 관심종목 추적 결과, 리스크, 다음 주 운영 포인트</td><td>마지막 거래일 장 종료 후 자동 생성</td></tr>
+      </tbody>
+    </table>
+    <p>리포트 문장은 AI가 작성하지 않는다. 모델이 남긴 구조화 fact, 매매 로그, 관심종목 추적 체크포인트를 규칙 기반 템플릿에 넣어서 생성한다. 같은 입력이면 항상 같은 리포트가 나온다.</p>
+  </section>
+
+  <section>
+    <h2>구현 단계</h2>
+    <ol>
+      <li>기존 quant 모델과 화면을 레거시 아카이브 대상으로 정리한다.</li>
+      <li>실시간 모의매매용 DB/API 계약을 만든다.</li>
+      <li>모델 리스트와 모델 상세 화면을 만든다.</li>
+      <li>Bull v4를 signal model + realtime execution gate 구조로 연결한다.</li>
+      <li>지수/횡보/하락 모델은 동일한 계약을 따르는 실행 단위로 추가한다.</li>
+      <li>거래 종목과 관심 종목의 결정 후 향방 추적, 모델별 학습 피드백 저장 구조를 추가한다.</li>
+      <li>장 종료 후 daily/weekly report 자동 생성 배치를 추가한다.</li>
+      <li>백엔드 컴파일, 프론트 빌드, 주요 화면/리포트 검증을 통과시킨다.</li>
+    </ol>
+  </section>
+</main>
+</body>
+</html>

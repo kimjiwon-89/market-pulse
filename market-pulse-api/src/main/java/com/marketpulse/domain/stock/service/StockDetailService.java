@@ -3,19 +3,30 @@ package com.marketpulse.domain.stock.service;
 import com.marketpulse.domain.investor.dto.InvestorDailyItem;
 import com.marketpulse.domain.stock.dto.StockChartItemDto;
 import com.marketpulse.domain.stock.dto.StockDetailDto;
+import com.marketpulse.domain.stock.dto.StockDisclosureDto;
 import com.marketpulse.domain.stock.dto.StockInvestorDto;
+import com.marketpulse.domain.stock.dto.StockMinuteCandleDto;
+import com.marketpulse.domain.stock.dto.StockOrderbookDto;
+import com.marketpulse.domain.stock.dto.StockReportDto;
 import com.marketpulse.domain.stock.vo.KisDailyPriceResponse;
+import com.marketpulse.domain.stock.vo.KisMinutePriceResponse;
+import com.marketpulse.domain.stock.vo.KisMinutePriceVo;
+import com.marketpulse.domain.stock.vo.KisOrderbookVo;
 import com.marketpulse.domain.stock.vo.StockDailyPriceVo;
 import com.marketpulse.domain.stock.vo.StockPriceVo;
 import com.marketpulse.external.client.ExternalApiClient;
 import com.marketpulse.global.response.KisResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,11 +38,17 @@ public class StockDetailService {
 
     private final ExternalApiClient externalApiClient;
 
+    @Value("${opendart.api.key:}")
+    private String openDartApiKey;
+
     private static final String PATH_PRICE    = "/uapi/domestic-stock/v1/quotations/inquire-price";
     private static final String PATH_DAILY    = "/uapi/domestic-stock/v1/quotations/inquire-daily-price";
     private static final String PATH_INVESTOR = "/uapi/domestic-stock/v1/quotations/inquire-investor";
+    private static final String PATH_MINUTE   = "/uapi/domestic-stock/v1/quotations/inquire-time-itemchartprice";
+    private static final String PATH_ORDERBOOK = "/uapi/domestic-stock/v1/quotations/inquire-asking-price-exp-ccn";
 
     private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("yyyyMMdd");
+    private static final DateTimeFormatter TS_FMT = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
     public StockDetailDto getDetail(String code) {
         try {
@@ -161,6 +178,101 @@ public class StockDetailService {
         }
     }
 
+    public List<StockMinuteCandleDto> getMinuteChart(String code, String market, String time, boolean includePast) {
+        validateStockCode(code);
+
+        Map<String, String> params = new HashMap<>();
+        params.put("FID_COND_MRKT_DIV_CODE", normalizeMarket(market));
+        params.put("FID_INPUT_ISCD", code);
+        params.put("FID_INPUT_HOUR_1", normalizeTime(time));
+        params.put("FID_PW_DATA_INCU_YN", includePast ? "Y" : "N");
+        params.put("FID_ETC_CLS_CODE", "");
+
+        try {
+            KisMinutePriceResponse response = externalApiClient.callGet(
+                    PATH_MINUTE,
+                    "FHKST03010200",
+                    params,
+                    new ParameterizedTypeReference<KisMinutePriceResponse>() {}
+            );
+
+            List<KisMinutePriceVo> items = response != null ? response.getOutput2() : null;
+            if (items == null || items.isEmpty()) {
+                return List.of();
+            }
+
+            return items.stream()
+                    .map(v -> StockMinuteCandleDto.builder()
+                            .code(code)
+                            .time(normalizeMinuteTime(v.getDate(), v.getTime()))
+                            .open(parseLong(v.getOpenPrice()))
+                            .high(parseLong(v.getHighPrice()))
+                            .low(parseLong(v.getLowPrice()))
+                            .close(parseLong(v.getClosePrice()))
+                            .volume(parseLong(v.getVolume()))
+                            .tradeAmount(parseLong(v.getTradeAmount()))
+                            .source("KIS_REST")
+                            .build())
+                    .sorted(Comparator.comparing(StockMinuteCandleDto::getTime))
+                    .toList();
+        } catch (IllegalArgumentException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("KIS minute chart API failed for code={}: {}", code, e.getMessage());
+            return List.of();
+        }
+    }
+
+    public StockOrderbookDto getOrderbook(String code, String market) {
+        validateStockCode(code);
+
+        Map<String, String> params = new HashMap<>();
+        params.put("FID_COND_MRKT_DIV_CODE", normalizeMarket(market));
+        params.put("FID_INPUT_ISCD", code);
+
+        try {
+            KisResponse<KisOrderbookVo> response = externalApiClient.callGet(
+                    PATH_ORDERBOOK,
+                    "FHKST01010200",
+                    params,
+                    new ParameterizedTypeReference<KisResponse<KisOrderbookVo>>() {}
+            );
+            response.validate();
+
+            KisOrderbookVo v = response.getOutput();
+            if (v == null) {
+                return emptyOrderbook(code);
+            }
+
+            return StockOrderbookDto.builder()
+                    .code(code)
+                    .timestamp(LocalDateTime.now().format(TS_FMT))
+                    .asks(buildLevels(askPrices(v), askVolumes(v)))
+                    .bids(buildLevels(bidPrices(v), bidVolumes(v)))
+                    .expectedPrice(parseLong(v.getExpectedPrice()))
+                    .expectedVolume(parseLong(v.getExpectedVolume()))
+                    .build();
+        } catch (IllegalArgumentException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("KIS orderbook API failed for code={}: {}", code, e.getMessage());
+            return emptyOrderbook(code);
+        }
+    }
+
+    public List<StockDisclosureDto> getDisclosures(String code, String from, String to) {
+        validateStockCode(code);
+        if (openDartApiKey == null || openDartApiKey.isBlank()) {
+            throw new IllegalStateException("OpenDART API 키가 설정되지 않았습니다.");
+        }
+        return List.of();
+    }
+
+    public List<StockReportDto> getReports(String code) {
+        validateStockCode(code);
+        return List.of();
+    }
+
     private long parseLong(String s) {
         if (s == null || s.isBlank()) return 0L;
         try { return Long.parseLong(s.trim().replace(",", "")); }
@@ -171,5 +283,74 @@ public class StockDetailService {
         if (s == null || s.isBlank()) return 0.0;
         try { return Double.parseDouble(s.trim().replace(",", "")); }
         catch (NumberFormatException e) { return 0.0; }
+    }
+
+    private void validateStockCode(String code) {
+        if (code == null || !code.matches("\\d{6}")) {
+            throw new IllegalArgumentException("종목코드는 6자리 숫자여야 합니다.");
+        }
+    }
+
+    private String normalizeMarket(String market) {
+        if (market == null || market.isBlank()) return "J";
+        if (List.of("J", "NX", "UN").contains(market)) return market;
+        return "J";
+    }
+
+    private String normalizeTime(String time) {
+        if (time == null || time.isBlank()) {
+            return LocalDateTime.now().format(DateTimeFormatter.ofPattern("HHmmss"));
+        }
+        return time;
+    }
+
+    private String normalizeMinuteTime(String date, String time) {
+        return (date != null ? date : "") + (time != null ? time : "");
+    }
+
+    private StockOrderbookDto emptyOrderbook(String code) {
+        return StockOrderbookDto.builder()
+                .code(code)
+                .timestamp(LocalDateTime.now().format(TS_FMT))
+                .asks(List.of())
+                .bids(List.of())
+                .expectedPrice(0)
+                .expectedVolume(0)
+                .build();
+    }
+
+    private List<StockOrderbookDto.OrderbookLevel> buildLevels(String[] prices, String[] volumes) {
+        List<StockOrderbookDto.OrderbookLevel> levels = new ArrayList<>();
+        for (int i = 0; i < prices.length; i++) {
+            long price = parseLong(prices[i]);
+            long volume = parseLong(volumes[i]);
+            if (price <= 0 && volume <= 0) continue;
+            levels.add(StockOrderbookDto.OrderbookLevel.builder()
+                    .level(i + 1)
+                    .price(price)
+                    .volume(volume)
+                    .build());
+        }
+        return levels;
+    }
+
+    private String[] askPrices(KisOrderbookVo v) {
+        return new String[] { v.getAskPrice1(), v.getAskPrice2(), v.getAskPrice3(), v.getAskPrice4(), v.getAskPrice5(),
+                v.getAskPrice6(), v.getAskPrice7(), v.getAskPrice8(), v.getAskPrice9(), v.getAskPrice10() };
+    }
+
+    private String[] askVolumes(KisOrderbookVo v) {
+        return new String[] { v.getAskVolume1(), v.getAskVolume2(), v.getAskVolume3(), v.getAskVolume4(), v.getAskVolume5(),
+                v.getAskVolume6(), v.getAskVolume7(), v.getAskVolume8(), v.getAskVolume9(), v.getAskVolume10() };
+    }
+
+    private String[] bidPrices(KisOrderbookVo v) {
+        return new String[] { v.getBidPrice1(), v.getBidPrice2(), v.getBidPrice3(), v.getBidPrice4(), v.getBidPrice5(),
+                v.getBidPrice6(), v.getBidPrice7(), v.getBidPrice8(), v.getBidPrice9(), v.getBidPrice10() };
+    }
+
+    private String[] bidVolumes(KisOrderbookVo v) {
+        return new String[] { v.getBidVolume1(), v.getBidVolume2(), v.getBidVolume3(), v.getBidVolume4(), v.getBidVolume5(),
+                v.getBidVolume6(), v.getBidVolume7(), v.getBidVolume8(), v.getBidVolume9(), v.getBidVolume10() };
     }
 }

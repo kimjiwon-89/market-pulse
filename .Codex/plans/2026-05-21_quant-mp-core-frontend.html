@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MP_CORE 초보자용 판단 대시보드 리플랜</title>
+  <style>
+    :root {
+      --bg: #f5f6f8;
+      --panel: #ffffff;
+      --text: #182230;
+      --muted: #667085;
+      --line: #d7dde6;
+      --red: #b42318;
+      --red-bg: #fee4e2;
+      --yellow: #a15c07;
+      --yellow-bg: #fef0c7;
+      --green: #067647;
+      --green-bg: #dcfae6;
+      --blue: #175cd3;
+      --blue-bg: #d1e9ff;
+      --gray-bg: #f2f4f7;
+      --sans: Pretendard, "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--sans); line-height: 1.55; }
+    header { background: var(--panel); border-bottom: 1px solid var(--line); padding: 28px 36px 22px; }
+    main { max-width: 1180px; margin: 0 auto; padding: 22px 24px 56px; }
+    h1 { margin: 0 0 8px; font-size: 26px; letter-spacing: 0; }
+    h2 { margin: 0 0 14px; font-size: 20px; }
+    h3 { margin: 22px 0 10px; font-size: 16px; }
+    p { margin: 8px 0; color: var(--muted); }
+    code, pre { font-family: var(--mono); }
+    section { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 22px; margin-bottom: 16px; }
+    table { width: 100%; border-collapse: collapse; margin: 12px 0 18px; font-size: 13px; }
+    th, td { border: 1px solid var(--line); padding: 9px 10px; vertical-align: top; }
+    th { background: #f9fafb; text-align: left; }
+    pre { margin: 12px 0; padding: 14px; overflow-x: auto; border-radius: 8px; background: #111827; color: #f9fafb; font-size: 12px; }
+    .tabs { position: sticky; top: 0; z-index: 10; display: flex; gap: 8px; flex-wrap: wrap; padding: 10px 0; margin-bottom: 14px; background: rgba(245,246,248,.95); }
+    .tabs a { display: inline-flex; text-decoration: none; color: var(--muted); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; font-size: 13px; }
+    .tabs a:hover { color: var(--text); border-color: #98a2b3; }
+    .badge { display: inline-flex; align-items: center; min-height: 24px; border-radius: 999px; padding: 2px 9px; font-size: 12px; border: 1px solid var(--line); background: #f9fafb; color: var(--muted); }
+    .required { color: var(--red); background: var(--red-bg); border-color: #fecdca; }
+    .warn { color: var(--yellow); background: var(--yellow-bg); border-color: #fedf89; }
+    .pass { color: var(--green); background: var(--green-bg); border-color: #abefc6; }
+    .info { color: var(--blue); background: var(--blue-bg); border-color: #84caff; }
+    .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 12px; }
+    .card { border: 1px solid var(--line); border-radius: 8px; background: #fff; padding: 14px; }
+    .span-3 { grid-column: span 3; }
+    .span-4 { grid-column: span 4; }
+    .span-6 { grid-column: span 6; }
+    .span-12 { grid-column: span 12; }
+    .callout { border-left: 4px solid var(--red); background: var(--red-bg); color: #7a271a; padding: 12px 14px; border-radius: 6px; margin: 12px 0; }
+    .note { border-left: 4px solid var(--yellow); background: var(--yellow-bg); color: #713b12; padding: 12px 14px; border-radius: 6px; margin: 12px 0; }
+    .mock { border: 1px solid var(--line); background: #fbfcfe; border-radius: 8px; padding: 14px; }
+    .mock-row { display: grid; grid-template-columns: 1.1fr 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+    .mock-box { background: white; border: 1px solid var(--line); border-radius: 8px; padding: 12px; min-height: 74px; }
+    .traffic { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+    ul { margin: 8px 0 16px 20px; padding: 0; }
+    li { margin: 5px 0; }
+    @media (max-width: 900px) {
+      header { padding: 22px 16px 16px; }
+      main { padding: 16px; }
+      .span-3, .span-4, .span-6 { grid-column: span 12; }
+      .mock-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>MP_CORE 초보자용 판단 대시보드 리플랜</h1>
+    <p>작성일: 2026-05-21 · 상태: REPLANNING · 목표: 퀀트를 모르는 사용자도 오늘의 행동을 판단할 수 있게 재구성</p>
+    <div>
+      <span class="badge required">필수: 쉬운 판단 레이어</span>
+      <span class="badge required">필수: 오늘 할 일</span>
+      <span class="badge warn">트레이드오프: 단순화 vs 정량 정보 누락</span>
+      <span class="badge info">해결: 고급 보기로 상세 유지</span>
+    </div>
+  </header>
+
+  <main>
+    <nav class="tabs">
+      <a href="#overview">개요</a>
+      <a href="#flow">사용자 흐름</a>
+      <a href="#mock">UI 목업</a>
+      <a href="#copy">카피 가이드</a>
+      <a href="#api">API 설계</a>
+      <a href="#db">DB 변경</a>
+      <a href="#scope">구현 범위</a>
+      <a href="#ac">AC</a>
+    </nav>
+
+    <section id="overview">
+      <h2>1. 개요</h2>
+      <p>기존 MP_CORE 대시보드는 기능 검증은 통과했지만, 퀀트 지표를 모르는 사용자가 실전 판단을 내리기 어렵다. 이번 리플랜은 기존 기능을 유지하면서 첫 화면에 초보자용 판단 레이어를 추가한다.</p>
+      <div class="grid">
+        <div class="card span-4"><strong>핵심 질문</strong><p>지금 사도 되는가, 기다려야 하는가, 보유 중이면 줄여야 하는가를 바로 보여준다.</p></div>
+        <div class="card span-4"><strong>표현 방식</strong><p>신호등 배지, 오늘 할 일 카드, 위험 미터, 쉬운 이유 카드, 도움말을 사용한다.</p></div>
+        <div class="card span-4"><strong>정량 정보</strong><p>factor, score, backtest 상세는 숨기지 않고 고급 보기로 이동한다.</p></div>
+      </div>
+      <div class="note">트레이드오프: 쉬운 표현은 판단 속도를 높이지만 중요한 수치 맥락을 가릴 수 있다. 따라서 기본 화면은 쉬운 행동 중심, 상세 지표는 `고급 지표 보기`에 둔다.</div>
+    </section>
+
+    <section id="flow">
+      <h2>2. 사용자 흐름</h2>
+      <table>
+        <thead><tr><th>단계</th><th>사용자가 보는 질문</th><th>화면 응답</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>지금 모델 판단은?</td><td><span class="badge pass">매수 가능</span> <span class="badge warn">관찰</span> <span class="badge required">위험</span> <span class="badge info">매도 축소</span> 중 하나로 표시</td></tr>
+          <tr><td>2</td><td>오늘 무엇을 해야 하나?</td><td>`오늘 할 일` 카드에 매수 검토, 관찰, 유지, 축소, 매도 검토를 표시</td></tr>
+          <tr><td>3</td><td>왜 그렇게 판단했나?</td><td>쉬운 이유 카드 1~3개 표시</td></tr>
+          <tr><td>4</td><td>얼마나 위험한가?</td><td>낮음 / 보통 / 높음 위험 미터 표시</td></tr>
+          <tr><td>5</td><td>후보별로 어떻게 행동하나?</td><td>종목별 결정 테이블에서 행동, 이유, 예정일 확인</td></tr>
+          <tr><td>6</td><td>자세한 수치도 보고 싶다</td><td>`고급 지표 보기`를 열어 기존 factor/backtest/diagnostics 확인</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="mock">
+      <h2>3. UI 목업</h2>
+      <div class="mock">
+        <div class="mock-row">
+          <div class="mock-box">
+            <strong>지금 모델 판단</strong>
+            <div class="traffic">
+              <span class="badge warn">관찰</span>
+            </div>
+            <p>오늘은 신규 매수보다 조건 확인이 우선입니다.</p>
+          </div>
+          <div class="mock-box">
+            <strong>오늘 할 일</strong>
+            <p>보유 중: 목표 비중보다 높으면 일부 축소 검토</p>
+            <p>비보유: 리밸런싱 예정일까지 대기</p>
+          </div>
+          <div class="mock-box">
+            <strong>위험</strong>
+            <div class="traffic">
+              <span class="badge">낮음</span>
+              <span class="badge warn">보통</span>
+              <span class="badge">높음</span>
+            </div>
+            <p>최대 하락 경험과 위험 플래그를 함께 봅니다.</p>
+          </div>
+        </div>
+        <div class="mock-box">
+          <strong>왜 이렇게 판단했나</strong>
+          <ul>
+            <li>점수는 기준선 근처지만 아직 매수 예정일이 아닙니다.</li>
+            <li>일부 후보는 위험 조건이 있어 오늘은 사지 않습니다.</li>
+            <li>보유 종목은 목표 비중과 차이가 크면 조정 대상입니다.</li>
+          </ul>
+        </div>
+        <table>
+          <thead><tr><th>종목</th><th>모델 판단</th><th>내가 할 행동</th><th>이유</th><th>위험</th><th>예정일</th></tr></thead>
+          <tbody>
+            <tr><td>삼성전자</td><td><span class="badge pass">매수 가능</span></td><td>리밸런싱일에 매수 검토</td><td>기준 조건 충족, 차단 조건 없음</td><td><span class="badge warn">보통</span></td><td>2026-05-22</td></tr>
+            <tr><td>예시보유</td><td><span class="badge info">매도 축소</span></td><td>비중 줄이기</td><td>현재 비중이 목표보다 높음</td><td><span class="badge warn">보통</span></td><td>미정</td></tr>
+            <tr><td>예시위험</td><td><span class="badge required">위험</span></td><td>오늘은 사지 않음</td><td>위험 조건이 감지됨</td><td><span class="badge required">높음</span></td><td>미정</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="copy">
+      <h2>4. UI 카피 가이드</h2>
+      <table>
+        <thead><tr><th>영역</th><th>권장 문구</th><th>피해야 할 문구</th></tr></thead>
+        <tbody>
+          <tr><td>판단</td><td>매수 가능, 관찰, 위험, 매도 축소</td><td>ENTRY_READY, REBALANCE_REQUIRED, alpha signal</td></tr>
+          <tr><td>행동</td><td>오늘은 관찰, 리밸런싱일에 매수 검토, 보유 유지, 비중 줄이기</td><td>무조건 매수, 확정 수익, 안전한 종목</td></tr>
+          <tr><td>수익</td><td>월평균 수익률, 전체 수익률, 과거 테스트 기준</td><td>수익 보장, 앞으로도 같은 수익</td></tr>
+          <tr><td>위험</td><td>최대 하락 경험, 거래 비용, 위험 조건</td><td>MDD만 단독 노출, drawdown만 단독 노출</td></tr>
+        </tbody>
+      </table>
+      <h3>도움말 문구</h3>
+      <table>
+        <thead><tr><th>용어</th><th>tooltip</th></tr></thead>
+        <tbody>
+          <tr><td>리밸런싱</td><td>정해진 날짜에 보유 비중을 다시 맞추는 작업입니다.</td></tr>
+          <tr><td>목표 비중</td><td>모델이 권장하는 보유 비율입니다.</td></tr>
+          <tr><td>최대 하락 경험</td><td>과거 테스트에서 고점 대비 가장 크게 내려갔던 구간입니다.</td></tr>
+          <tr><td>거래 비용</td><td>매매 과정에서 발생한 수수료와 세금입니다.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="api">
+      <h2>5. API 설계</h2>
+      <p>기존 MP_CORE API 경로를 유지한다. 초보자용 상태와 문구는 프론트엔드에서 기존 필드를 조합해 계산한다.</p>
+      <table>
+        <thead><tr><th>API</th><th>사용 필드</th><th>용도</th></tr></thead>
+        <tbody>
+          <tr><td>기존 후보 목록 API</td><td><code>candidateStatus</code>, <code>nextAction</code>, <code>rebalanceStatus</code>, <code>blockers</code>, <code>riskFlags</code>, <code>reasonChips</code>, <code>triggerConditions</code>, <code>currentWeight</code>, <code>targetWeight</code></td><td>쉬운 판단, 오늘 할 일, 위험, 이유 계산</td></tr>
+          <tr><td>기존 후보 상세 API</td><td>동일</td><td>드릴다운 상세와 고급 보기</td></tr>
+          <tr><td>기존 백테스트 API</td><td><code>monthlyReturn</code>, <code>totalReturn</code>, <code>mdd</code>, <code>totalCost</code>, 상세 지표</td><td>월평균 수익률, 전체 수익률, 최대 하락 경험, 거래 비용 표시</td></tr>
+          <tr><td>기존 diagnostics API</td><td>feature/factor/sector 관련 상세 지표</td><td>고급 지표 보기</td></tr>
+        </tbody>
+      </table>
+      <div class="note">백엔드 변경은 기존 응답에 판단 근거 필드가 없을 때만 optional 필드 추가로 제한한다. 신규 엔드포인트는 만들지 않는다.</div>
+    </section>
+
+    <section id="db">
+      <h2>6. DB 변경</h2>
+      <p>신규 DB 변경 없음.</p>
+      <pre>-- 이번 UX 리플랜에서는 실행할 DDL이 없다.</pre>
+    </section>
+
+    <section id="scope">
+      <h2>7. 구현 범위</h2>
+      <table>
+        <thead><tr><th>영역</th><th>파일</th><th>작업</th></tr></thead>
+        <tbody>
+          <tr><td>Frontend</td><td><code>market-pulse-web/src/pages/QuantDashboard/index.tsx</code></td><td>첫 화면을 판단 요약, 오늘 할 일, 이유 카드, 위험 미터, 후보 결정 테이블 중심으로 재배치</td></tr>
+          <tr><td>Frontend</td><td><code>market-pulse-web/src/pages/QuantDashboard/CandidateDrilldown.tsx</code></td><td>기본은 쉬운 문장, 상세는 고급 지표 보기로 분리</td></tr>
+          <tr><td>Frontend</td><td><code>market-pulse-web/src/pages/QuantDashboard/BacktestEvidencePanel.tsx</code></td><td>월평균 수익률, 전체 수익률, 최대 하락 경험, 거래 비용 라벨 적용</td></tr>
+          <tr><td>Frontend</td><td><code>market-pulse-web/src/pages/QuantDashboard/PortfolioTargetPanel.tsx</code></td><td>보유 중이면 유지/축소/매도 검토 행동 표시</td></tr>
+          <tr><td>Frontend</td><td><code>market-pulse-web/src/pages/QuantDashboard/DiagnosticsPanel.tsx</code></td><td>기본 접힘 상태의 고급 지표 영역으로 이동</td></tr>
+          <tr><td>Frontend</td><td><code>market-pulse-web/src/types/index.ts</code> 또는 quant 타입 파일</td><td>초보자용 decision/action/risk 타입과 매핑 함수 타입 정의</td></tr>
+          <tr><td>Backend</td><td>기존 quant controller/service/dto</td><td>원칙적으로 변경 없음. 필요한 경우 optional 설명 필드만 추가</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="ac">
+      <h2>8. 완료 기준(AC)</h2>
+      <table>
+        <thead><tr><th>ID</th><th>검증 가능한 조건</th><th>중요도</th></tr></thead>
+        <tbody>
+          <tr><td>AC-UX-1</td><td>첫 화면 상단에 `지금 모델 판단` 영역과 상태 배지가 표시된다.</td><td><span class="badge required">필수</span></td></tr>
+          <tr><td>AC-UX-2</td><td>`오늘 할 일` 영역에 보유자 행동과 비보유 후보 행동이 분리되어 표시된다.</td><td><span class="badge required">필수</span></td></tr>
+          <tr><td>AC-UX-3</td><td>비보유 후보는 `언제 사는가`와 `어떤 조건이면 안 사는가`를 확인할 수 있다.</td><td><span class="badge required">필수</span></td></tr>
+          <tr><td>AC-UX-4</td><td>후보 테이블 컬럼은 `종목`, `모델 판단`, `내가 할 행동`, `이유`, `위험`, `예정일`을 포함한다.</td><td><span class="badge required">필수</span></td></tr>
+          <tr><td>AC-UX-5</td><td>기본 후보 테이블에는 `winnerProb`, `sharpe`, `MDD`, `factorScores`가 1차 라벨로 노출되지 않는다.</td><td><span class="badge required">필수</span></td></tr>
+          <tr><td>AC-UX-6</td><td>위험 미터는 낮음/보통/높음 중 하나를 표시하고, 위험 플래그가 있으면 높음으로 표시된다.</td><td><span class="badge required">필수</span></td></tr>
+          <tr><td>AC-UX-7</td><td>백테스트 기본 라벨은 월평균 수익률, 전체 수익률, 최대 하락 경험, 거래 비용을 사용한다.</td><td><span class="badge required">필수</span></td></tr>
+          <tr><td>AC-UX-8</td><td>수익률 영역에 과거 결과가 수익을 보장하지 않는다는 경고 문구가 있다.</td><td><span class="badge required">필수</span></td></tr>
+          <tr><td>AC-UX-9</td><td>고급 정량 지표는 기본 접힘 상태의 `고급 지표 보기` 안에 있다.</td><td><span class="badge required">필수</span></td></tr>
+          <tr><td>AC-UX-10</td><td>화면에 `수익 보장`, `무조건 매수`, `확정 수익`, `안전한 종목` 문구가 없다.</td><td><span class="badge required">필수</span></td></tr>
+          <tr><td>AC-UX-11</td><td>신규 DB DDL이 추가되지 않는다.</td><td><span class="badge required">필수</span></td></tr>
+          <tr><td>AC-UX-12</td><td><code>market-pulse-web</code>에서 <code>npm run build</code>가 성공한다.</td><td><span class="badge required">필수</span></td></tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+</body>
+</html>

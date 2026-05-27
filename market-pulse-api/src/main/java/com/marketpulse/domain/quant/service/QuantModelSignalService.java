@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.marketpulse.domain.quant.dto.QuantCoreSignalDto;
 import com.marketpulse.domain.quant.dto.QuantSignalGenerateResponse;
+import com.marketpulse.domain.quant.mapper.QuantCoreFeatureSnapshotMapper;
 import com.marketpulse.domain.quant.mapper.QuantCoreSignalMapper;
 import com.marketpulse.domain.quant.mapper.QuantModelDefinitionMapper;
 import com.marketpulse.domain.quant.vo.QuantCoreSignalVo;
@@ -24,6 +25,7 @@ public class QuantModelSignalService {
 
     private final QuantModelDefinitionMapper modelMapper;
     private final QuantCoreSignalMapper signalMapper;
+    private final QuantCoreFeatureSnapshotMapper featureMapper;
     private final ObjectMapper objectMapper;
 
     @Transactional
@@ -32,7 +34,7 @@ public class QuantModelSignalService {
         if (model.getImplementationKey() == null || model.getImplementationKey().isBlank()) {
             throw new IllegalArgumentException("실행 가능한 signal engine이 없는 모델입니다: " + model.getModelCode());
         }
-        LocalDate signalDate = parseDate(date);
+        LocalDate signalDate = resolveDate(model.getModelCode(), date);
         int safeLimit = Math.max(1, Math.min(limit, 100));
         int generated = signalMapper.generateBaselineSignals(model.getModelCode(), signalDate, safeLimit);
         return new QuantSignalGenerateResponse(model.getModelCode(), signalDate.toString(), generated);
@@ -76,10 +78,18 @@ public class QuantModelSignalService {
         );
     }
 
-    private LocalDate parseDate(String value) {
+    private LocalDate resolveDate(String modelCode, String value) {
         if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException("날짜는 필수입니다.");
+            LocalDate latest = featureMapper.findLatestFeatureDate(modelCode);
+            if (latest == null) {
+                throw new IllegalArgumentException("피처 데이터가 없습니다: " + modelCode);
+            }
+            return latest;
         }
+        return parseDate(value);
+    }
+
+    private LocalDate parseDate(String value) {
         String trimmed = value.trim();
         return trimmed.contains("-") ? LocalDate.parse(trimmed) : LocalDate.parse(trimmed, BASIC_DATE);
     }
