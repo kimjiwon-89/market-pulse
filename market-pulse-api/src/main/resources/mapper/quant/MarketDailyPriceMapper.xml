@@ -1048,6 +1048,82 @@
         ORDER BY rebalance_date, pick_rank
     </select>
 
+    <select id="findDailyMomentumReplayPicks" resultType="MonthlyPickVo">
+        WITH trading_days AS (
+            SELECT trade_date,
+                   ROW_NUMBER() OVER (ORDER BY trade_date) AS day_seq
+            FROM (
+                SELECT DISTINCT trade_date
+                FROM market_daily_price
+                WHERE asset_type = 'STOCK'
+                  AND trade_date &lt;= #{toDate}
+            ) d
+        ), replay_days AS (
+            SELECT exec_day.trade_date AS rebalance_date,
+                   exec_day.trade_date AS exit_date,
+                   signal_day.trade_date AS signal_date,
+                   lookback_day.trade_date AS lookback_date
+            FROM trading_days exec_day
+            JOIN trading_days signal_day
+              ON signal_day.day_seq = exec_day.day_seq - 1
+            JOIN trading_days lookback_day
+              ON lookback_day.day_seq = signal_day.day_seq - GREATEST(1, #{lookbackDays})
+            WHERE exec_day.trade_date BETWEEN #{fromDate} AND #{toDate}
+        ), candidates AS (
+            SELECT rd.rebalance_date,
+                   rd.exit_date,
+                   buy.asset_code,
+                   buy.asset_name,
+                   buy.asset_type,
+                   buy.sector,
+                   COALESCE(buy.open_price, buy.close_price) AS buy_price,
+                   COALESCE(sell.close_price, sell.open_price) AS sell_price,
+                   buy.market_cap,
+                   ((signal.close_price - start_price.close_price) / NULLIF(start_price.close_price, 0)) AS score,
+                   ROW_NUMBER() OVER (
+                       PARTITION BY rd.rebalance_date
+                       ORDER BY ((signal.close_price - start_price.close_price) / NULLIF(start_price.close_price, 0)) DESC,
+                                buy.market_cap DESC NULLS LAST,
+                                buy.asset_code
+                   ) AS pick_rank
+            FROM replay_days rd
+            JOIN market_daily_price buy
+              ON buy.asset_type = 'STOCK'
+             AND buy.trade_date = rd.rebalance_date
+            JOIN market_daily_price sell
+              ON sell.asset_type = buy.asset_type
+             AND sell.asset_code = buy.asset_code
+             AND sell.trade_date = rd.exit_date
+            JOIN market_daily_price signal
+              ON signal.asset_type = buy.asset_type
+             AND signal.asset_code = buy.asset_code
+             AND signal.trade_date = rd.signal_date
+            JOIN market_daily_price start_price
+              ON start_price.asset_type = buy.asset_type
+             AND start_price.asset_code = buy.asset_code
+             AND start_price.trade_date = rd.lookback_date
+            WHERE COALESCE(buy.open_price, buy.close_price) &gt; 0
+              AND COALESCE(sell.close_price, sell.open_price) &gt; 0
+              AND start_price.close_price &gt; 0
+              AND signal.close_price &gt; 0
+              AND buy.asset_name IS NOT NULL
+        )
+        SELECT rebalance_date AS rebalanceDate,
+               exit_date AS exitDate,
+               asset_code AS assetCode,
+               asset_name AS assetName,
+               asset_type AS assetType,
+               sector,
+               buy_price AS buyPrice,
+               sell_price AS sellPrice,
+               score,
+               market_cap AS marketCap,
+               pick_rank AS pickRank
+        FROM candidates
+        WHERE pick_rank &lt;= #{topN}
+        ORDER BY rebalance_date, pick_rank
+    </select>
+
     <select id="findEventDrivenCandleMtfTrendPicks" resultType="MonthlyPickVo">
         <![CDATA[
         WITH RECURSIVE trading_days AS (

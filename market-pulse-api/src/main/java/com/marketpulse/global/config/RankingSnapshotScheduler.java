@@ -2,6 +2,7 @@ package com.marketpulse.global.config;
 
 import com.marketpulse.domain.index.service.IndexService;
 import com.marketpulse.domain.investor.service.InvestorService;
+import com.marketpulse.domain.investor.service.LeadingIndicatorCollectService;
 import com.marketpulse.domain.news.service.NewsService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +19,7 @@ import java.time.LocalDate;
 public class RankingSnapshotScheduler {
 
     private final InvestorService investorService;
+    private final LeadingIndicatorCollectService leadingIndicatorCollectService;
     private final IndexService indexService;
     private final NewsService newsService;
 
@@ -41,6 +43,15 @@ public class RankingSnapshotScheduler {
         investorService.saveMarketFlowSnapshots(today);
         indexService.fetchAndSaveAll();
         log.info("=== Close snapshot done: {} ===", today);
+    }
+
+    /** 평일 16:05 — 선행 지표 수집 (공매도·ETF 레버리지/인버스) */
+    @Scheduled(cron = "0 5 16 * * MON-FRI")
+    public void collectLeadingIndicators() {
+        LocalDate today = LocalDate.now();
+        log.info("=== Leading indicator collect start: {} ===", today);
+        leadingIndicatorCollectService.collect(today);
+        log.info("=== Leading indicator collect done: {} ===", today);
     }
 
     /** 평일 9:00, 12:00, 15:00 — 뉴스 수집 */

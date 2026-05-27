@@ -10,7 +10,7 @@ import { Login } from "@/pages/Login";
 import { Admin } from "@/pages/Admin";
 import { LottoAnalysis } from "@/pages/LottoAnalysis";
 import { StockDetail } from "@/pages/StockDetail";
-import { QuantDashboard } from "@/pages/QuantDashboard";
+import { QuantDashboard, QuantReportDetailPage, QuantReportsPage } from "@/pages/QuantDashboard";
 
 const router = createBrowserRouter([
   { path: "/login", element: <Login /> },
@@ -27,6 +27,9 @@ const router = createBrowserRouter([
       { path: "admin", element: <Admin /> },
       { path: "lotto", element: <LottoAnalysis /> },
       { path: "quant", element: <QuantDashboard /> },
+      { path: "quant/models/:modelCode", element: <QuantDashboard /> },
+      { path: "reports", element: <QuantReportsPage /> },
+      { path: "reports/:reportId", element: <QuantReportDetailPage /> },
       { path: "stock/:code", element: <StockDetail /> },
     ],
   },

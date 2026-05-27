@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.marketpulse.domain.investor.mapper.LeadingSnapshotMapper">
+
+    <insert id="upsert">
+        INSERT INTO market_leading_snapshot
+            (snap_date, market, short_sell_vol, short_sell_amt, lvrg_vol, invrs_vol, updated_at)
+        VALUES
+            (#{snapDate}, #{market}, #{shortSellVol}, #{shortSellAmt}, #{lvrgVol}, #{invrsVol}, NOW())
+        ON CONFLICT (snap_date, market) DO UPDATE SET
+            short_sell_vol = COALESCE(EXCLUDED.short_sell_vol, market_leading_snapshot.short_sell_vol),
+            short_sell_amt = COALESCE(EXCLUDED.short_sell_amt, market_leading_snapshot.short_sell_amt),
+            lvrg_vol       = COALESCE(EXCLUDED.lvrg_vol,       market_leading_snapshot.lvrg_vol),
+            invrs_vol      = COALESCE(EXCLUDED.invrs_vol,       market_leading_snapshot.invrs_vol),
+            updated_at     = NOW()
+    </insert>
+
+    <select id="findByDateRange" resultType="com.marketpulse.domain.investor.vo.MarketLeadingSnapshotVo">
+        SELECT id, snap_date, market, short_sell_vol, short_sell_amt, lvrg_vol, invrs_vol
+        FROM market_leading_snapshot
+        WHERE snap_date BETWEEN #{from} AND #{to}
+        ORDER BY snap_date, market
+    </select>
+
+</mapper>

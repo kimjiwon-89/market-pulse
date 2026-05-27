@@ -6,6 +6,7 @@ Writes:
 """
 import warnings
 import os
+import throttle  # noqa: F401 — side-effect only: caps CPU threads, lowers priority
 
 import pandas as pd
 import psycopg2
