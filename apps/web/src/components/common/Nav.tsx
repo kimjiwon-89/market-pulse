@@ -1,61 +1,48 @@
 import { NavLink } from "react-router-dom";
+import { quantAsOf } from "@/features/quant/quantMockData";
 import { getRole } from "@/services/apiClient";
 
 const NAV_ITEMS = [
   {
-    id: "dashboard",
+    id: "home",
     to: "/",
-    label: "대시보드",
+    label: "홈",
     icon: "M3 12 12 4l9 8M5 11v9h5v-6h4v6h5v-9",
     end: true,
   },
   {
-    id: "sector",
-    to: "/index/0001",
-    label: "업종 상세",
-    icon: "M3 21h18M5 21V8l7-4 7 4v13M9 21v-7h6v7",
-    end: false,
-  },
-  {
-    id: "flow",
-    to: "/net-buy",
-    label: "순매수도",
-    icon: "M3 17l6-6 4 4 8-8M14 7h7v7",
-    end: false,
-  },
-  {
-    id: "memo",
-    to: "/memo",
-    label: "메모",
-    icon: "M9 3h6l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM9 3v5h6",
-    end: false,
-  },
-  {
-    id: "news",
-    to: "/news",
-    label: "뉴스",
-    icon: "M4 5h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z",
-    end: false,
-  },
-  {
-    id: "lotto",
-    to: "/lotto",
-    label: "로또 연구소",
-    icon: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 6a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm-4 8a4 4 0 0 1 8 0H8z",
+    id: "today",
+    to: "/quant/today",
+    label: "오늘의 종목",
+    icon: "M4 6h16M4 12h16M4 18h10",
     end: false,
   },
   {
     id: "quant",
     to: "/quant",
-    label: "Models",
+    label: "모델 목록",
     icon: "M3 3v18h18M7 16l4-8 4 4 4-6",
     end: false,
   },
   {
     id: "reports",
     to: "/reports",
-    label: "Report",
+    label: "리포트",
     icon: "M6 3h9l3 3v15H6V3zM14 3v4h4M9 12h6M9 16h6",
+    end: false,
+  },
+  {
+    id: "market",
+    to: "/market",
+    label: "시장 보기",
+    icon: "M3 21h18M5 21V8l7-4 7 4v13M9 21v-7h6v7",
+    end: false,
+  },
+  {
+    id: "services",
+    to: "/services",
+    label: "더보기",
+    icon: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 6a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm-4 8a4 4 0 0 1 8 0H8z",
     end: false,
   },
 ];
@@ -104,7 +91,7 @@ export function Nav() {
             textDecoration: "none",
             fontSize: 13,
             fontWeight: isActive ? 600 : 400,
-            color: isActive ? "var(--text)" : "var(--text-3)",
+            color: isActive ? "var(--accent)" : "var(--text-3)",
             background: isActive ? "var(--accent-soft)" : "transparent",
             transition: "background 0.15s, color 0.15s",
           })}
@@ -126,6 +113,10 @@ export function Nav() {
           <span style={{ whiteSpace: "nowrap" }}>{label}</span>
         </NavLink>
       ))}
+      <div className="nav-side-status">
+        <div>데이터 기준</div>
+        <strong>{quantAsOf}</strong>
+      </div>
     </aside>
   );
 }

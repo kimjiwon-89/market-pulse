@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { getUsername, getToken, clearAuth, apiClient } from "@/services/apiClient";
+import { getUsername, getToken, clearAuth } from "@/services/apiClient";
+import { mockStocks } from "@/features/mock/marketMockData";
 import type { StockMasterItem } from "@/types";
-import { LiveBadge } from "./LiveBadge";
 
 export function Header() {
   const username = getUsername();
@@ -12,21 +12,21 @@ export function Header() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<StockMasterItem[]>([]);
   const [open, setOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [activeIdx, setActiveIdx] = useState(-1);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  const search = useCallback(async (q: string) => {
+  const search = useCallback((q: string) => {
     if (!q.trim()) { setResults([]); setOpen(false); return; }
-    try {
-      const res = await apiClient.get("/stock/search", { params: { q, limit: 10 } });
-      const items: StockMasterItem[] = res.data.data ?? [];
-      setResults(items);
-      setOpen(items.length > 0);
-      setActiveIdx(-1);
-    } catch {
-      setResults([]); setOpen(false);
-    }
+    const lower = q.trim().toLowerCase();
+    const items: StockMasterItem[] = mockStocks
+      .filter((stock) => stock.name.toLowerCase().includes(lower) || stock.code.includes(lower))
+      .slice(0, 10)
+      .map((stock) => ({ code: stock.code, name: stock.name, market: stock.market === "ETF" ? "KOSPI" : stock.market }));
+    setResults(items);
+    setOpen(items.length > 0);
+    setActiveIdx(-1);
   }, []);
 
   function handleInput(e: React.ChangeEvent<HTMLInputElement>) {
@@ -63,6 +63,7 @@ export function Header() {
 
   function handleLogout() {
     clearAuth();
+    setProfileOpen(false);
     navigate("/login", { replace: true });
   }
 
@@ -89,13 +90,17 @@ export function Header() {
           to="/"
           style={{
             textDecoration: "none",
-            color: "var(--text)",
+            color: "var(--accent)",
             fontWeight: 700,
-            fontSize: 15,
+            fontSize: 20,
             letterSpacing: "-0.01em",
             whiteSpace: "nowrap",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 10,
           }}
         >
+          <span className="brand-mark">~</span>
           Market Pulse
         </Link>
       </div>
@@ -113,14 +118,14 @@ export function Header() {
             onChange={handleInput}
             onKeyDown={handleKeyDown}
             onFocus={() => { if (results.length > 0) setOpen(true); }}
-            placeholder="종목명 또는 코드 검색..."
+            placeholder="종목명, 코드, 모델명 검색..."
             style={{
               width: "100%",
               height: 32,
               padding: "0 12px 0 32px",
               borderRadius: 8,
               border: "1px solid var(--border)",
-              background: "var(--bg-card)",
+                background: "var(--bg-input)",
               color: "var(--text)",
               fontSize: 13,
               outline: "none",
@@ -188,43 +193,33 @@ export function Header() {
       </div>
 
       {/* 우측 영역 */}
-      <div
-        className="ml-auto flex items-center"
-        style={{ flexShrink: 0, justifyContent: "flex-end", paddingRight: 24, gap: 12 }}
-      >
-        {/* 모바일 숨김 — 데스크톱에서만 표시 */}
-        <span
-          className="hidden md:inline"
-          style={{ fontSize: 11.5, color: "var(--text-4)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}
-        >
-          KRX 기준
-        </span>
-        <span className="hidden md:inline"><LiveBadge /></span>
-
+      <div className="header-actions">
         {isAuthed ? (
           <>
-            <span
-              className="hidden md:inline"
-              style={{ fontSize: 12, color: "var(--text-3)", fontFamily: "var(--font-mono)", marginLeft: 4 }}
-            >
-              {username}
-            </span>
             <button
-              onClick={handleLogout}
-              style={{
-                padding: "0 10px",
-                height: 32,
-                minHeight: 32,
-                borderRadius: 6,
-                border: "1px solid var(--border)",
-                background: "transparent",
-                color: "var(--text-3)",
-                fontSize: 12,
-                cursor: "pointer",
-              }}
+              type="button"
+              className="header-icon-action"
             >
-              로그아웃
+              <span className="hidden md:inline">알림</span>
+              <span className="header-badge">3</span>
             </button>
+            <div className="header-profile-wrap">
+              <button
+                type="button"
+                className="header-profile-button"
+                onClick={() => setProfileOpen((current) => !current)}
+                aria-label="내 프로필"
+              >
+                <span>{username?.slice(0, 1).toUpperCase() || "U"}</span>
+              </button>
+              {profileOpen && (
+                <div className="header-profile-menu">
+                  <button type="button" onClick={() => { setProfileOpen(false); navigate("/my"); }}>마이페이지</button>
+                  <button type="button" onClick={() => { setProfileOpen(false); navigate("/my"); }}>관심 폴더</button>
+                  <button type="button" onClick={handleLogout}>로그아웃</button>
+                </div>
+              )}
+            </div>
           </>
         ) : (
           <button

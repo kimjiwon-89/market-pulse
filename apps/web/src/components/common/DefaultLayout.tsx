@@ -10,7 +10,7 @@ export function DefaultLayout() {
       <div className="flex flex-1 min-h-0">
         <Nav />
         <main
-          className="flex-1 min-w-0 overflow-y-auto pb-24 lg:pb-0"
+          className="app-main flex-1 min-w-0 overflow-y-auto"
           style={{
             paddingTop: "var(--pad-pg)",
             paddingLeft: "var(--pad-pg)",
