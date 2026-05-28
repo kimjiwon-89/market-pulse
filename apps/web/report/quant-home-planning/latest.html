@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Market Pulse — Quant Home Planning</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --bg-alt: #fafaf9;
+      --bg-panel: #ffffff;
+      --bg-hover: #f5f5f4;
+      --border: #e7e5e4;
+      --border-strong: #d6d3d1;
+      --text: #18181b;
+      --text-2: #44403c;
+      --text-3: #78716c;
+      --text-4: #a8a29e;
+      --accent: #18181b;
+      --accent-fg: #ffffff;
+      --blue: #2f6fed;
+      --blue-soft: #eef4ff;
+      --up: #d62828;
+      --up-soft: #fdecec;
+      --down: #1e5edb;
+      --down-soft: #e8eefc;
+      --flat: #57534e;
+      --font-sans: "Pretendard Variable", Pretendard, "Noto Sans KR", -apple-system, sans-serif;
+      --font-mono: "IBM Plex Mono", "SF Mono", ui-monospace, monospace;
+      --radius: 8px;
+      --radius-lg: 12px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font-sans);
+      font-size: 14px;
+      color: var(--text);
+      background: var(--bg);
+      line-height: 1.6;
+    }
+
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 220px;
+      height: 100vh;
+      background: var(--bg-alt);
+      border-right: 1px solid var(--border);
+      padding: 24px 0;
+      overflow-y: auto;
+      z-index: 10;
+    }
+
+    .sidebar-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--text-4);
+      padding: 0 20px 12px;
+    }
+
+    .nav-section { margin-bottom: 20px; }
+
+    .nav-section-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--text-4);
+      padding: 0 20px 6px;
+    }
+
+    .nav-item {
+      display: block;
+      padding: 6px 20px;
+      font-size: 13px;
+      color: var(--text-2);
+      text-decoration: none;
+      border-radius: 0;
+      transition: background .15s;
+    }
+
+    .nav-item:hover { background: var(--bg-hover); color: var(--text); }
+    .nav-item.active { background: var(--accent); color: var(--accent-fg); }
+
+    .main {
+      margin-left: 220px;
+      padding: 40px 48px;
+      max-width: 1180px;
+    }
+
+    .page-header {
+      margin-bottom: 40px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .page-title {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+
+    .page-subtitle {
+      font-size: 15px;
+      color: var(--text-3);
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+
+    .badge-plan { background: #e0e7ff; color: #3730a3; }
+    .badge-wip { background: #fef3c7; color: #92400e; }
+    .badge-done { background: #dcfce7; color: #166534; }
+
+    section {
+      margin-bottom: 56px;
+      scroll-margin-top: 80px;
+    }
+
+    .section-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-desc {
+      font-size: 13px;
+      color: var(--text-3);
+      margin-bottom: 20px;
+    }
+
+    .card {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      margin-bottom: 16px;
+      background: var(--bg-panel);
+    }
+
+    .card-title {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-body {
+      font-size: 13px;
+      color: var(--text-2);
+      line-height: 1.7;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    thead th {
+      background: var(--bg-alt);
+      color: var(--text-3);
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      padding: 10px 14px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    tbody td {
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-2);
+      vertical-align: top;
+    }
+
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: var(--bg-hover); }
+    td.code { font-family: var(--font-mono); font-size: 12px; color: var(--text-3); }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+    .feat-card {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      background: var(--bg-panel);
+      position: relative;
+    }
+
+    .feat-title {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .feat-desc {
+      font-size: 12.5px;
+      color: var(--text-3);
+      line-height: 1.65;
+    }
+
+    .feat-path {
+      margin-top: 10px;
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      color: var(--text-4);
+    }
+
+    .stack-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .stack-chip {
+      display: inline-flex;
+      align-items: center;
+      height: 28px;
+      padding: 0 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--bg-alt);
+      color: var(--text-2);
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .code-block {
+      background: #18181b;
+      color: #f5f5f4;
+      padding: 16px;
+      border-radius: var(--radius);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.65;
+      overflow-x: auto;
+      white-space: pre;
+    }
+
+    .timeline {
+      position: relative;
+      padding-left: 28px;
+    }
+
+    .timeline::before {
+      content: "";
+      position: absolute;
+      left: 8px;
+      top: 4px;
+      bottom: 4px;
+      width: 1px;
+      background: var(--border);
+    }
+
+    .timeline-item {
+      position: relative;
+      margin-bottom: 18px;
+    }
+
+    .timeline-item::before {
+      content: "";
+      position: absolute;
+      left: -24px;
+      top: 5px;
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      background: var(--accent);
+    }
+
+    .timeline-title {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+
+    .timeline-body {
+      font-size: 12.5px;
+      color: var(--text-3);
+    }
+
+    .mockup {
+      width: 100%;
+      display: block;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: var(--bg-panel);
+    }
+
+    .callout {
+      padding: 16px 18px;
+      border: 1px solid var(--border-strong);
+      border-left: 4px solid var(--accent);
+      border-radius: var(--radius);
+      background: var(--bg-alt);
+      font-size: 13px;
+      color: var(--text-2);
+      margin-bottom: 16px;
+    }
+
+    .mobile-nav-demo {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+    }
+
+    .mobile-nav-demo div {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 4px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-2);
+      background: var(--bg-alt);
+    }
+
+    .mobile-nav-demo .home {
+      background: var(--accent);
+      color: var(--accent-fg);
+      border-color: var(--accent);
+    }
+
+    .up { color: var(--up); }
+    .down { color: var(--down); }
+    .muted { color: var(--text-3); }
+
+    @media (max-width: 900px) {
+      .sidebar { display: none; }
+      .main { margin-left: 0; padding: 24px 18px; max-width: none; }
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      .page-title { font-size: 24px; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="sidebar">
+    <div class="sidebar-title">Market Pulse</div>
+    <div class="nav-section">
+      <div class="nav-section-label">기획</div>
+      <a class="nav-item active" href="#overview">개요</a>
+      <a class="nav-item" href="#mockup">기준 목업</a>
+      <a class="nav-item" href="#goals">목표</a>
+      <a class="nav-item" href="#users">사용자</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-label">화면</div>
+      <a class="nav-item" href="#ia">정보 구조</a>
+      <a class="nav-item" href="#home">홈 상세</a>
+      <a class="nav-item" href="#mobile">모바일</a>
+      <a class="nav-item" href="#mypage">마이/서비스/Admin</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-label">구현</div>
+      <a class="nav-item" href="#data">데이터</a>
+      <a class="nav-item" href="#states">상태</a>
+      <a class="nav-item" href="#structure">구조</a>
+      <a class="nav-item" href="#phases">단계</a>
+      <a class="nav-item" href="#criteria">수용 기준</a>
+    </div>
+  </nav>
+
+  <main class="main">
+    <div class="page-header">
+      <div class="page-title">Market Pulse — Quant Home Planning <span class="badge badge-plan">Draft PRD</span></div>
+      <div class="page-subtitle">퀀트 모델 중심 홈 · 모바일 내비게이션 · 초보자용 언어 체계 · 구현 준비 문서</div>
+    </div>
+
+    <section id="overview">
+      <div class="section-title">개요</div>
+      <div class="section-desc">시장/지수 중심 홈을 퀀트 모델 판단 중심 홈으로 전환한다.</div>
+      <div class="card">
+        <div class="card-title">핵심 문장</div>
+        <div class="card-body">
+          <strong>퀀트 모델이 고른 오늘의 종목</strong><br />
+          매일 시장 데이터를 계산해 살펴볼 종목, 기다릴 종목, 조심할 종목을 쉽게 정리합니다.
+        </div>
+      </div>
+      <div class="grid-3">
+        <div class="feat-card">
+          <div class="feat-title">서비스 정체성</div>
+          <div class="feat-desc">퀀트 모델이 시장 데이터를 검토하고 오늘의 판단을 쉬운 말로 보여준다.</div>
+        </div>
+        <div class="feat-card">
+          <div class="feat-title">첫 화면 답변</div>
+          <div class="feat-desc">오늘 어떤 종목을 보고, 왜 봐야 하며, 무엇을 조심해야 하는지 답한다.</div>
+        </div>
+        <div class="feat-card">
+          <div class="feat-title">구현 방향</div>
+          <div class="feat-desc">새 홈은 QuantHome으로 분리하고 기존 시장 홈은 /market으로 이동한다.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="mockup">
+      <div class="section-title">기준 목업</div>
+      <div class="section-desc">아래 이미지를 비율, 밀도, 우측 레일, 종목 배지의 기준으로 사용한다.</div>
+      <img class="mockup" src="assets/quant-home-mockup.png" alt="Market Pulse quant home reference mockup" />
+    </section>
+
+    <section id="goals">
+      <div class="section-title">제품 목표</div>
+      <div class="section-desc">홈 화면이 반드시 달성해야 하는 목표와 제외 범위.</div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">Primary Goal</div>
+          <div class="card-body">Market Pulse를 "퀀트 모델이 매일 주식시장 데이터를 확인하고 오늘의 종목 판단을 설명하는 서비스"로 즉시 이해시킨다.</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Non-Goals</div>
+          <div class="card-body">
+            마케팅 랜딩 페이지를 만들지 않는다. `퀀트 모델` 키워드를 숨기지 않는다. 별도 m. 사이트를 만들지 않는다. 로또/타로를 투자 판단 흐름에 섞지 않는다.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="users">
+      <div class="section-title">대상 사용자</div>
+      <div class="section-desc">홈이 사용자별로 답해야 하는 질문.</div>
+      <table>
+        <thead>
+          <tr><th>User</th><th>Need</th><th>Home Should Answer</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>초보 투자자</td><td>전문 용어 없이 판단을 보고 싶다</td><td>오늘 뭘 보면 되지?</td></tr>
+          <tr><td>재방문 사용자</td><td>매일 바뀐 종목을 빠르게 확인한다</td><td>오늘 달라진 종목이 있나?</td></tr>
+          <tr><td>근거 중시 사용자</td><td>모델 판단의 이유와 검증 기록을 본다</td><td>왜 이렇게 판단했고 과거에는 어땠나?</td></tr>
+          <tr><td>운영자</td><td>데이터/모델 운영 상태를 관리한다</td><td>수집, 실행, 캐시는 정상인가?</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="ia">
+      <div class="section-title">정보 구조</div>
+      <div class="section-desc">데스크톱과 모바일은 같은 서비스를 다른 탐색 구조로 보여준다.</div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">Desktop Sidebar</div>
+          <div class="stack-list">
+            <span class="stack-chip">홈</span>
+            <span class="stack-chip">오늘의 종목</span>
+            <span class="stack-chip">퀀트 모델</span>
+            <span class="stack-chip">리포트</span>
+            <span class="stack-chip">검증 기록</span>
+            <span class="stack-chip">시장 보기</span>
+            <span class="stack-chip">더보기</span>
+          </div>
+          <div class="card-body">마이페이지는 데스크톱 사이드바에 두지 않고 우측 상단 프로필 메뉴로 진입한다.</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Mobile Bottom Navigation</div>
+          <div class="mobile-nav-demo">
+            <div>시장</div>
+            <div>모델</div>
+            <div class="home">홈</div>
+            <div>서비스</div>
+            <div>마이</div>
+          </div>
+          <div class="card-body" style="margin-top: 12px;">홈은 가운데 배치한다. 오늘의 종목과 리포트는 홈에서 강하게 진입시킨다.</div>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr><th>Area</th><th>Route Direction</th><th>Purpose</th><th>Priority</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>홈</td><td class="code">/</td><td>퀀트 모델 중심 메인</td><td>P0</td></tr>
+          <tr><td>오늘의 종목</td><td class="code">/quant/today or /quant tab</td><td>살펴볼/기다릴/조심할 종목 리스트</td><td>P0</td></tr>
+          <tr><td>퀀트 모델</td><td class="code">/quant/models</td><td>모델 목록, 상태, 설명</td><td>P0</td></tr>
+          <tr><td>리포트</td><td class="code">/reports</td><td>일간/주간 모델 근거</td><td>P0</td></tr>
+          <tr><td>검증 기록</td><td class="code">/quant/backtest or /quant/evidence</td><td>백테스트와 검증 기록</td><td>P1</td></tr>
+          <tr><td>시장 보기</td><td class="code">/market</td><td>기존 지수/뉴스/수급 화면</td><td>P1</td></tr>
+          <tr><td>서비스</td><td class="code">/services</td><td>로또, 타로</td><td>P2</td></tr>
+          <tr><td>마이</td><td class="code">/my</td><td>프로필, 관심, 메모, 알림, 저장 리포트</td><td>P1</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="home">
+      <div class="section-title">홈 화면 상세</div>
+      <div class="section-desc">홈은 "오늘의 판단"을 중심으로 한 실사용 대시보드다.</div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">Main Dashboard</div>
+          <table>
+            <thead><tr><th>Order</th><th>Section</th><th>Purpose</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td>Hero</td><td>퀀트 모델 설명, 업데이트 시간</td></tr>
+              <tr><td>2</td><td>KPI</td><td>오늘 살펴볼 종목, 조심 신호, 검증 수익률, 최신 리포트</td></tr>
+              <tr><td>3</td><td>Decision Table</td><td>종목, 판단, 행동, 이유, 조심할 점</td></tr>
+              <tr><td>4</td><td>Explainer</td><td>퀀트 모델이란?</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="card">
+          <div class="card-title">Right Insight Rail</div>
+          <table>
+            <thead><tr><th>Order</th><th>Panel</th><th>Purpose</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td>오늘의 한 줄 요약</td><td>초보자용 일일 요약</td></tr>
+              <tr><td>2</td><td>퀀트 모델 상태</td><td>신호 강도, 변동성, 데이터 품질, 모델 일치도</td></tr>
+              <tr><td>3</td><td>왜 이렇게 판단했나요?</td><td>모멘텀, 가치, 기술적 이유</td></tr>
+              <tr><td>4</td><td>면책 문구</td><td>과거 데이터 기반, 미래 수익 보장 아님</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">오늘의 종목 판단 테이블</div>
+        <table>
+          <thead>
+            <tr><th>Field</th><th>Example</th><th>Rule</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>종목</td><td>SK하이닉스 / 000660</td><td>원형 배지 + 종목명 + 코드</td></tr>
+            <tr><td>모델 판단</td><td>살펴볼 종목</td><td>과도한 색상 금지</td></tr>
+            <tr><td>오늘 행동</td><td>관심 목록 추가</td><td>실행 가능한 쉬운 문장</td></tr>
+            <tr><td>이유</td><td>실적 모멘텀 강함, 수급 개선</td><td>최대 2개 짧은 이유</td></tr>
+            <tr><td>조심할 점</td><td>단기 변동성 확대 가능성</td><td>최대 2개 짧은 주의점</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="mobile">
+      <div class="section-title">모바일 계획</div>
+      <div class="section-desc">모바일은 같은 route와 API를 쓰되 wide table 대신 카드 리스트를 사용한다.</div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">Mobile Home Order</div>
+          <div class="timeline">
+            <div class="timeline-item"><div class="timeline-title">Header</div><div class="timeline-body">프로필/검색 compact row</div></div>
+            <div class="timeline-item"><div class="timeline-title">Title</div><div class="timeline-body">퀀트 모델 설명</div></div>
+            <div class="timeline-item"><div class="timeline-title">KPI</div><div class="timeline-body">2x2 compact cards</div></div>
+            <div class="timeline-item"><div class="timeline-title">Decision Cards</div><div class="timeline-body">오늘의 종목 카드 리스트</div></div>
+            <div class="timeline-item"><div class="timeline-title">Report/Explainer</div><div class="timeline-body">최신 리포트, 접힘 설명</div></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Decision Card Shape</div>
+          <div class="code-block">[badge] 종목명      [모델 판단]
+       code
+오늘 행동
+이유 1~2줄
+조심할 점 1줄
+여러 모델, tap to expand</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="mypage">
+      <div class="section-title">마이 / 서비스 / Admin</div>
+      <div class="section-desc">개인화, 부가 서비스, 운영 기능을 핵심 투자 판단 흐름과 분리한다.</div>
+      <div class="grid-3">
+        <div class="feat-card">
+          <div class="feat-title">마이</div>
+          <div class="feat-desc">프로필, 관심 종목, 내 메모, 알림 설정, 저장한 리포트, 계정 정보. 모바일에서는 하단 `마이` 탭으로 진입한다.</div>
+        </div>
+        <div class="feat-card">
+          <div class="feat-title">서비스</div>
+          <div class="feat-desc">로또와 타로를 묶는다. 퀀트 홈의 투자 판단 흐름에는 섞지 않는다.</div>
+        </div>
+        <div class="feat-card">
+          <div class="feat-title">Admin</div>
+          <div class="feat-desc">ADMIN에게만 보인다. 데이터 수집, 모델 실행, 캐시, 사용자, 로그를 운영한다.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="data">
+      <div class="section-title">데이터 요구사항</div>
+      <div class="section-desc">초기에는 기존 API를 조합하고, 이후 홈 aggregation API로 정리한다.</div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">QuantHomeResponse</div>
+          <div class="code-block">interface QuantHomeResponse {
+  asOf: string;
+  summaryText: string;
+  kpis: QuantHomeKpis;
+  decisions: QuantHomeDecision[];
+  modelState: QuantHomeModelState;
+  latestReports: QuantHomeReportSummary[];
+}</div>
+        </div>
+        <div class="card">
+          <div class="card-title">QuantHomeDecision</div>
+          <div class="code-block">interface QuantHomeDecision {
+  assetCode: string;
+  assetName: string;
+  modelNames: string[];
+  modelLabel: "상승장 모델" | "횡보장 모델" | "하락장 모델" | "여러 모델";
+  decisionLabel: "살펴볼 종목" | "기다릴 종목" | "조심할 종목";
+  actionText: string;
+  reasonBullets: string[];
+  cautionBullets: string[];
+}</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="states">
+      <div class="section-title">상태 설계</div>
+      <div class="section-desc">구현 시 반드시 필요한 loading/empty/error 상태.</div>
+      <table>
+        <thead>
+          <tr><th>State</th><th>UX</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Loading</td><td>skeleton cards and rows</td></tr>
+          <tr><td>No decisions</td><td>오늘 표시할 종목이 없습니다. 최신 리포트를 확인해 주세요.</td></tr>
+          <tr><td>Data delayed</td><td>right-rail notice with as-of time</td></tr>
+          <tr><td>API error</td><td>compact error card with retry</td></tr>
+          <tr><td>Unauthenticated</td><td>public read or login CTA, depending on policy</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="structure">
+      <div class="section-title">프론트 구조</div>
+      <div class="section-desc">새 홈은 별도 페이지로 만들고 기존 대형 파일에 더 붙이지 않는다.</div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">Recommended Folder</div>
+          <div class="code-block">src/pages/QuantHome/
+  index.tsx
+  components/
+    QuantHomeHeader.tsx
+    QuantHomeKpiGrid.tsx
+    TodayDecisionTable.tsx
+    TodayDecisionMobileList.tsx
+    QuantInsightRail.tsx
+    QuantModelExplainer.tsx
+    StockInitialBadge.tsx
+  hooks/
+    useQuantHomeData.ts
+  quantHomeTypes.ts</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Route Direction</div>
+          <div class="code-block">/       -> QuantHome
+/market -> existing Dashboard</div>
+          <div class="card-body" style="margin-top: 12px;">`src/pages/QuantDashboard/index.tsx`는 이미 크므로 홈 책임을 추가하지 않는다.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="phases">
+      <div class="section-title">구현 단계</div>
+      <div class="section-desc">정적 홈 shell에서 시작해 API 연결과 route 정리로 확장한다.</div>
+      <div class="timeline">
+        <div class="timeline-item"><div class="timeline-title">Phase 1: Static Home Shell</div><div class="timeline-body">QuantHome, static sample data, desktop/mobile layout, /market route direction.</div></div>
+        <div class="timeline-item"><div class="timeline-title">Phase 2: Navigation And Permissions</div><div class="timeline-body">desktop sidebar, mobile bottom nav, profile/my, admin visibility.</div></div>
+        <div class="timeline-item"><div class="timeline-title">Phase 3: Data Wiring</div><div class="timeline-body">compose quant/report APIs, loading/empty/error states, multiple-model hover/tap.</div></div>
+        <div class="timeline-item"><div class="timeline-title">Phase 4: Route Cleanup</div><div class="timeline-body">decide /quant role, connect validation, split large QuantDashboard file.</div></div>
+      </div>
+    </section>
+
+    <section id="criteria">
+      <div class="section-title">수용 기준</div>
+      <div class="section-desc">홈 화면 구현이 완료됐다고 판단하는 기준.</div>
+      <div class="card">
+        <table>
+          <thead>
+            <tr><th>Criterion</th><th>Required</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>First understanding</td><td>첫 방문자가 5초 안에 서비스 목적을 이해한다.</td></tr>
+            <tr><td>Keyword</td><td>`퀀트 모델` 키워드가 첫 화면에 보인다.</td></tr>
+            <tr><td>Language</td><td>오늘의 종목 판단을 쉬운 말로 설명한다.</td></tr>
+            <tr><td>Desktop ratio</td><td>기준 목업 비율과 밀도를 유지한다.</td></tr>
+            <tr><td>Mobile nav</td><td>시장 | 모델 | 홈 | 서비스 | 마이</td></tr>
+            <tr><td>Mobile presentation</td><td>wide table 대신 카드 리스트를 사용한다.</td></tr>
+            <tr><td>Services</td><td>로또/타로는 서비스 영역으로 분리한다.</td></tr>
+            <tr><td>Admin</td><td>일반 사용자에게 관리자 기능이 보이지 않는다.</td></tr>
+            <tr><td>Color</td><td>red/blue는 시장 방향에만 사용한다.</td></tr>
+            <tr><td>Stock badge</td><td>종목 행은 원형 이니셜 배지를 사용한다.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout">
+        다음 단계는 `src/pages/QuantHome/` 정적 shell 구현 계획 작성이다. API 연결은 레이아웃과 언어가 확정된 뒤 진행한다.
+      </div>
+    </section>
+  </main>
+</body>
+</html>
