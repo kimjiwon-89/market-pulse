@@ -1,32 +1,30 @@
-# mac
-.DS_Store
+# Dependencies/build
+node_modules/
+dist/
+build/
+target/
 
-# IntelliJ
-.idea
-*.iml
+# Local data
+datasets/local-only/
+*.dump
+!datasets/git-seed/
+!datasets/git-seed/*.sql.gz
+!datasets/git-seed/*.safe.list
 
-# Node
-node_modules
-dist
-build
-
-# Spring
-target
-logs
-tmp/
+# Logs/temp
 *.log
 *.err.log
+tmp/
+logs/
 
-# Env
+# Secrets
 .env
 .env.local
-_kis_token_cache.json
-scheduled_tasks.lock
-
-# AWS 키 / 서버 접속 정보 (절대 커밋 금지)
 secrets/
-.secret/
 *.pem
 
-# OS
+# IDE/OS
+.idea/
+*.iml
+.DS_Store
 Thumbs.db

@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Build API
+        working-directory: apps/api
+        run: bash ./mvnw -B -DskipTests package
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install web dependencies
+        working-directory: apps/web
+        run: npm ci
+
+      - name: Build web
+        working-directory: apps/web
+        run: npm run build
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Validate API Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./apps/api
+          push: false
+          tags: market-pulse-api:ci
+
+      - name: Validate web Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./apps/web
+          push: false
+          tags: market-pulse-web:ci
+
+      - name: Validate compose file
+        env:
+          DOCKER_USERNAME: local
+          DB_HOST: db.example.local
+          DB_PORT: "5432"
+          DB_NAME: marketPulse
+          DB_USERNAME: marketpulse
+          DB_PASSWORD: placeholder
+          JWT_SECRET: placeholder-jwt-secret
+          ADMIN_USERNAME: admin
+          ADMIN_PASSWORD: placeholder-admin-password
+          KIS_APP_KEY: placeholder-kis-key
+          KIS_APP_SECRET: placeholder-kis-secret
+          KRX_AUTH_KEY: placeholder-krx-key
+          AWS_ACCESS_KEY: placeholder-aws-key
+          AWS_SECRET_KEY: placeholder-aws-secret
+          AWS_S3_BUCKET: placeholder-bucket
+        run: docker compose -f infra/docker-compose.yml config

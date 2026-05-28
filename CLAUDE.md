@@ -1,85 +1,93 @@
-# Market Pulse Claude Guide
+# Market Pulse Prod Claude Rules
 
-This file intentionally mirrors `AGENTS.md` in compact form.
-Keep it small to avoid repeated context cost. Put domain details in scoped docs.
+This file is for Claude operating rules inside `market-pulse-prod`.
 
-## Core Rules
+Project overview, layout, run commands, and service notes live in `README.md`.
 
-- Ask when ambiguous.
-- Surface tradeoffs and inconsistencies.
-- Do not revert user changes.
-- Do not work or commit directly on `main`.
-- Use `develop` as base.
-- Docs-only branches use `docs/<name>`.
-- User-facing plans/reports can be HTML when explicitly requested; agent-readable specs/status/logs stay Markdown.
+## Required Read Order
 
-## Feature Pipeline
+Before work:
 
-For new feature development:
+1. `README.md`
+2. `docs/architecture/feature-scope.md` for feature-scope or domain-boundary work
+3. `docs/architecture/database-redesign.md` for DB/schema/index/migration work
+4. smallest relevant domain guide
+5. current status/plan only if task needs it
 
-```text
-workation-planner -> user approval -> workation-back / workation-front -> workation-verifier
-```
+Do not recursively read archives or historical reports unless user asks for history.
 
-Current Codex files are under `.Codex/`. Legacy Claude files are under `.claude/`.
+## Default Modes
 
-## Read Before Work
+- Superpowers: use relevant workflow skill before planning, debugging, implementing, or verifying.
+- Cavecrew: use for compact investigation, small scoped edits, and compressed review when delegation helps.
+- Caveman: use `full` style for user-facing chat by default. Terse, technical, low-token, no filler.
+- PM kit: when user asks for planning, PRD, implementation plan, wireframe, or dashboard requirements, use `/pm-kit` style workflow.
+- Drop Caveman only for safety/clarity: destructive actions, security warnings, production deploy, infra mutation, or ambiguous multi-step instructions. Resume after.
 
-- Frontend: `.claude/.front/front.md`, `.claude/.front/design-guide.md`
-- Backend: `.claude/.back/back.md`
-- KRX: `.claude/.krx/krx.md`
-- Lotto: `.claude/.lotto/lotto-final-plan.md`
-- Quant/MP_CORE: targeted docs in `.claude/quant/`
+## Production Safety
 
-Quant key docs:
+- This repo owns production service code, but agents still cannot deploy or mutate production infra without explicit current-message approval.
+- Never deploy from `main` directly.
+- Never push production Docker images, run production deploy scripts, copy files into `/app`, trigger production GitHub workflows, or change EC2/Docker Hub/prod compose without explicit approval.
+- Production DB schema changes must go through reviewed migrations.
+- RDS writes are allowed only for explicitly requested ingestion, backfill, model-cache generation, or validation jobs.
+- RDS data work does not authorize app deployment.
+- If user says "배포", "운영 반영", "서비스에 올려", restate exact target and wait for confirmation before touching production infra.
 
-- `06-퀀트투자-전체프로세스.md`
-- `07-데이터와-프로그래밍.md`
-- `08-금융데이터-수집-기본.md`
-- `09-금융데이터-수집-심화.md`
-- `12-퀀트-전략을-이용한-종목선정-기본.md`
-- `13-퀀트-전략을-이용한-종목선정-심화.md`
-- `14-포트폴리오-구성.md`
-- `15-포트폴리오-백테스트.md`
-- `16-성과-및-위험-평가.md`
-- `17-레퍼런스.md`
+## Branch Rules
 
-## Project
+Use:
 
 ```text
-market-pulse-api/   Spring Boot backend
-market-pulse-web/   React/Vite frontend
-.Codex/             current Codex plans, reports, status, logs
-.claude/            detailed domain guides and legacy plans/status
+feature/<name>
+fix/<name>
+refactor/<name>
+docs/<name>
+hotfix/<name>    # urgent production fixes only
 ```
 
-## Run
+Normal PRs target `develop`. `develop` promotes to `main` through release PR and release tag.
 
-Backend:
+## DB And Migration Rules
 
-```bash
-cd market-pulse-api
-./mvnw spring-boot:run
-```
+- Prod repo is source of truth for DB schema.
+- DB redesign baseline lives in `docs/architecture/database-redesign.md`.
+- Production feature scope lives in `docs/architecture/feature-scope.md`.
+- Lab may propose migrations; prod reviews and implements accepted migrations.
+- Every migration must define PK, FK, unique constraints, indexes, rollback expectation, and validation query.
+- Use PostgreSQL identity columns for entity IDs unless a natural/composite key is better.
+- Do not create ad hoc schema changes outside migration files.
 
-Frontend:
+## Artifact Rules
 
-```bash
-cd market-pulse-web
-npm install
-npm run dev
-```
+- Do not create planning documents unless user explicitly asks or an approved workflow requires one.
+- Do not create HTML unless user explicitly asks, or the plan is complete and user-facing delivery is requested.
+- Agent-readable specs, status, and logs stay Markdown.
+- Prefer editing canonical/current files over creating new dated copies.
+- Keep only one current version of each plan/status/report source.
+- If a new plan/status/report replaces an old current file, move the old one to archive immediately.
+- If a current file is merely edited in place, do not archive it.
+- User-facing final reports belong under `report/<domain>/<topic>/`, not inside `.agents`.
+- A user-facing report folder should keep `latest.html` and `source.md`; older versions go under that report's `archive/`.
+- `.agents` is for AI working memory only: current status, decisions, next actions, logs, and legacy archives.
+- Do not put final user-facing HTML reports in `.agents`.
+- Keep logs compact.
 
-## Short Technical Reminders
+## Domain Context Rules
 
-- Backend: Java 17, Spring Boot 3.2, MyBatis, PostgreSQL, Redis.
-- Frontend: React 19, TypeScript, Vite, Tailwind CSS 4.
-- Use `ApiResponse.failure()`, not `error()`.
-- MyBatis XML path: `market-pulse-api/src/main/resources/mapper/**/*.xml`.
-- MP_CORE must avoid look-ahead bias and separate signal/rebalance/execution dates.
-- Backtests need costs, turnover, MDD, win rate, monthly return, and risk metrics.
+When working inside a domain folder:
 
-## Logs
+- Treat it as one production domain, not the whole product.
+- Read local `AGENTS.md`/`CLAUDE.md` if present.
+- Read root `README.md` before architecture decisions.
+- Domain rules never override root production safety rules.
 
-Append meaningful completed work to `.Codex/.logs/YYYY-MM-DD-log.md`.
-Keep entries compact: intent, outcome, changed files. Do not paste long command output, diffs, specs, or analysis.
+## Work Log
+
+When meaningful work finishes, append compact entry to the repo's current log location.
+
+Keep logs to 3-5 bullets:
+
+- intent
+- key outcome
+- changed files
