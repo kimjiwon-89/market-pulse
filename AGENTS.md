@@ -1,167 +1,93 @@
-# Market Pulse Agent Guide
+# Market Pulse Prod Agent Rules
 
-Market Pulse is a full-stack stock market dashboard for Korean equities.
-Backend uses KIS/KRX data; frontend shows dashboards, investor flow, memo, lotto, and quant/MP_CORE views.
+This file is for AI operating rules inside `market-pulse-prod`.
 
-## Token Budget Rule
+Project overview, layout, run commands, and service notes live in `README.md`.
 
-Keep this root guide small. Do not paste domain specs here.
+## Required Read Order
 
-- Always read only the smallest relevant guide before work.
-- Prefer `rg`/targeted file reads over opening whole directories.
-- Put large domain/API/DB details in scoped docs, not in `AGENTS.md`.
-- User-facing planning/report artifacts may be HTML when explicitly requested. Agent-readable specs/status/logs stay Markdown.
+Before work:
 
-## Work Principles
+1. `README.md`
+2. `docs/architecture/feature-scope.md` for feature-scope or domain-boundary work
+3. `docs/architecture/database-redesign.md` for DB/schema/index/migration work
+4. smallest relevant domain guide
+5. current status/plan only if task needs it
 
-- If request is ambiguous, ask before implementation.
-- Surface inconsistencies and tradeoffs instead of silently choosing.
-- Remove dead code introduced by your own change.
-- Do not revert user changes. Current dirty files may be unrelated.
-- Do not commit or work on `main` directly.
+Do not recursively read archives or historical reports unless user asks for history.
 
-## Production / Main Deploy Guard
+## Default Modes
 
-Agents must not deploy to production or mutate production infrastructure unless the user explicitly approves that exact action in the current message.
+- Superpowers: use relevant workflow skill before planning, debugging, implementing, or verifying.
+- Cavecrew: use for compact investigation, small scoped edits, and compressed review when delegation helps.
+- Caveman: use `full` style for user-facing chat by default. Terse, technical, low-token, no filler.
+- PM kit: when user asks for planning, PRD, implementation plan, wireframe, or dashboard requirements, use `/pm-kit` style workflow.
+- Drop Caveman only for safety/clarity: destructive actions, security warnings, production deploy, infra mutation, or ambiguous multi-step instructions. Resume after.
 
+## Production Safety
+
+- This repo owns production service code, but agents still cannot deploy or mutate production infra without explicit current-message approval.
 - Never deploy from `main` directly.
-- Never push Docker images, run `/app/deploy.sh`, run `docker compose up` on EC2, copy files into `/app`, or trigger GitHub production deploy workflows without explicit approval.
-- Never use `quant-model-lab` as a production deploy root. That folder is for quant research, model/backtest work, reports, and local/runtime experiments only.
-- RDS writes are allowed for explicitly requested data ingestion, backfill, model-cache generation, and quant validation jobs. Keep them scoped to the requested dataset/date range/config, and report what was written.
-- Do not treat RDS data writes as deployment approval. RDS data work does not authorize EC2, Docker Hub, `/app`, production compose, or app container changes.
-- Read-only production checks are allowed when needed to diagnose a user-reported production state; infrastructure/app deployment write actions require approval first.
-- If the user asks to "배포", "운영 반영", "서비스에 올려", or similar, restate the exact target and wait for confirmation before touching EC2, Docker Hub, GitHub Actions, or production app infrastructure.
-- If the user asks to "RDS에 올려", "데이터 넣어", "백필", or similar data work, RDS writes are permitted for that data task only; do not deploy application code as part of it.
-- Normal code changes must go through a feature/fix branch targeting `develop`; `develop` later goes to `main` by the agreed release process.
+- Never push production Docker images, run production deploy scripts, copy files into `/app`, trigger production GitHub workflows, or change EC2/Docker Hub/prod compose without explicit approval.
+- Production DB schema changes must go through reviewed migrations.
+- RDS writes are allowed only for explicitly requested ingestion, backfill, model-cache generation, or validation jobs.
+- RDS data work does not authorize app deployment.
+- If user says "배포", "운영 반영", "서비스에 올려", restate exact target and wait for confirmation before touching production infra.
 
-## Branch Rule
+## Branch Rules
 
-Use `develop` as the base.
-
-- Feature: `feature/<name>`
-- Fix: `fix/<name>`
-- Refactor: `refactor/<name>`
-- Docs only: `docs/<name>`
-- Hotfix: `hotfix/<name>` only for urgent production fixes
-
-All normal PRs target `develop`; `develop` later goes to `main`.
-
-## Feature Development Pipeline
-
-For new feature development, use:
+Use:
 
 ```text
-workation-planner -> user approval -> workation-back / workation-front -> workation-verifier
+feature/<name>
+fix/<name>
+refactor/<name>
+docs/<name>
+hotfix/<name>    # urgent production fixes only
 ```
 
-- Planner writes user HTML plan and agent spec.
-- Code agents start only after user approval.
-- Verifier checks acceptance criteria.
-- Any verifier FAIL returns to planning.
+Normal PRs target `develop`. `develop` promotes to `main` through release PR and release tag.
 
-Current Codex coordination files:
+## DB And Migration Rules
 
-- `.Codex/status/active-plan.md`
-- `.Codex/status/back-report.md`
-- `.Codex/status/front-report.md`
-- `.Codex/status/verify-report.md`
-- `.Codex/plans/`
+- Prod repo is source of truth for DB schema.
+- DB redesign baseline lives in `docs/architecture/database-redesign.md`.
+- Production feature scope lives in `docs/architecture/feature-scope.md`.
+- Lab may propose migrations; prod reviews and implements accepted migrations.
+- Every migration must define PK, FK, unique constraints, indexes, rollback expectation, and validation query.
+- Use PostgreSQL identity columns for entity IDs unless a natural/composite key is better.
+- Do not create ad hoc schema changes outside migration files.
 
-Legacy Claude coordination files may exist under `.claude/status/` and `.claude/plans/`; read them only when current Codex files are missing or the task explicitly references them.
+## Artifact Rules
 
-## Required Context By Work Type
+- Do not create planning documents unless user explicitly asks or an approved workflow requires one.
+- Do not create HTML unless user explicitly asks, or the plan is complete and user-facing delivery is requested.
+- Agent-readable specs, status, and logs stay Markdown.
+- Prefer editing canonical/current files over creating new dated copies.
+- Keep only one current version of each plan/status/report source.
+- If a new plan/status/report replaces an old current file, move the old one to archive immediately.
+- If a current file is merely edited in place, do not archive it.
+- User-facing final reports belong under `report/<domain>/<topic>/`, not inside `.agents`.
+- A user-facing report folder should keep `latest.html` and `source.md`; older versions go under that report's `archive/`.
+- `.agents` is for AI working memory only: current status, decisions, next actions, logs, and legacy archives.
+- Do not put final user-facing HTML reports in `.agents`.
+- Keep logs compact.
 
-Read these before touching the matching area:
+## Domain Context Rules
 
-- Frontend: `.claude/.front/front.md` and `.claude/.front/design-guide.md`
-- Backend: `.claude/.back/back.md`
-- KRX API: `.claude/.krx/krx.md`
-- Lotto: `.claude/.lotto/lotto-final-plan.md`
-- Quant / MP_CORE / backtest: targeted docs in `.claude/quant/`
+When working inside a domain folder:
 
-Quant quick map:
-
-- Overall flow: `.claude/quant/06-퀀트투자-전체프로세스.md`
-- Data pipeline: `.claude/quant/07-데이터와-프로그래밍.md`, `08-금융데이터-수집-기본.md`, `09-금융데이터-수집-심화.md`
-- Factor selection: `.claude/quant/12-퀀트-전략을-이용한-종목선정-기본.md`, `13-퀀트-전략을-이용한-종목선정-심화.md`
-- Portfolio: `.claude/quant/14-포트폴리오-구성.md`
-- Backtest: `.claude/quant/15-포트폴리오-백테스트.md`
-- Performance/risk: `.claude/quant/16-성과-및-위험-평가.md`
-- References: `.claude/quant/17-레퍼런스.md`
-
-## Project Layout
-
-```text
-market-pulse-api/   Spring Boot backend
-market-pulse-web/   React/Vite frontend
-.Codex/             current Codex plans, reports, status, logs
-.claude/            detailed domain guides and legacy plans/status
-scripts/            local helper scripts
-```
-
-## Run Commands
-
-Backend:
-
-```bash
-cd market-pulse-api
-./mvnw spring-boot:run
-```
-
-Frontend:
-
-```bash
-cd market-pulse-web
-npm install
-npm run dev
-```
-
-Useful URLs:
-
-- Frontend: `http://localhost:3000`
-- Backend: `http://localhost:8080`
-- Swagger: `http://localhost:8080/swagger-ui/index.html`
-
-## Backend Notes
-
-- Java 17, Spring Boot 3.2, MyBatis, PostgreSQL, Redis.
-- Common response: `ApiResponse.success(data)` and `ApiResponse.failure("message")`.
-- MyBatis XML: `market-pulse-api/src/main/resources/mapper/**/*.xml`.
-- KIS secrets and JWT secret must not be hard-coded for production.
-- PostgreSQL numeric/json fields need explicit casts in MyBatis when source values are strings.
-
-## Frontend Notes
-
-- React 19, TypeScript, Vite, Tailwind CSS 4, React Router 7, Recharts, Zustand, Axios.
-- API client base is in `market-pulse-web/src/services/apiClient.ts`.
-- Main routes live in `market-pulse-web/src/app/router.tsx`.
-- Use existing layout/components before adding new patterns.
-
-## Quant / MP_CORE Notes
-
-- Treat MP_CORE as a reproducible pipeline: data -> feature snapshot -> signal -> portfolio target -> backtest -> diagnostics.
-- Avoid look-ahead bias. Separate signal date, rebalance date, execution date, and return period.
-- Backtests must include costs, turnover, MDD, win rate, monthly return, and risk-adjusted metrics.
-- Current practical factors: momentum, risk-adjusted momentum, volatility, beta, liquidity, investor flow, market regime, cash/position caps.
-- Value/quality/fundamental factors need point-in-time financial data before backtesting.
+- Treat it as one production domain, not the whole product.
+- Read local `AGENTS.md`/`CLAUDE.md` if present.
+- Read root `README.md` before architecture decisions.
+- Domain rules never override root production safety rules.
 
 ## Work Log
 
-When a meaningful task finishes, append a short entry to `.Codex/.logs/YYYY-MM-DD-log.md`.
+When meaningful work finishes, append compact entry to the repo's current log location.
 
-Keep logs compact:
+Keep logs to 3-5 bullets:
 
-- 3-5 bullets per task.
-- Record intent, key outcome, changed files only.
-- Do not paste long command output, diffs, specs, or analysis.
-- Link/report detailed artifacts instead of duplicating them.
-
-Format:
-
-```markdown
-## YYYY-MM-DD
-
-### Task title
-- Summary
-- Files changed
-```
+- intent
+- key outcome
+- changed files

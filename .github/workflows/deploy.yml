@@ -11,48 +11,49 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 코드 체크아웃
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Docker Hub 로그인
+      - name: Docker Hub login
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: 날짜 태그 생성
+      - name: Create image tag
         id: date
         run: echo "tag=$(date +'%Y%m%d%H%M')" >> $GITHUB_OUTPUT
 
-      - name: API 이미지 빌드 & Push
+      - name: Build and push API image
         uses: docker/build-push-action@v5
         with:
-          context: ./market-pulse-api
+          context: ./apps/api
           push: true
           tags: |
             ${{ secrets.DOCKER_USERNAME }}/market-pulse-api:latest
             ${{ secrets.DOCKER_USERNAME }}/market-pulse-api:${{ steps.date.outputs.tag }}
 
-      - name: Web 이미지 빌드 & Push
+      - name: Build and push web image
         uses: docker/build-push-action@v5
         with:
-          context: ./market-pulse-web
+          context: ./apps/web
           push: true
           tags: |
             ${{ secrets.DOCKER_USERNAME }}/market-pulse-web:latest
             ${{ secrets.DOCKER_USERNAME }}/market-pulse-web:${{ steps.date.outputs.tag }}
 
-      - name: docker-compose.yml 동기화
+      - name: Upload deployment files
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: "docker-compose.yml"
+          source: "infra/docker-compose.yml,scripts/deploy.sh"
           target: "/app"
+          strip_components: 1
           overwrite: true
 
-      - name: EC2 배포
+      - name: Deploy on EC2
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -60,4 +61,5 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             export DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
+            chmod +x /app/deploy.sh
             bash /app/deploy.sh
