@@ -1,0 +1,203 @@
+;
+; Archive created at 2026-05-21 11:16:34
+;     dbname: marketpulse
+;     TOC Entries: 198
+;     Compression: gzip
+;     Dump Version: 1.16-0
+;     Format: CUSTOM
+;     Integer: 4 bytes
+;     Offset: 8 bytes
+;     Dumped from database version: 18.3
+;     Dumped by pg_dump version: 18.3
+;
+;
+; Selected TOC Entries:
+;
+220; 1259 22872 TABLE public api_token postgres
+219; 1259 22871 SEQUENCE public api_token_id_seq postgres
+5232; 0 0 SEQUENCE OWNED BY public api_token_id_seq postgres
+238; 1259 23657 TABLE public index_snapshot postgres
+234; 1259 23653 SEQUENCE public index_snapshot_id_seq postgres
+237; 1259 23656 SEQUENCE public index_snapshot_id_seq1 postgres
+5233; 0 0 SEQUENCE OWNED BY public index_snapshot_id_seq1 postgres
+222; 1259 22885 TABLE public investor_memo postgres
+221; 1259 22884 SEQUENCE public investor_memo_id_seq postgres
+5234; 0 0 SEQUENCE OWNED BY public investor_memo_id_seq postgres
+227; 1259 23068 TABLE public lotto_analysis_pool postgres
+226; 1259 23067 SEQUENCE public lotto_analysis_pool_id_seq postgres
+5235; 0 0 SEQUENCE OWNED BY public lotto_analysis_pool_id_seq postgres
+229; 1259 23084 TABLE public lotto_analysis_result postgres
+228; 1259 23083 SEQUENCE public lotto_analysis_result_id_seq postgres
+5236; 0 0 SEQUENCE OWNED BY public lotto_analysis_result_id_seq postgres
+245; 1259 23740 TABLE public lotto_comment postgres
+244; 1259 23739 SEQUENCE public lotto_comment_id_seq postgres
+5237; 0 0 SEQUENCE OWNED BY public lotto_comment_id_seq postgres
+225; 1259 23052 TABLE public lotto_result postgres
+231; 1259 23100 TABLE public lotto_user_combo postgres
+230; 1259 23099 SEQUENCE public lotto_user_combo_id_seq postgres
+5238; 0 0 SEQUENCE OWNED BY public lotto_user_combo_id_seq postgres
+247; 1259 27875 TABLE public market_daily_price postgres
+246; 1259 27874 SEQUENCE public market_daily_price_id_seq postgres
+5239; 0 0 SEQUENCE OWNED BY public market_daily_price_id_seq postgres
+242; 1259 23699 TABLE public market_flow_snapshot postgres
+236; 1259 23655 SEQUENCE public market_flow_snapshot_id_seq postgres
+241; 1259 23698 SEQUENCE public market_flow_snapshot_id_seq1 postgres
+5240; 0 0 SEQUENCE OWNED BY public market_flow_snapshot_id_seq1 postgres
+255; 1259 28782 TABLE public memo postgres
+254; 1259 28781 SEQUENCE public memo_id_seq postgres
+5241; 0 0 SEQUENCE OWNED BY public memo_id_seq postgres
+240; 1259 23683 TABLE public news_snapshot postgres
+235; 1259 23654 SEQUENCE public news_snapshot_id_seq postgres
+239; 1259 23682 SEQUENCE public news_snapshot_id_seq1 postgres
+5242; 0 0 SEQUENCE OWNED BY public news_snapshot_id_seq1 postgres
+251; 1259 27910 TABLE public quant_backtest_result postgres
+250; 1259 27909 SEQUENCE public quant_backtest_result_id_seq postgres
+5243; 0 0 SEQUENCE OWNED BY public quant_backtest_result_id_seq postgres
+261; 1259 28845 TABLE public quant_core_feature_snapshot postgres
+260; 1259 28844 SEQUENCE public quant_core_feature_snapshot_id_seq postgres
+5244; 0 0 SEQUENCE OWNED BY public quant_core_feature_snapshot_id_seq postgres
+263; 1259 28869 TABLE public quant_core_signal postgres
+262; 1259 28868 SEQUENCE public quant_core_signal_id_seq postgres
+5245; 0 0 SEQUENCE OWNED BY public quant_core_signal_id_seq postgres
+257; 1259 28801 TABLE public quant_model_definition postgres
+256; 1259 28800 SEQUENCE public quant_model_definition_id_seq postgres
+5246; 0 0 SEQUENCE OWNED BY public quant_model_definition_id_seq postgres
+259; 1259 28822 TABLE public quant_model_version postgres
+258; 1259 28821 SEQUENCE public quant_model_version_id_seq postgres
+5247; 0 0 SEQUENCE OWNED BY public quant_model_version_id_seq postgres
+249; 1259 27892 TABLE public quant_strategy postgres
+248; 1259 27891 SEQUENCE public quant_strategy_id_seq postgres
+5248; 0 0 SEQUENCE OWNED BY public quant_strategy_id_seq postgres
+253; 1259 27937 TABLE public quant_trade_log postgres
+252; 1259 27936 SEQUENCE public quant_trade_log_id_seq postgres
+5249; 0 0 SEQUENCE OWNED BY public quant_trade_log_id_seq postgres
+233; 1259 23113 TABLE public ranking_snapshot postgres
+232; 1259 23112 SEQUENCE public ranking_snapshot_id_seq postgres
+5250; 0 0 SEQUENCE OWNED BY public ranking_snapshot_id_seq postgres
+243; 1259 23729 TABLE public stock_master postgres
+224; 1259 23038 TABLE public users postgres
+223; 1259 23037 SEQUENCE public users_id_seq postgres
+5251; 0 0 SEQUENCE OWNED BY public users_id_seq postgres
+4861; 2604 22875 DEFAULT public api_token id postgres
+4880; 2604 23660 DEFAULT public index_snapshot id postgres
+4864; 2604 22888 DEFAULT public investor_memo id postgres
+4871; 2604 23071 DEFAULT public lotto_analysis_pool id postgres
+4873; 2604 23087 DEFAULT public lotto_analysis_result id postgres
+4900; 2604 23743 DEFAULT public lotto_comment id postgres
+4875; 2604 23103 DEFAULT public lotto_user_combo id postgres
+4904; 2604 27878 DEFAULT public market_daily_price id postgres
+4888; 2604 23702 DEFAULT public market_flow_snapshot id postgres
+4917; 2604 28785 DEFAULT public memo id postgres
+4887; 2604 23686 DEFAULT public news_snapshot id postgres
+4909; 2604 27913 DEFAULT public quant_backtest_result id postgres
+4928; 2604 28848 DEFAULT public quant_core_feature_snapshot id postgres
+4930; 2604 28872 DEFAULT public quant_core_signal id postgres
+4920; 2604 28804 DEFAULT public quant_model_definition id postgres
+4925; 2604 28825 DEFAULT public quant_model_version id postgres
+4906; 2604 27895 DEFAULT public quant_strategy id postgres
+4913; 2604 27940 DEFAULT public quant_trade_log id postgres
+4877; 2604 23116 DEFAULT public ranking_snapshot id postgres
+4867; 2604 23041 DEFAULT public users id postgres
+5200; 0 23657 TABLE DATA public index_snapshot postgres
+5189; 0 23068 TABLE DATA public lotto_analysis_pool postgres
+5191; 0 23084 TABLE DATA public lotto_analysis_result postgres
+5187; 0 23052 TABLE DATA public lotto_result postgres
+5209; 0 27875 TABLE DATA public market_daily_price postgres
+5204; 0 23699 TABLE DATA public market_flow_snapshot postgres
+5202; 0 23683 TABLE DATA public news_snapshot postgres
+5213; 0 27910 TABLE DATA public quant_backtest_result postgres
+5223; 0 28845 TABLE DATA public quant_core_feature_snapshot postgres
+5225; 0 28869 TABLE DATA public quant_core_signal postgres
+5219; 0 28801 TABLE DATA public quant_model_definition postgres
+5221; 0 28822 TABLE DATA public quant_model_version postgres
+5211; 0 27892 TABLE DATA public quant_strategy postgres
+5215; 0 27937 TABLE DATA public quant_trade_log postgres
+5195; 0 23113 TABLE DATA public ranking_snapshot postgres
+5205; 0 23729 TABLE DATA public stock_master postgres
+5252; 0 0 SEQUENCE SET public api_token_id_seq postgres
+5253; 0 0 SEQUENCE SET public index_snapshot_id_seq postgres
+5254; 0 0 SEQUENCE SET public index_snapshot_id_seq1 postgres
+5255; 0 0 SEQUENCE SET public investor_memo_id_seq postgres
+5256; 0 0 SEQUENCE SET public lotto_analysis_pool_id_seq postgres
+5257; 0 0 SEQUENCE SET public lotto_analysis_result_id_seq postgres
+5258; 0 0 SEQUENCE SET public lotto_comment_id_seq postgres
+5259; 0 0 SEQUENCE SET public lotto_user_combo_id_seq postgres
+5260; 0 0 SEQUENCE SET public market_daily_price_id_seq postgres
+5261; 0 0 SEQUENCE SET public market_flow_snapshot_id_seq postgres
+5262; 0 0 SEQUENCE SET public market_flow_snapshot_id_seq1 postgres
+5263; 0 0 SEQUENCE SET public memo_id_seq postgres
+5264; 0 0 SEQUENCE SET public news_snapshot_id_seq postgres
+5265; 0 0 SEQUENCE SET public news_snapshot_id_seq1 postgres
+5266; 0 0 SEQUENCE SET public quant_backtest_result_id_seq postgres
+5267; 0 0 SEQUENCE SET public quant_core_feature_snapshot_id_seq postgres
+5268; 0 0 SEQUENCE SET public quant_core_signal_id_seq postgres
+5269; 0 0 SEQUENCE SET public quant_model_definition_id_seq postgres
+5270; 0 0 SEQUENCE SET public quant_model_version_id_seq postgres
+5271; 0 0 SEQUENCE SET public quant_strategy_id_seq postgres
+5272; 0 0 SEQUENCE SET public quant_trade_log_id_seq postgres
+5273; 0 0 SEQUENCE SET public ranking_snapshot_id_seq postgres
+5274; 0 0 SEQUENCE SET public users_id_seq postgres
+4933; 2606 22883 CONSTRAINT public api_token api_token_pkey postgres
+4935; 2606 22904 CONSTRAINT public api_token api_token_singleton_unique postgres
+4963; 2606 23679 CONSTRAINT public index_snapshot index_snapshot_pkey postgres
+4965; 2606 23681 CONSTRAINT public index_snapshot index_snapshot_snap_date_index_code_key postgres
+4937; 2606 22900 CONSTRAINT public investor_memo investor_memo_memo_date_market_key postgres
+4939; 2606 22898 CONSTRAINT public investor_memo investor_memo_pkey postgres
+4947; 2606 23082 CONSTRAINT public lotto_analysis_pool lotto_analysis_pool_draw_no_strategy_key postgres
+4949; 2606 23080 CONSTRAINT public lotto_analysis_pool lotto_analysis_pool_pkey postgres
+4951; 2606 23098 CONSTRAINT public lotto_analysis_result lotto_analysis_result_draw_no_strategy_key postgres
+4953; 2606 23096 CONSTRAINT public lotto_analysis_result lotto_analysis_result_pkey postgres
+4980; 2606 23755 CONSTRAINT public lotto_comment lotto_comment_pkey postgres
+4945; 2606 23066 CONSTRAINT public lotto_result lotto_result_pkey postgres
+4956; 2606 23111 CONSTRAINT public lotto_user_combo lotto_user_combo_pkey postgres
+4986; 2606 27886 CONSTRAINT public market_daily_price market_daily_price_pkey postgres
+4972; 2606 23726 CONSTRAINT public market_flow_snapshot market_flow_snapshot_pkey postgres
+4974; 2606 23728 CONSTRAINT public market_flow_snapshot market_flow_snapshot_snap_date_market_key postgres
+5006; 2606 28795 CONSTRAINT public memo memo_pkey postgres
+4968; 2606 23696 CONSTRAINT public news_snapshot news_snapshot_news_no_key postgres
+4970; 2606 23694 CONSTRAINT public news_snapshot news_snapshot_pkey postgres
+4995; 2606 27927 CONSTRAINT public quant_backtest_result quant_backtest_result_pkey postgres
+5020; 2606 28858 CONSTRAINT public quant_core_feature_snapshot quant_core_feature_snapshot_pkey postgres
+5025; 2606 28883 CONSTRAINT public quant_core_signal quant_core_signal_pkey postgres
+5009; 2606 28819 CONSTRAINT public quant_model_definition quant_model_definition_model_code_key postgres
+5011; 2606 28817 CONSTRAINT public quant_model_definition quant_model_definition_pkey postgres
+5014; 2606 28835 CONSTRAINT public quant_model_version quant_model_version_pkey postgres
+4990; 2606 27908 CONSTRAINT public quant_strategy quant_strategy_name_en_key postgres
+4992; 2606 27906 CONSTRAINT public quant_strategy quant_strategy_pkey postgres
+5000; 2606 27956 CONSTRAINT public quant_trade_log quant_trade_log_pkey postgres
+4959; 2606 23130 CONSTRAINT public ranking_snapshot ranking_snapshot_pkey postgres
+4977; 2606 23737 CONSTRAINT public stock_master stock_master_pkey postgres
+4988; 2606 27888 CONSTRAINT public market_daily_price uq_market_daily_price postgres
+4997; 2606 27929 CONSTRAINT public quant_backtest_result uq_qbr postgres
+5022; 2606 28860 CONSTRAINT public quant_core_feature_snapshot uq_quant_core_feature postgres
+5027; 2606 28885 CONSTRAINT public quant_core_signal uq_quant_core_signal postgres
+5016; 2606 28837 CONSTRAINT public quant_model_version uq_quant_model_version postgres
+4961; 2606 23132 CONSTRAINT public ranking_snapshot uq_ranking_snapshot postgres
+4941; 2606 23049 CONSTRAINT public users users_pkey postgres
+4943; 2606 23051 CONSTRAINT public users users_username_key postgres
+4978; 1259 23756 INDEX public idx_lotto_comment_draw_no postgres
+4954; 1259 28780 INDEX public idx_lotto_user_combo_username postgres
+4981; 1259 27890 INDEX public idx_mdp_code_date postgres
+4982; 1259 27889 INDEX public idx_mdp_date_type postgres
+4983; 1259 28008 INDEX public idx_mdp_type_code_date postgres
+4984; 1259 28007 INDEX public idx_mdp_type_date_code postgres
+5001; 1259 28796 INDEX public idx_memo_username_date postgres
+5002; 1259 28798 INDEX public idx_memo_username_market postgres
+5003; 1259 28797 INDEX public idx_memo_username_source postgres
+5004; 1259 28799 INDEX public idx_memo_username_stock_code postgres
+4966; 1259 23697 INDEX public idx_news_snapshot_date postgres
+4993; 1259 27935 INDEX public idx_qbr_strategy_date postgres
+5017; 1259 28867 INDEX public idx_qcfs_asset_date postgres
+5018; 1259 28866 INDEX public idx_qcfs_model_date postgres
+5023; 1259 28896 INDEX public idx_qcs_model_date postgres
+5007; 1259 28820 INDEX public idx_qmd_active postgres
+5012; 1259 28843 INDEX public idx_qmv_active postgres
+4998; 1259 27962 INDEX public idx_qtl_strategy postgres
+4957; 1259 23133 INDEX public idx_ranking_snapshot_date postgres
+4975; 1259 23738 INDEX public idx_stock_master_name postgres
+5028; 2606 27930 FK CONSTRAINT public quant_backtest_result quant_backtest_result_strategy_id_fkey postgres
+5031; 2606 28861 FK CONSTRAINT public quant_core_feature_snapshot quant_core_feature_snapshot_model_code_fkey postgres
+5032; 2606 28886 FK CONSTRAINT public quant_core_signal quant_core_signal_model_code_fkey postgres
+5033; 2606 28891 FK CONSTRAINT public quant_core_signal quant_core_signal_model_version_id_fkey postgres
+5030; 2606 28838 FK CONSTRAINT public quant_model_version quant_model_version_model_code_fkey postgres
+5029; 2606 27957 FK CONSTRAINT public quant_trade_log quant_trade_log_strategy_id_fkey postgres
