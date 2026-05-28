@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Market Pulse — Quant Home Design Guide</title>
+  <title>Market Pulse Quant Home Design Guide</title>
   <style>
     :root {
       --bg: #ffffff;
@@ -16,270 +16,49 @@
       --text-2: #44403c;
       --text-3: #78716c;
       --text-4: #a8a29e;
-      --accent: #18181b;
+      --accent: #2f77df;
       --accent-fg: #ffffff;
       --up: #d62828;
-      --up-soft: #fdecec;
       --down: #1e5edb;
-      --down-soft: #e8eefc;
-      --flat: #57534e;
+      --warning: #f97316;
+      --soft: #f1f3f6;
+      --soft-border: #d9dde5;
       --font-sans: "Pretendard Variable", Pretendard, "Noto Sans KR", -apple-system, sans-serif;
       --font-mono: "IBM Plex Mono", "SF Mono", ui-monospace, monospace;
       --radius: 8px;
       --radius-lg: 12px;
     }
-
     * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: var(--font-sans);
-      font-size: 14px;
-      color: var(--text);
-      background: var(--bg);
-      line-height: 1.6;
-    }
-
-    .sidebar {
-      position: fixed;
-      top: 0; left: 0;
-      width: 220px;
-      height: 100vh;
-      background: var(--bg-alt);
-      border-right: 1px solid var(--border);
-      padding: 24px 0;
-      overflow-y: auto;
-      z-index: 10;
-    }
-    .sidebar-title {
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-      color: var(--text-4);
-      padding: 0 20px 12px;
-    }
+    body { font-family: var(--font-sans); font-size: 14px; color: var(--text); background: var(--bg); line-height: 1.6; }
+    .sidebar { position: fixed; top: 0; left: 0; width: 220px; height: 100vh; padding: 24px 0; overflow-y: auto; border-right: 1px solid var(--border); background: var(--bg-panel); }
+    .sidebar-title { padding: 0 20px 12px; color: var(--text-4); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
     .nav-section { margin-bottom: 20px; }
-    .nav-section-label {
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: .06em;
-      text-transform: uppercase;
-      color: var(--text-4);
-      padding: 0 20px 6px;
-    }
-    .nav-item {
-      display: block;
-      padding: 6px 20px;
-      font-size: 13px;
-      color: var(--text-2);
-      text-decoration: none;
-      border-radius: 0;
-      transition: background .15s;
-    }
+    .nav-section-label { padding: 0 20px 6px; color: var(--text-4); font-size: 10px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+    .nav-item { display: block; padding: 6px 20px; color: var(--text-2); text-decoration: none; font-size: 13px; }
     .nav-item:hover { background: var(--bg-hover); color: var(--text); }
     .nav-item.active { background: var(--accent); color: var(--accent-fg); }
-
-    .main {
-      margin-left: 220px;
-      padding: 40px 48px;
-      max-width: 1100px;
-    }
-
-    .page-header {
-      margin-bottom: 40px;
-      padding-bottom: 24px;
-      border-bottom: 1px solid var(--border);
-    }
-    .page-title {
-      font-size: 28px;
-      font-weight: 700;
-      color: var(--text);
-      margin-bottom: 8px;
-    }
-    .page-subtitle {
-      font-size: 15px;
-      color: var(--text-3);
-    }
-    .badge {
-      display: inline-block;
-      padding: 2px 10px;
-      border-radius: 999px;
-      font-size: 11px;
-      font-weight: 600;
-      margin-left: 8px;
-      vertical-align: middle;
-    }
-    .badge-plan { background: #e0e7ff; color: #3730a3; }
-
-    section {
-      margin-bottom: 56px;
-      scroll-margin-top: 80px;
-    }
-    .section-title {
-      font-size: 20px;
-      font-weight: 700;
-      color: var(--text);
-      margin-bottom: 6px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .section-desc {
-      font-size: 13px;
-      color: var(--text-3);
-      margin-bottom: 20px;
-    }
-
-    .card {
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 24px;
-      margin-bottom: 16px;
-      background: var(--bg-panel);
-    }
-    .card-title {
-      font-size: 15px;
-      font-weight: 700;
-      margin-bottom: 8px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .card-body {
-      font-size: 13px;
-      color: var(--text-2);
-      line-height: 1.7;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13px;
-    }
-    thead th {
-      background: var(--bg-alt);
-      color: var(--text-3);
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: .06em;
-      padding: 10px 14px;
-      text-align: left;
-      border-bottom: 1px solid var(--border);
-    }
-    tbody td {
-      padding: 11px 14px;
-      border-bottom: 1px solid var(--border);
-      color: var(--text-2);
-      vertical-align: top;
-    }
-    tbody tr:last-child td { border-bottom: none; }
-    tbody tr:hover td { background: var(--bg-hover); }
-    td.code { font-family: var(--font-mono); font-size: 12px; color: var(--text-3); }
-
+    .main { margin-left: 220px; padding: 40px 48px; max-width: 1100px; }
+    .page-header { margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid var(--border); }
+    .page-title { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+    .page-subtitle { color: var(--text-3); font-size: 15px; }
+    section { margin-bottom: 56px; scroll-margin-top: 80px; }
+    .section-title { display: flex; gap: 8px; align-items: center; font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+    .section-desc { color: var(--text-3); font-size: 13px; margin-bottom: 20px; }
+    .card { border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; margin-bottom: 16px; background: var(--bg-panel); }
+    .soft-card { border-color: var(--soft-border); background: var(--soft); }
+    .card-title { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+    .card-body { color: var(--text-2); font-size: 13px; line-height: 1.7; }
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
     .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
-
-    .feat-card {
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 20px;
-      background: var(--bg-panel);
-      position: relative;
-    }
-    .feat-title {
-      font-size: 14px;
-      font-weight: 700;
-      margin-bottom: 6px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .feat-desc {
-      font-size: 12.5px;
-      color: var(--text-3);
-      line-height: 1.65;
-    }
-
-    .stack-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-top: 8px;
-    }
-    .stack-chip {
-      display: inline-flex;
-      align-items: center;
-      padding: 4px 12px;
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      font-size: 12px;
-      color: var(--text-2);
-      background: var(--bg-alt);
-    }
-
-    pre {
-      background: #0c0c0d;
-      color: #e5e7eb;
-      padding: 16px 20px;
-      border-radius: 8px;
-      font-family: var(--font-mono);
-      font-size: 12px;
-      line-height: 1.65;
-      overflow-x: auto;
-      white-space: pre;
-    }
-
-    .mockup {
-      width: 100%;
-      display: block;
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      background: var(--bg-panel);
-    }
-
-    .swatch-grid {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      margin-top: 12px;
-    }
-    .swatch {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 8px 12px;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      background: var(--bg-alt);
-    }
-    .swatch-dot {
-      width: 24px;
-      height: 24px;
-      border-radius: 6px;
-      border: 1px solid rgba(0,0,0,.08);
-    }
-    .swatch-info { font-size: 12px; }
-    .swatch-name { font-weight: 600; color: var(--text); }
-    .swatch-hex { font-family: var(--font-mono); font-size: 11px; color: var(--text-4); }
-
-    .badge-demo {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 32px;
-      height: 32px;
-      border-radius: 999px;
-      color: #fff;
-      font-size: 12px;
-      font-weight: 800;
-      margin-right: 8px;
-      vertical-align: middle;
-    }
-
-    .up { color: var(--up); }
-    .down { color: var(--down); }
-
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead th { background: var(--bg-alt); color: var(--text-3); text-align: left; padding: 10px 14px; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+    tbody td { padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    code, pre { font-family: var(--font-mono); }
+    pre { background: var(--bg-alt); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; overflow-x: auto; font-size: 12px; margin-top: 10px; }
+    .token { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 999px; background: var(--bg-alt); border: 1px solid var(--border); font-size: 12px; color: var(--text-2); margin: 3px 4px 3px 0; }
+    .good { color: var(--accent); font-weight: 700; }
+    .bad { color: var(--up); font-weight: 700; }
+    .warn { color: var(--warning); font-weight: 700; }
     @media (max-width: 900px) {
       .sidebar { display: none; }
       .main { margin-left: 0; padding: 24px 20px; }
@@ -291,289 +70,201 @@
   <nav class="sidebar">
     <div class="sidebar-title">Market Pulse</div>
     <div class="nav-section">
-      <div class="nav-section-label">기준</div>
-      <a class="nav-item active" href="#overview">개요</a>
-      <a class="nav-item" href="#mockup">기준 목업</a>
-      <a class="nav-item" href="#intent">제품 의도</a>
-      <a class="nav-item" href="#visual">비주얼 규칙</a>
-    </div>
-    <div class="nav-section">
-      <div class="nav-section-label">UI</div>
-      <a class="nav-item" href="#color">색상</a>
-      <a class="nav-item" href="#layout">레이아웃</a>
-      <a class="nav-item" href="#content">홈 콘텐츠</a>
-      <a class="nav-item" href="#badges">종목 배지</a>
-      <a class="nav-item" href="#nav">네비게이션</a>
-      <a class="nav-item" href="#language">언어</a>
-    </div>
-    <div class="nav-section">
-      <div class="nav-section-label">구현</div>
-      <a class="nav-item" href="#mobile">모바일</a>
-      <a class="nav-item" href="#areas">마이/서비스/Admin</a>
-      <a class="nav-item" href="#structure">프론트 구조</a>
-      <a class="nav-item" href="#criteria">수용 기준</a>
-      <a class="nav-item" href="#anti">금지 패턴</a>
+      <div class="nav-section-label">Guide</div>
+      <a class="nav-item active" href="#overview">Overview</a>
+      <a class="nav-item" href="#layout">Layout</a>
+      <a class="nav-item" href="#header">Header</a>
+      <a class="nav-item" href="#top-panel">Top Panel</a>
+      <a class="nav-item" href="#table">Decision Table</a>
+      <a class="nav-item" href="#right-rail">Right Rail</a>
+      <a class="nav-item" href="#color">Color & Icons</a>
+      <a class="nav-item" href="#mobile">Mobile</a>
+      <a class="nav-item" href="#anti">Do Not</a>
     </div>
   </nav>
 
   <main class="main">
     <div class="page-header">
-      <div class="page-title">Quant Home Design Guide <span class="badge badge-plan">Current</span></div>
-      <div class="page-subtitle">Market Pulse 웹 퀀트 모델 홈 · 시각 기준 · 네비게이션 · 모바일 · 구현 규칙</div>
+      <h1 class="page-title">Quant Home Design Guide</h1>
+      <p class="page-subtitle">Current approved rules for the Market Pulse quant-model home dashboard.</p>
     </div>
 
     <section id="overview">
-      <div class="section-title">개요</div>
-      <div class="section-desc">이 문서는 퀀트 모델 홈과 beginner-facing quant 화면의 binding design guide다.</div>
-      <div class="grid-3">
-        <div class="feat-card">
-          <div class="feat-title">기준 목업 유지</div>
-          <div class="feat-desc">비율, 밀도, 좌측/우측 구성은 승인된 목업을 기준으로 한다.</div>
-        </div>
-        <div class="feat-card">
-          <div class="feat-title">모노톤 UI</div>
-          <div class="feat-desc">기본 UI는 흰색/회색/차콜이며 blue는 작은 action point로만 쓴다.</div>
-        </div>
-        <div class="feat-card">
-          <div class="feat-title">쉬운 퀀트 설명</div>
-          <div class="feat-desc">`퀀트 모델` 키워드는 유지하되 첫 화면 언어는 초보자도 이해해야 한다.</div>
-        </div>
-      </div>
-    </section>
-
-    <section id="mockup">
-      <div class="section-title">기준 목업</div>
-      <div class="section-desc">이 이미지를 desktop ratio, density, right rail, stock badge의 기준으로 사용한다.</div>
-      <img class="mockup" src="assets/quant-home-mockup.png" alt="Approved quant home mockup" />
-    </section>
-
-    <section id="intent">
-      <div class="section-title">제품 의도</div>
-      <div class="section-desc">홈은 마케팅 페이지가 아니라 오늘의 퀀트 모델 판단을 설명하는 실사용 화면이다.</div>
+      <h2 class="section-title">Overview</h2>
+      <p class="section-desc">The home page is a compact stock decision dashboard, not a landing page and not an auto-trading product.</p>
       <div class="card">
-        <div class="card-title">Required Main Copy</div>
+        <div class="card-title">Core Positioning</div>
         <div class="card-body">
-          <strong>퀀트 모델이 고른 오늘의 종목</strong><br />
-          매일 시장 데이터를 계산해 살펴볼 종목, 기다릴 종목, 조심할 종목을 쉽게 정리합니다.
+          Market Pulse shows how a <strong>퀀트 모델</strong> reviews daily market data and explains today's stocks and market status in plain language.
         </div>
+        <pre>퀀트 모델이 고른 오늘의 종목
+매일 시장 데이터를 계산해 살펴볼 종목, 기다릴 종목, 조심할 종목을 쉽게 정리합니다.</pre>
       </div>
-      <table>
-        <thead><tr><th>First Screen Must Answer</th><th>Meaning</th></tr></thead>
-        <tbody>
-          <tr><td>오늘 어떤 종목을 보면 되는가</td><td>daily decision list</td></tr>
-          <tr><td>왜 그렇게 판단했는가</td><td>plain-language reasons</td></tr>
-          <tr><td>어떤 점을 조심해야 하는가</td><td>risk/caution explanation</td></tr>
-          <tr><td>어떤 모델이 판단했는가</td><td>model source or several-model state</td></tr>
-          <tr><td>과거 검증 근거는 있는가</td><td>validation/report entry</td></tr>
-        </tbody>
-      </table>
     </section>
 
-    <section id="visual">
-      <div class="section-title">비주얼 규칙</div>
-      <div class="section-desc">승인 목업 방향에서 벗어나지 않는 필수/금지 규칙.</div>
+    <section id="layout">
+      <h2 class="section-title">Layout</h2>
+      <p class="section-desc">Use the current implementation proportions as the source of truth.</p>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">Desktop Shell</div>
+          <pre>Header
+Left sidebar | Main content column | Right utility rail</pre>
+        </div>
+        <div class="card">
+          <div class="card-title">Required Measurements</div>
+          <table>
+            <tbody>
+              <tr><td>Sidebar</td><td>224px</td></tr>
+              <tr><td>Header</td><td>60px</td></tr>
+              <tr><td>Right rail</td><td>420px</td></tr>
+              <tr><td>Gap</td><td>20px</td></tr>
+              <tr><td>Radius</td><td>8px</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Home Shell CSS</div>
+        <pre>.quant-home-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 420px;
+  gap: var(--gap-card);
+}</pre>
+      </div>
+    </section>
+
+    <section id="header">
+      <h2 class="section-title">Header</h2>
+      <p class="section-desc">The header is intentionally minimal.</p>
       <div class="grid-2">
         <div class="card">
           <div class="card-title">Required</div>
-          <div class="stack-list">
-            <span class="stack-chip">left sidebar</span>
-            <span class="stack-chip">top search</span>
-            <span class="stack-chip">main dashboard</span>
-            <span class="stack-chip">right insight rail</span>
-            <span class="stack-chip">compact table</span>
-            <span class="stack-chip">stock badges</span>
-          </div>
+          <span class="token">Market Pulse logo</span>
+          <span class="token">centered search</span>
+          <span class="token">알림</span>
+          <span class="token">profile circle</span>
+          <p class="card-body">Profile menu contains 마이페이지, 관심 폴더, 로그아웃.</p>
         </div>
         <div class="card">
           <div class="card-title">Forbidden</div>
-          <div class="stack-list">
-            <span class="stack-chip">landing hero</span>
-            <span class="stack-chip">gradient</span>
-            <span class="stack-chip">orbs/blobs</span>
-            <span class="stack-chip">colorful SaaS theme</span>
-            <span class="stack-chip">ratio change</span>
+          <span class="token">KRX 기준</span>
+          <span class="token">종가</span>
+          <span class="token">top-level 관심</span>
+          <span class="token">admin text</span>
+          <span class="token">visible logout</span>
+          <span class="token">odd unicode icons</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="top-panel">
+      <h2 class="section-title">Top Panel</h2>
+      <p class="section-desc">The first card is a gray split panel: today's stocks on the left, market status on the right.</p>
+      <div class="card soft-card">
+        <div class="grid-2">
+          <div>
+            <div class="card-title">Left: Today's Stocks</div>
+            <div class="card-body">Title is 19px / 600. Show four compact metrics: 오늘 살펴볼 종목, 조심 신호, 모델 검증 수익률, 오늘 리포트.</div>
           </div>
+          <div>
+            <div class="card-title">Right: Market Status</div>
+            <div class="card-body">Show four compact cards: 지수, 수급, 체크, 분위기. Do not use vague copy like 숨 고르기 구간.</div>
+          </div>
+        </div>
+      </div>
+      <pre>.soft-section { background: #f1f3f6; border-color: #d9dde5; }
+.compact-metric-card,
+.market-status-item { height: 112px; min-height: 112px; }</pre>
+    </section>
+
+    <section id="table">
+      <h2 class="section-title">Decision Table</h2>
+      <p class="section-desc">The table explains decisions. It must not imply trading automation.</p>
+      <table>
+        <thead>
+          <tr><th>Allowed Columns</th><th>Forbidden Columns</th><th>Favorite</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>종목, 신호 모델, 이유, 조심할 점, 관심 별</td>
+            <td>오늘 행동, 모델 판단</td>
+            <td>Plain star at far right, no circular border</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="card">
+        <div class="card-title">Decision Badge Colors</div>
+        <span class="token">BUY red</span>
+        <span class="token">SELL blue</span>
+        <span class="token">WARNING orange</span>
+        <span class="token">SIDE gray</span>
+      </div>
+    </section>
+
+    <section id="right-rail">
+      <h2 class="section-title">Right Rail</h2>
+      <p class="section-desc">The right rail is a utility rail, not the old insight/status rail.</p>
+      <div class="grid-3">
+        <div class="card">
+          <div class="card-title">1. 뉴스</div>
+          <div class="card-body">Title-only list. Scrolls inside the news card. More button goes to /news.</div>
+        </div>
+        <div class="card">
+          <div class="card-title">2. 광고 영역</div>
+          <div class="card-body">Future ad slot with AD label. This replaces Today Report.</div>
+        </div>
+        <div class="card">
+          <div class="card-title">3. 관심 폴더</div>
+          <div class="card-body">Folder list scrolls inside the card. Management happens in My Page.</div>
         </div>
       </div>
     </section>
 
     <section id="color">
-      <div class="section-title">색상 시스템</div>
-      <div class="section-desc">기본 UI는 모노톤, 상승/하락만 red/blue, 종목 배지는 예외적으로 컬러 허용.</div>
-      <div class="swatch-grid">
-        <div class="swatch"><div class="swatch-dot" style="background:#ffffff"></div><div class="swatch-info"><div class="swatch-name">Background</div><div class="swatch-hex">#ffffff</div></div></div>
-        <div class="swatch"><div class="swatch-dot" style="background:#fafaf9"></div><div class="swatch-info"><div class="swatch-name">Alt</div><div class="swatch-hex">#fafaf9</div></div></div>
-        <div class="swatch"><div class="swatch-dot" style="background:#18181b"></div><div class="swatch-info"><div class="swatch-name">Text</div><div class="swatch-hex">#18181b</div></div></div>
-        <div class="swatch"><div class="swatch-dot" style="background:#2f6fed"></div><div class="swatch-info"><div class="swatch-name">Subtle Blue</div><div class="swatch-hex">action only</div></div></div>
-        <div class="swatch"><div class="swatch-dot" style="background:#d62828"></div><div class="swatch-info"><div class="swatch-name">상승</div><div class="swatch-hex">red</div></div></div>
-        <div class="swatch"><div class="swatch-dot" style="background:#1e5edb"></div><div class="swatch-info"><div class="swatch-name">하락</div><div class="swatch-hex">blue</div></div></div>
-      </div>
-      <div class="card" style="margin-top:16px;">
-        <div class="card-title">Forbidden Color Usage</div>
-        <div class="card-body">teal brand accent, green normal-status dots, decorative purple/orange/beige chrome, red as generic recommendation, colorful model state bars.</div>
-      </div>
-    </section>
-
-    <section id="layout">
-      <div class="section-title">데스크톱 레이아웃</div>
-      <div class="section-desc">좌측 사이드바, 상단 검색, 메인 대시보드, 우측 인사이트 레일 구조를 유지한다.</div>
-      <pre>Left sidebar | Top header/search
-             | Main dashboard                 | Right insight rail</pre>
-      <table>
-        <thead><tr><th>Area</th><th>Required Contents</th></tr></thead>
-        <tbody>
-          <tr><td>Top header</td><td>centered search, 관심/알림/profile controls</td></tr>
-          <tr><td>Left sidebar</td><td>logo, primary nav, data/update mini area, user footer</td></tr>
-          <tr><td>Main dashboard</td><td>title, KPI cards, today's stock table, quant explainer</td></tr>
-          <tr><td>Right rail</td><td>one-line summary, model state, judgment reasons, disclaimer</td></tr>
-        </tbody>
-      </table>
-    </section>
-
-    <section id="content">
-      <div class="section-title">홈 콘텐츠 규칙</div>
-      <div class="section-desc">홈 콘텐츠는 오늘의 종목 판단을 중심으로 구성한다.</div>
+      <h2 class="section-title">Color & Icons</h2>
       <div class="grid-2">
         <div class="card">
-          <div class="card-title">KPI Cards</div>
-          <div class="stack-list">
-            <span class="stack-chip">오늘 살펴볼 종목</span>
-            <span class="stack-chip">조심 신호</span>
-            <span class="stack-chip">최근 검증 수익률</span>
-            <span class="stack-chip">최신 리포트</span>
-          </div>
+          <div class="card-title">Color Tokens</div>
+          <table>
+            <tbody>
+              <tr><td>Accent</td><td>#2f77df</td></tr>
+              <tr><td>Soft section</td><td>#f1f3f6</td></tr>
+              <tr><td>Soft border</td><td>#d9dde5</td></tr>
+              <tr><td>Warning</td><td>#f97316</td></tr>
+            </tbody>
+          </table>
         </div>
         <div class="card">
-          <div class="card-title">Decision Table</div>
-          <div class="card-body">종목 | 모델 판단 | 오늘 행동 | 이유 | 조심할 점. `신호 모델`은 scanability를 해치지 않을 때만 추가한다.</div>
+          <div class="card-title">Icon Rules</div>
+          <div class="card-body">Use circular stock initial badges, simple favorite stars, compact info dots, and profile circle. Do not use odd temporary unicode icons.</div>
         </div>
       </div>
-      <table>
-        <thead><tr><th>Multiple Models</th><th>Rule</th></tr></thead>
-        <tbody>
-          <tr><td>Default</td><td>one compact `여러 모델` badge</td></tr>
-          <tr><td>Desktop</td><td>hover tooltip shows exact model names</td></tr>
-          <tr><td>Mobile</td><td>tap/expand or bottom sheet shows exact model names</td></tr>
-        </tbody>
-      </table>
-    </section>
-
-    <section id="badges">
-      <div class="section-title">종목 이니셜 배지</div>
-      <div class="section-desc">실제 회사 로고 파일 대신 원형 이니셜 배지를 기본값으로 사용한다.</div>
-      <table>
-        <thead><tr><th>Stock</th><th>Badge</th><th>Preview</th></tr></thead>
-        <tbody>
-          <tr><td>SK하이닉스</td><td>red circle + SK</td><td><span class="badge-demo" style="background:#df2d3a;">SK</span></td></tr>
-          <tr><td>삼성전자</td><td>blue circle + 삼</td><td><span class="badge-demo" style="background:#2f72d6;">삼</span></td></tr>
-          <tr><td>현대차</td><td>dark blue circle + 현</td><td><span class="badge-demo" style="background:#2c527f;">현</span></td></tr>
-          <tr><td>KODEX 반도체</td><td>purple circle + K</td><td><span class="badge-demo" style="background:#6744c9;">K</span></td></tr>
-        </tbody>
-      </table>
-    </section>
-
-    <section id="nav">
-      <div class="section-title">네비게이션</div>
-      <div class="section-desc">데스크톱과 모바일은 목적이 다르다. 모바일은 큰 영역 중심으로 간다.</div>
-      <div class="grid-2">
-        <div class="card">
-          <div class="card-title">Desktop Sidebar</div>
-          <div class="stack-list">
-            <span class="stack-chip">홈</span><span class="stack-chip">오늘의 종목</span><span class="stack-chip">퀀트 모델</span><span class="stack-chip">리포트</span><span class="stack-chip">검증 기록</span><span class="stack-chip">시장 보기</span><span class="stack-chip">더보기</span>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-title">Mobile Bottom Nav</div>
-          <div class="stack-list">
-            <span class="stack-chip">시장</span><span class="stack-chip">모델</span><span class="stack-chip">홈</span><span class="stack-chip">서비스</span><span class="stack-chip">마이</span>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section id="language">
-      <div class="section-title">언어 규칙</div>
-      <div class="section-desc">전문 용어는 상세 화면으로 미루고 첫 화면은 쉬운 말로 쓴다.</div>
-      <table>
-        <thead><tr><th>Expert Term</th><th>Beginner Term</th></tr></thead>
-        <tbody>
-          <tr><td>signal</td><td>오늘의 판단</td></tr>
-          <tr><td>candidate</td><td>오늘의 종목</td></tr>
-          <tr><td>buy candidate</td><td>살펴볼 종목</td></tr>
-          <tr><td>watchlist</td><td>기다릴 종목</td></tr>
-          <tr><td>risk flag</td><td>조심할 점</td></tr>
-          <tr><td>backtest</td><td>검증 기록</td></tr>
-        </tbody>
-      </table>
     </section>
 
     <section id="mobile">
-      <div class="section-title">모바일</div>
-      <div class="section-desc">같은 route/API를 쓰되 wide table 대신 카드 리스트를 사용한다.</div>
-      <pre>[badge] 종목명      [모델 판단]
-       code
-오늘 행동
-이유 1-2줄
-조심할 점 1줄
-여러 모델, tap to expand if applicable</pre>
-    </section>
-
-    <section id="areas">
-      <div class="section-title">마이 / 서비스 / Admin</div>
-      <div class="section-desc">개인화, 부가 서비스, 운영 기능을 투자 판단 흐름과 분리한다.</div>
-      <div class="grid-3">
-        <div class="feat-card"><div class="feat-title">마이</div><div class="feat-desc">프로필, 관심 종목, 메모, 알림, 저장 리포트, 계정 정보.</div></div>
-        <div class="feat-card"><div class="feat-title">서비스</div><div class="feat-desc">로또, 타로. 퀀트 홈에 섞지 않는다.</div></div>
-        <div class="feat-card"><div class="feat-title">Admin</div><div class="feat-desc">ADMIN 전용. 일반 사용자에게 보이지 않는다.</div></div>
+      <h2 class="section-title">Mobile</h2>
+      <p class="section-desc">Use responsive layout, not a separate m. site.</p>
+      <div class="card">
+        <div class="card-title">Bottom Navigation</div>
+        <pre>시장 | 모델 | 홈 | 서비스 | 마이</pre>
+        <div class="card-body">Home is centered. Today decisions and reports are reached from home. My contains profile, favorite folders, memos, alerts, saved reports, account, and admin entry if applicable.</div>
       </div>
     </section>
 
-    <section id="structure">
-      <div class="section-title">프론트 구조</div>
-      <div class="section-desc">새 홈은 `QuantHome`으로 분리하고 기존 대형 파일에 더 붙이지 않는다.</div>
-      <pre>src/pages/QuantHome/
-  index.tsx
-  components/
-    QuantHomeHeader.tsx
-    QuantHomeKpiGrid.tsx
-    TodayDecisionTable.tsx
-    TodayDecisionMobileList.tsx
-    QuantInsightRail.tsx
-    QuantModelExplainer.tsx
-    StockInitialBadge.tsx
-  hooks/
-    useQuantHomeData.ts
-  quantHomeTypes.ts</pre>
-    </section>
-
-    <section id="criteria">
-      <div class="section-title">수용 기준</div>
-      <div class="section-desc">홈 구현이 완료됐다고 판단하기 위한 디자인 기준.</div>
-      <table>
-        <thead><tr><th>Criterion</th><th>Required</th></tr></thead>
-        <tbody>
-          <tr><td>First understanding</td><td>5초 안에 서비스 목적을 이해한다.</td></tr>
-          <tr><td>Keyword</td><td>`퀀트 모델`이 첫 화면에 보인다.</td></tr>
-          <tr><td>Desktop ratio</td><td>승인 목업 비율을 유지한다.</td></tr>
-          <tr><td>Mobile nav</td><td>시장 | 모델 | 홈 | 서비스 | 마이</td></tr>
-          <tr><td>Color</td><td>red/blue는 시장 방향에만 사용한다.</td></tr>
-          <tr><td>Badges</td><td>종목 행은 원형 이니셜 배지를 사용한다.</td></tr>
-        </tbody>
-      </table>
-    </section>
-
     <section id="anti">
-      <div class="section-title">금지 패턴</div>
-      <div class="section-desc">아래 패턴은 승인 없이 사용하지 않는다.</div>
-      <div class="stack-list">
-        <span class="stack-chip">landing page</span>
-        <span class="stack-chip">ratio change</span>
-        <span class="stack-chip">AI replacement</span>
-        <span class="stack-chip">teal/orange/beige accent</span>
-        <span class="stack-chip">red = recommended</span>
-        <span class="stack-chip">wide mobile table</span>
-        <span class="stack-chip">lotto/tarot in home</span>
-        <span class="stack-chip">admin visible to normal users</span>
+      <h2 class="section-title">Do Not Reintroduce</h2>
+      <div class="card">
+        <span class="token bad">old one-line summary rail</span>
+        <span class="token bad">model status bars in right rail</span>
+        <span class="token bad">Today Report rail card</span>
+        <span class="token bad">quick links rail card</span>
+        <span class="token bad">오늘 행동 column</span>
+        <span class="token bad">top-level 관심</span>
+        <span class="token bad">KRX 기준</span>
+        <span class="token bad">종가</span>
+        <span class="token bad">odd unicode notification icons</span>
+        <span class="token bad">public validation navigation</span>
       </div>
     </section>
   </main>

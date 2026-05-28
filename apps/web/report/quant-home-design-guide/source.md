@@ -1,251 +1,348 @@
 # Market Pulse Quant Home Design Guide
 
 Date: 2026-05-28  
-Scope: `apps/web` frontend design system  
-Status: Current design guide  
-Based on: `apps/web/.agents/guides/quant-home-design-guide.md`
+Scope: `apps/web` quant-model home and related beginner-facing screens  
+Status: Current approved guide  
+Canonical implementation: `apps/web/src/pages/QuantHome/index.tsx`
 
-## Overview
+## 1. Product Direction
 
-This guide defines the binding visual and UX direction for the Market Pulse quant-model home and related beginner-facing quant surfaces.
+Market Pulse home is not a landing page and not an auto-trading product.
 
-The approved direction is:
+It is a dashboard where a `퀀트 모델` reviews daily market data and explains:
 
-- preserve the approved desktop mockup ratio
-- keep UI chrome monochrome
-- use subtle blue only for navigation/action/info emphasis
-- use red/blue only for market direction
-- use circular initial badges for stocks
-- keep `퀀트 모델` as the product keyword
-- explain quant-model decisions in beginner-friendly language
-- separate market, model, home, services, my page, and admin responsibilities
+- 오늘 볼 종목
+- 조심할 종목
+- 판단에 사용된 모델
+- 판단 이유
+- 오늘의 시장 상태
 
-## Reference Assets
-
-Use this mockup as the source of truth for visual ratio, density, and placement:
-
-![Quant home approved mockup](assets/quant-home-mockup.png)
-
-Related planning report:
-
-```text
-apps/web/report/quant-home-planning/source.md
-apps/web/report/quant-home-planning/latest.html
-```
-
-## Core Intent
-
-The first screen must make the product obvious immediately.
-
-Required main copy:
+Main copy:
 
 ```text
 퀀트 모델이 고른 오늘의 종목
 매일 시장 데이터를 계산해 살펴볼 종목, 기다릴 종목, 조심할 종목을 쉽게 정리합니다.
 ```
 
-The first screen must answer:
+Do not replace `퀀트 모델` with `AI 투자 판단`.
 
-- 오늘 어떤 종목을 보면 되는가
-- 왜 그렇게 판단했는가
-- 어떤 점을 조심해야 하는가
-- 어떤 모델이 판단했는가
-- 과거 검증 근거는 있는가
+## 2. Desktop Layout
 
-## Non-Negotiable Visual Rules
+Approved desktop structure:
 
-Required:
+```text
+Header
+Left sidebar | Main content column | Right utility rail
+```
 
-- desktop app-like dashboard
-- left sidebar
-- top header/search
-- main dashboard column
-- right insight rail
-- compact financial density
-- plain-language quant explanations
-- stock decision table
-- circular stock initial badges
+Required dimensions:
 
-Forbidden:
-
-- marketing/landing-only page
-- oversized hero section
-- split marketing hero
-- decorative illustration
-- gradient background
-- gradient orbs, blobs, bokeh
-- colorful SaaS dashboard theme
-- card mosaic unrelated to daily decisions
-- changing the approved page ratio for small visual changes
-
-## Color System
-
-Base UI is monochrome.
-
-| Role | Rule |
+| Area | Rule |
 |---|---|
-| Background | white/off-white |
-| Borders | light gray |
-| Text | charcoal/gray |
-| Brand/action point | subtle blue only |
-| 상승/positive | red |
-| 하락/negative | blue |
-| Stock badges | per-stock badge colors allowed |
+| Sidebar | `224px` fixed desktop width |
+| Header | `60px` height |
+| Page padding | `32px` |
+| Right rail | about `420px` |
+| Card radius | `8px` |
+| Main gap | `20px` |
 
-Forbidden UI color usage:
+Home shell:
 
-- teal as brand accent
-- green status dots for normal operation
-- purple/orange/beige decorative UI palette
-- red for generic `살펴볼 종목`
-- blue for generic info panels when it could be confused with 하락
-- colorful model state bars unless they encode real market direction
-
-## Desktop Layout
-
-Use this page structure:
-
-```text
-Left sidebar | Top header/search
-             | Main dashboard                 | Right insight rail
+```css
+.quant-home-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 420px;
+  gap: var(--gap-card);
+}
 ```
 
-Desktop sections:
+Do not shrink the right rail to the old narrow rail. Do not restore the old right-side summary/status/explanation rail.
+
+## 3. Header
+
+Header must contain:
 
 ```text
-Top header
-- centered search
-- top-right 관심/알림/profile controls
-
-Left sidebar
-- Market Pulse logo
-- primary navigation
-- lower data/update mini area
-- user/account footer area
-
-Main dashboard
-- title/copy/update time
-- KPI cards
-- today's stock decision table
-- quant model explainer
-
-Right rail
-- today's one-line summary
-- quant model status
-- why this judgment
-- disclaimer
+Market Pulse logo | centered search | 알림 | profile circle
 ```
 
-Proportion rules:
-
-- sidebar remains narrow
-- right rail remains secondary
-- KPI cards stay compact
-- table is the visual center
-- explainer block stays below the table
-- do not stretch cards or enlarge the sidebar to fill space
-
-## Home Content Rules
-
-### Hero
-
-Required elements:
-
-- title: `퀀트 모델이 고른 오늘의 종목`
-- subtitle: beginner explanation
-- update time / latest refresh
-
-Avoid:
-
-- long paragraph
-- marketing claims
-- `AI` positioning
-- exaggerated performance promise
-
-### KPI Cards
-
-Required cards:
+Profile menu contains:
 
 ```text
-오늘 살펴볼 종목
-조심 신호
-최근 검증 수익률
-최신 리포트
+마이페이지
+관심 폴더
+로그아웃
 ```
 
-Rules:
+Do not show in the header:
 
-- compact cards
-- count/value plus one short hint
-- small sparklines/icons only if compact
-- red/blue only for actual positive/negative market values
-- `조심 신호` should not look like an alarm dashboard
+- `KRX 기준`
+- `종가`
+- top-level `관심`
+- `admin`
+- visible `로그아웃`
+- odd temporary unicode icons
 
-### Today's Decision Table
+## 4. Sidebar
 
-Default desktop columns:
-
-```text
-종목 | 모델 판단 | 오늘 행동 | 이유 | 조심할 점
-```
-
-Optional column:
-
-```text
-신호 모델
-```
-
-Multiple model behavior:
-
-- default: one compact `여러 모델` badge
-- desktop: hover tooltip shows exact model names
-- mobile: tap/expand or bottom sheet shows exact model names
-- do not list all model names inline by default
-
-## Stock Initial Badge System
-
-Use circular initial badges by default, not full company logo files.
-
-Badge rules:
-
-- desktop size: about 32px
-- mobile size: about 36px
-- circular shape
-- colored background
-- white one-character or short initial mark
-- aligned next to stock name and code
-- compact, not decorative
-
-Examples:
-
-| Stock | Badge |
-|---|---|
-| SK하이닉스 | red circle + SK or simple white mark |
-| 삼성전자 | blue circle + 삼 |
-| 현대차 | dark blue circle + 현 |
-| KODEX 반도체 | purple circle + K |
-
-## Navigation
-
-### Desktop Sidebar
+Desktop sidebar order:
 
 ```text
 홈
 오늘의 종목
-퀀트 모델
+모델 목록
 리포트
-검증 기록
 시장 보기
 더보기
+관리자, ADMIN only
+```
+
+Sidebar bottom:
+
+```text
+데이터 기준
+2026.05.28 14:25
 ```
 
 Rules:
 
-- do not put `마이페이지` in the desktop sidebar
-- enter my page from top-right profile menu
-- keep lotto/tarot outside the core quant sidebar unless explicitly changed later
+- `마이페이지` does not appear in desktop sidebar.
+- `관심 폴더` is in profile menu and My Page, not sidebar.
+- Admin appears only for ADMIN users.
 
-### Mobile Bottom Navigation
+## 5. Top Dashboard Panel
+
+The first card is a gray soft section split into two equal panels:
+
+```text
+Left: 퀀트 모델이 고른 오늘의 종목
+Right: 오늘의 시장 현황
+```
+
+Container:
+
+```tsx
+<section className="card soft-section">
+  <div className="quant-hero-split">
+    <div className="quant-hero-panel">...</div>
+    <div className="quant-hero-panel market">...</div>
+  </div>
+</section>
+```
+
+Soft section color:
+
+```css
+background: #f1f3f6;
+border-color: #d9dde5;
+```
+
+Rules:
+
+- Outer top panel is gray.
+- Inner metric cards are white.
+- Left and right card rows align horizontally.
+- Metric cards and market cards use fixed height around `112px`.
+- Do not make the title hero-sized.
+- Do not put update time in the top panel.
+
+## 6. Left Top Panel: Today's Stocks
+
+Title:
+
+```text
+퀀트 모델이 고른 오늘의 종목
+```
+
+Style:
+
+```text
+19px, 600 weight
+```
+
+Metric cards:
+
+```text
+오늘 살펴볼 종목
+조심 신호
+모델 검증 수익률
+오늘 리포트
+```
+
+Rules:
+
+- Four cards in one row on desktop.
+- Compact, not oversized KPI tiles.
+- Height must prevent text clipping.
+- `WARNING` uses orange.
+- Red/blue only encode market direction.
+
+## 7. Right Top Panel: Market Status
+
+Title:
+
+```text
+오늘의 시장 현황
+```
+
+Summary:
+
+```text
+지수는 약세지만 급락 신호는 제한적이고, 반도체 쪽 수급은 개선 흐름입니다.
+```
+
+Cards:
+
+```text
+지수     약세 관찰
+수급     반도체 개선
+체크     환율·금리
+분위기   선별 장세
+```
+
+Rules:
+
+- Four cards in one row on desktop.
+- Same height as left metric cards.
+- Do not use vague labels such as `숨 고르기 구간`.
+
+## 8. Today Decision Table
+
+Desktop columns:
+
+```text
+종목 | 신호 모델 | 이유 | 조심할 점 | 관심 별
+```
+
+Forbidden columns:
+
+```text
+오늘 행동
+모델 판단
+```
+
+Rules:
+
+- No auto-trading language.
+- Decision code sits next to stock name.
+- `BUY`, `SELL`, `WARNING`, `SIDE` are compact badges.
+- `WARNING` is orange.
+- Favorite star is far right.
+- Favorite star has no circle border.
+- Star click opens favorite folder selection for logged-in users.
+- Logged-out personal actions go to `/login`.
+
+## 9. Right Utility Rail
+
+Right rail order:
+
+```text
+뉴스
+광고 영역
+관심 폴더
+```
+
+### 뉴스
+
+Rules:
+
+- First card in right rail.
+- Show titles only.
+- Scroll inside the news card.
+- `더보기` goes to `/news`.
+- Do not show source/date in the home rail list.
+
+### 광고 영역
+
+Rules:
+
+- This replaces the previous `Today Report`.
+- Use as a future ad slot.
+- Show `AD` label and simple placeholder copy.
+- Do not show reports here.
+
+### 관심 폴더
+
+Rules:
+
+- Folder list scrolls inside the card.
+- `관리` goes to My Page.
+- Edit/delete happens in My Page.
+- Folder rows remain white against gray card/background when highlighted.
+
+## 10. Quant Model Explainer
+
+Position:
+
+```text
+below today decision table, main column
+```
+
+Text:
+
+```text
+퀀트 모델이란?
+수많은 시장 데이터를 수학과 통계로 분석해 종목의 매력도를 점수로 계산하는 도구입니다.
+감정이 아닌 데이터로 판단해 더 일관된 투자를 도와줍니다.
+```
+
+Rules:
+
+- Keep compact.
+- Do not turn into a marketing section.
+- `더 알아보기` goes to `/quant`.
+
+## 11. Color System
+
+| Role | Value / Rule |
+|---|---|
+| Brand/action accent | `#2f77df` |
+| Accent soft | `#eef5ff` |
+| Accent border | `#cfe0ff` |
+| Soft section | `#f1f3f6` |
+| Soft section border | `#d9dde5` |
+| 상승/positive | red `#d62828` |
+| 하락/negative | blue `#1e5edb` |
+| Warning | orange `#f97316` |
+
+Rules:
+
+- Monotone base UI.
+- Blue is brand/action emphasis.
+- Red/blue are reserved for market direction.
+- No teal/green/purple/beige decorative palettes.
+- No gradient/orb decoration.
+
+## 12. Icons And Badges
+
+Use:
+
+- circular stock initial badges
+- simple star for favorites
+- compact info dot `i`
+- circular profile avatar
+
+Do not use:
+
+- full company logos by default
+- odd unicode notification symbols
+- top-level favorite button in header
+- circular background around table favorite star
+
+Stock badges:
+
+```text
+SK하이닉스    red circle + SK
+삼성전자      blue circle + 삼
+현대차        dark blue circle + 현
+KODEX 반도체  purple circle + K
+```
+
+## 13. Mobile
+
+Use responsive layout, not separate `m.` site.
+
+Bottom nav:
 
 ```text
 시장 | 모델 | 홈 | 서비스 | 마이
@@ -253,179 +350,65 @@ Rules:
 
 Rules:
 
-- `홈` is centered
-- `오늘의 종목` is not a bottom-nav item
-- `리포트` is not a bottom-nav item
-- today decisions and reports are reached from home
-- `서비스` contains lotto/tarot
-- `마이` contains profile, saved items, memos, alerts, and ADMIN entry if allowed
+- `홈` is centered.
+- Mobile home uses cards, not wide tables.
+- `오늘의 종목` and `리포트` are reached from home, not bottom nav.
+- `마이` contains profile, favorite folders, memos, alerts, saved reports, account, and ADMIN entry if applicable.
 
-## Language System
+## 14. My Page, Services, Admin
 
-Preferred beginner terms:
+My Page:
 
-| Expert Term | Beginner Term |
-|---|---|
-| signal | 오늘의 판단 |
-| candidate | 오늘의 종목 |
-| buy candidate | 살펴볼 종목 |
-| hold/watchlist | 기다릴 종목 |
-| risk flag | 조심할 점 |
-| trim | 비중 축소 고려 |
-| backtest | 검증 기록 |
-| diagnostics | 모델 점검 |
-| portfolio target | 목표 비중 |
+- desktop entry: profile menu
+- mobile entry: bottom nav `마이`
+- contains favorite folder view/edit/delete
 
-Allowed in advanced/detail screens:
+Favorite folders:
 
-- 백테스트
-- 리밸런싱
-- 포트폴리오 목표 비중
-- MDD
-- Sharpe
-- factor score
-- diagnostics
+- add from star popover
+- edit/delete in My Page
+- default `메인 관심` should not be deleted
 
-Rule: if an expert term appears, place a plain-language explanation nearby.
+Services:
 
-## Mobile Behavior
+- `서비스` contains lotto/tarot.
+- Do not mix lotto/tarot into quant home.
 
-Use responsive layout, not a separate `m.` site.
+Admin:
 
-Desktop:
+- ADMIN only.
+- validation/backtest/evidence is admin-only.
+- normal users do not see `검증 기록`.
 
-- table layout
-- persistent sidebar
-- right insight rail
+## 15. Acceptance Criteria
 
-Mobile:
+The home design is acceptable only when:
 
-- bottom nav: `시장 | 모델 | 홈 | 서비스 | 마이`
-- card list instead of wide table
-- collapsed explanation panels
-- tap to expand `여러 모델`
-- today decisions and reports are primary home sections
+- `퀀트 모델` is visible on first screen
+- top panel is split into today's stocks and today's market status
+- right rail order is `뉴스`, `광고 영역`, `관심 폴더`
+- right rail is around `420px`
+- news and favorite folders scroll inside their own cards
+- table has no `오늘 행동`
+- favorite star is plain and right-aligned
+- profile menu contains `관심 폴더`
+- header has no `KRX 기준`, `종가`, top-level `관심`, `admin`, or visible logout
+- warning is orange
+- red/blue only mean market direction
+- mobile bottom nav is `시장 | 모델 | 홈 | 서비스 | 마이`
 
-Mobile home order:
+## 16. Explicit Anti-Patterns
 
-```text
-1. compact header/profile/search
-2. title and short quant-model explanation
-3. compact KPI cards, 2x2
-4. today's decision card list
-5. latest report card
-6. collapsible "퀀트 모델이란?"
-7. model state summary
-```
+Do not reintroduce:
 
-## My Page, Services, Admin
-
-### My Page
-
-Desktop entry:
-
-- top-right profile menu
-
-Mobile entry:
-
-- bottom nav `마이`
-
-Sections:
-
-```text
-프로필
-관심 종목
-내 메모
-알림 설정
-저장한 리포트
-계정 정보
-관리자, ADMIN only
-```
-
-### Services
-
-`서비스` contains:
-
-```text
-로또
-타로
-```
-
-Do not mix lotto/tarot into the quant decision table, right rail, or home KPI sections.
-
-### Admin
-
-Admin is an operating console.
-
-Rules:
-
-- show admin menu only for `ADMIN`
-- mobile admin entry belongs inside `마이` only for `ADMIN`
-- protect `/admin/*` routes with an admin guard
-- normal users should not see disabled admin actions
-
-## Frontend Structure
-
-Recommended:
-
-```text
-src/pages/QuantHome/
-  index.tsx
-  components/
-    QuantHomeHeader.tsx
-    QuantHomeKpiGrid.tsx
-    TodayDecisionTable.tsx
-    TodayDecisionMobileList.tsx
-    QuantInsightRail.tsx
-    QuantModelExplainer.tsx
-    StockInitialBadge.tsx
-  hooks/
-    useQuantHomeData.ts
-  quantHomeTypes.ts
-```
-
-Route direction:
-
-```text
-/       -> QuantHome
-/market -> existing Dashboard
-```
-
-Avoid adding more responsibilities to:
-
-```text
-src/pages/QuantDashboard/index.tsx
-```
-
-## Acceptance Criteria
-
-Home is acceptable only when:
-
-- a first-time user can understand what the service does within 5 seconds
-- the phrase `퀀트 모델` is visible on first screen
-- the page explains today's stocks with plain-language decisions
-- desktop ratio matches the approved mockup
-- mobile bottom nav is exactly `시장 | 모델 | 홈 | 서비스 | 마이`
-- mobile does not use a wide table
-- today decisions and reports are reachable from home
-- lotto/tarot are grouped under `서비스`
-- my page is profile/mobile `마이`, not desktop sidebar
-- admin is hidden from normal users
-- red/blue are reserved for market direction
-- stock rows use circular initial badges
-- `여러 모델` does not list all model names inline by default
-
-## Explicit Anti-Patterns
-
-Do not:
-
-- make a landing page
-- make an unrelated dashboard layout
-- change the approved mockup ratio casually
-- replace `퀀트 모델` with `AI`
-- use teal/green/purple/orange/beige as chrome accents
-- use red to mean recommended
-- use wide desktop tables on mobile
-- show lotto/tarot in the quant home
-- show admin actions to normal users
-- keep adding to `QuantDashboard/index.tsx`
+- old one-line summary right rail
+- model status bars in the right rail
+- why-this-judgment card in the right rail
+- disclaimer card in the right rail
+- `Today Report` in the right rail
+- quick links in the right rail
+- `오늘 행동` column
+- top header `관심`
+- top header `KRX 기준` or `종가`
+- odd unicode notification icons
+- public validation/backtest navigation

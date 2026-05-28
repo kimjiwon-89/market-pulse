@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiClient, setAuth } from '@/services/apiClient';
+import { setAuth } from '@/services/apiClient';
 
 export function Login() {
   const [username, setUsername] = useState('');
@@ -14,16 +14,17 @@ export function Login() {
     e.preventDefault();
     setError('');
     setLoading(true);
-    try {
-      const res = await apiClient.post('/auth/login', { username, password });
-      const { token, username: uname, role } = res.data.data;
-      setAuth(token, uname, role);
+    window.setTimeout(() => {
+      if (!username.trim() || !password.trim()) {
+        setError('아이디와 비밀번호를 입력해주세요');
+        setLoading(false);
+        return;
+      }
+      const role = username.toLowerCase().includes('admin') ? 'ADMIN' : 'USER';
+      setAuth('mock-token', username, role);
       navigate('/', { replace: true });
-    } catch {
-      setError('아이디 또는 비밀번호가 틀렸습니다');
-    } finally {
       setLoading(false);
-    }
+    }, 250);
   }
 
   return (
@@ -46,8 +47,8 @@ export function Login() {
                 padding: '0.5rem 0.75rem',
                 borderRadius: 6,
                 border: '1px solid var(--border)',
-                background: 'var(--bg-card)',
-                color: 'var(--text-primary)',
+                background: 'var(--bg-input)',
+                color: 'var(--text)',
                 fontSize: '0.9375rem',
                 outline: 'none',
               }}
@@ -65,8 +66,8 @@ export function Login() {
                 padding: '0.5rem 0.75rem',
                 borderRadius: 6,
                 border: '1px solid var(--border)',
-                background: 'var(--bg-card)',
-                color: 'var(--text-primary)',
+                background: 'var(--bg-input)',
+                color: 'var(--text)',
                 fontSize: '0.9375rem',
                 outline: 'none',
               }}
@@ -80,7 +81,7 @@ export function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="btn btn--primary"
+            className="btn primary"
             style={{ marginTop: '0.5rem', width: '100%' }}
           >
             {loading ? '로그인 중...' : '로그인'}
