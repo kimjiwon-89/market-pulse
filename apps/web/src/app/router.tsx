@@ -1,5 +1,5 @@
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
-import { DefaultLayout } from "@/components/common/DefaultLayout";
+import { DefaultLayout } from "@/layout/DefaultLayout";
 import { Dashboard } from "@/pages/Dashboard";
 import { IndexDetail } from "@/pages/IndexDetail";
 import { InvestorTrend } from "@/pages/InvestorTrend";

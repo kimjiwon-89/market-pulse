@@ -1,26 +1,30 @@
-import { useIsMarketOpen } from "@/hooks";
+import styled from "styled-components";
 
 interface LiveBadgeProps {
   size?: number;
 }
 
+const LiveWrap = styled.span<{ $size: number }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: ${({ theme }) => theme.color.up};
+  font-size: ${({ $size }) => $size}px;
+  font-weight: 700;
+`;
+
+const Dot = styled.span`
+  width: 6px;
+  height: 6px;
+  border-radius: ${({ theme }) => theme.radius.circle};
+  background: ${({ theme }) => theme.color.up};
+`;
+
 export function LiveBadge({ size = 11 }: LiveBadgeProps) {
-  const open = useIsMarketOpen();
-
-  if (open) {
-    return (
-      <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: size }}>
-        <span
-          className="animate-pulse"
-          style={{
-            width: 6, height: 6, borderRadius: "50%",
-            background: "var(--up)", flexShrink: 0, display: "inline-block",
-          }}
-        />
-        <span style={{ color: "var(--up)", fontWeight: 500 }}>실시간</span>
-      </span>
-    );
-  }
-
-  return <span style={{ fontSize: size, color: "var(--text-4)" }}>종가</span>;
+  return (
+    <LiveWrap $size={size}>
+      <Dot />
+      실시간
+    </LiveWrap>
+  );
 }

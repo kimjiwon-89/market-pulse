@@ -74,3 +74,39 @@ Date: 2026-05-28
 - Intent: capture mobile follow-up after desktop home approval.
 - Outcome: desktop main dashboard is accepted as the visual baseline, but the current mobile version must be redesigned separately; create a dedicated mobile design guide before treating mobile implementation as final.
 - Changed files: `market-pulse-prod/.agents/current/active-status.md`.
+
+- Intent: fix QuantHome mobile top-panel card layout.
+- Outcome: changed the 900px responsive breakpoint so KPI and market-status cards render as compact horizontal scroll rails, unified their mobile radius, and compressed the first section to roughly one-third of a 393x852 mobile viewport.
+- Changed files: `apps/web/src/index.css`, `market-pulse-prod/.agents/current/active-status.md`.
+
+- Intent: compact the QuantHome mobile decision list.
+- Outcome: added mobile-only decision section/card classes and CSS so today's stock decisions use a compact reference structure: profile, two-line content, and right-side star, all vertically centered.
+- Changed files: `apps/web/src/pages/QuantHome/index.tsx`, `apps/web/src/index.css`, `market-pulse-prod/.agents/current/active-status.md`.
+
+- Intent: hide visible mobile scrollbars on QuantHome compact rails/lists.
+- Outcome: kept horizontal and vertical scrolling available while hiding scrollbar tracks/thumbs for KPI, market-status, and decision-list mobile scroll containers.
+- Changed files: `apps/web/src/index.css`, `market-pulse-prod/.agents/current/active-status.md`.
+
+- Intent: make frontend structure and styling preferences permanent.
+- Outcome: updated the quant home design guide and web agent entrypoints to require feature-first organization, feature-scoped API/store files, route-wrapper pages, styled-components for product UI, and only reset/base global styling.
+- Changed files: `apps/web/.agents/guides/quant-home-design-guide.md`, `apps/web/AGENTS.md`, `apps/web/CLAUDE.md`, `market-pulse-prod/.agents/current/active-status.md`.
+
+- Intent: migrate QuantHome toward the approved feature-first styled-components structure.
+- Outcome: installed `styled-components`, added app theme/provider/global reset, moved shell components into `src/layout`, moved QuantHome into `features/quant/home` components, converted quant home styling to styled-components, removed legacy QuantHome selectors from `index.css`, and updated the web README with the new folder rules and migration status.
+- Changed files: `apps/web/package.json`, `apps/web/package-lock.json`, `apps/web/README.md`, `apps/web/src/app/*`, `apps/web/src/features/quant/*`, `apps/web/src/features/quant/home/*`, `apps/web/src/pages/QuantHome.tsx`, `apps/web/src/pages/QuantHome/index.tsx`, `apps/web/src/index.css`, `market-pulse-prod/.agents/current/active-status.md`.
+
+- Intent: verification handoff for the QuantHome styled-components migration.
+- Outcome: `npm run build` passed, `npm run lint` passed, target structure check passed, and legacy QuantHome selectors are absent from `apps/web/src/index.css`; `package.json` has no `test` script, so no unit test command was available.
+- Changed files: none beyond verification log; next agent should continue migrating remaining legacy screens/layout styles out of `index.css` into styled-components.
+
+- Intent: build the A-option quant-model-first frontend pages across all current routes.
+- Outcome: added shared styled page primitives, migrated app shell and route pages to usable quant/market/service/account/admin screens, added Vitest smoke coverage, removed visible internal mock-data labels, and browser-smoked key routes with no console errors.
+- Changed files: `apps/web/src/components/ui/Page.tsx`, `apps/web/src/layout/*`, `apps/web/src/pages/*`, `apps/web/src/test/setup.ts`, `apps/web/package.json`, `apps/web/package-lock.json`, `apps/web/vite.config.ts`, `docs/superpowers/plans/2026-05-29-quant-pages-implementation.md`.
+
+- Intent: fix desktop nav double-active state on `/quant/today`.
+- Outcome: reproduced with a focused nav test, replaced prefix-based `NavLink` active behavior with explicit route matching, and verified only `오늘의 종목` is active in browser.
+- Changed files: `apps/web/src/layout/Nav.tsx`, `apps/web/src/layout/Nav.test.tsx`, `market-pulse-prod/.agents/current/active-status.md`.
+
+- Intent: use the provided Market Pulse logo asset in the web app.
+- Outcome: copied `D:\market-pulse\logo.png` into `apps/web/public/logo.png`, wired it as favicon/apple touch icon, replaced the header letter mark with the logo image, and verified the browser loads the asset.
+- Changed files: `apps/web/public/logo.png`, `apps/web/index.html`, `apps/web/src/layout/Header.tsx`, `market-pulse-prod/.agents/current/active-status.md`.

@@ -1,4 +1,5 @@
 import type { StockBadgeTone } from "./quantTypes";
+import styled from "styled-components";
 
 const toneMap: Record<StockBadgeTone, string> = {
   red: "#dc2f45",
@@ -16,24 +17,27 @@ interface StockInitialBadgeProps {
 
 export function StockInitialBadge({ text, tone, size = 32 }: StockInitialBadgeProps) {
   return (
-    <span
+    <Badge
       aria-hidden="true"
-      style={{
-        width: size,
-        height: size,
-        borderRadius: 999,
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        flexShrink: 0,
-        background: toneMap[tone],
-        color: "#fff",
-        fontSize: size <= 32 ? 11 : 12,
-        fontWeight: 800,
-        letterSpacing: 0,
-      }}
+      $color={toneMap[tone]}
+      $size={size}
     >
       {text}
-    </span>
+    </Badge>
   );
 }
+
+const Badge = styled.span<{ $color: string; $size: number }>`
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: ${({ $size }) => $size}px;
+  height: ${({ $size }) => $size}px;
+  border-radius: ${({ theme }) => theme.radius.pill};
+  background: ${({ $color }) => $color};
+  color: #ffffff;
+  font-size: ${({ $size }) => ($size <= 32 ? 11 : 12)}px;
+  font-weight: 800;
+  letter-spacing: 0;
+`;

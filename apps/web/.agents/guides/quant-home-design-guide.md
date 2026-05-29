@@ -4,28 +4,51 @@ This is the binding design contract for the Market Pulse web quant home and rela
 
 Before planning or editing any of these surfaces, read this file:
 
-- `apps/web/src/pages/QuantHome/index.tsx`
+- `apps/web/src/pages/QuantHome.tsx`
 - `apps/web/src/pages/QuantToday/index.tsx`
 - `apps/web/src/pages/QuantModels/index.tsx`
 - `apps/web/src/pages/Reports/index.tsx`
-- `apps/web/src/components/common/Header.tsx`
-- `apps/web/src/components/common/Nav.tsx`
-- `apps/web/src/components/common/BottomNav.tsx`
+- `apps/web/src/layout/Header.tsx`
+- `apps/web/src/layout/Nav.tsx`
+- `apps/web/src/layout/BottomNav.tsx`
 - `apps/web/src/features/quant/*`
 
-Do not treat this guide as a mood board. It is a strict implementation contract. The current `QuantHome` implementation is the approved baseline.
+Do not treat this guide as a mood board. It is a strict implementation contract. The current `QuantHome` visual result is the approved visual baseline, but its legacy global-CSS/inline-style implementation is not the approved architecture.
 
 ## 1. Canonical References
 
-Current implementation:
+Legacy implementation to migrate away from:
 
 ```text
-apps/web/src/pages/QuantHome/index.tsx
+apps/web/src/pages/QuantHome.tsx
 apps/web/src/index.css
-apps/web/src/components/common/Header.tsx
-apps/web/src/components/common/Nav.tsx
+apps/web/src/layout/Header.tsx
+apps/web/src/layout/Nav.tsx
 apps/web/src/features/quant/quantMockData.ts
 apps/web/src/features/mock/marketMockData.ts
+```
+
+Required target implementation:
+
+```text
+apps/web/src/app/theme.ts
+apps/web/src/app/GlobalStyle.ts
+apps/web/src/app/providers.tsx
+apps/web/src/layout/Header.tsx
+apps/web/src/layout/Sidebar.tsx
+apps/web/src/layout/BottomNav.tsx
+apps/web/src/features/quant/api.ts
+apps/web/src/features/quant/store.ts
+apps/web/src/features/quant/types.ts
+apps/web/src/features/quant/mock.ts
+apps/web/src/features/quant/home/QuantHomePage.tsx
+apps/web/src/features/quant/home/QuantHeroSection.tsx
+apps/web/src/features/quant/home/QuantMetricRail.tsx
+apps/web/src/features/quant/home/QuantMarketStatusRail.tsx
+apps/web/src/features/quant/home/QuantDecisionSection.tsx
+apps/web/src/features/quant/home/QuantDecisionCard.tsx
+apps/web/src/features/quant/home/styles.ts
+apps/web/src/pages/QuantHome.tsx
 ```
 
 User-facing guide:
@@ -82,14 +105,13 @@ Current layout tokens:
 --radius: 8px;
 ```
 
-Current home shell:
+Current home shell styled-component intent:
 
-```css
-.quant-home-shell {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 420px;
-  gap: var(--gap-card);
-}
+```text
+HomeShell:
+  display: grid
+  columns: minmax(0, 1fr) 420px
+  gap: 20px
 ```
 
 Rules:
@@ -195,18 +217,15 @@ Current visual rules:
 - Left and right cards must align horizontally at the bottom.
 - Use fixed metric card heights so text wrapping does not break alignment.
 
-Current CSS intent:
+Current styled-component intent:
 
-```css
-.quant-hero-split {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-}
+```text
+HeroSplit:
+  columns: minmax(0, 1fr) minmax(0, 1fr)
 
-.compact-metric-card,
-.market-status-item {
-  height: 112px;
-  min-height: 112px;
-}
+MetricCard and MarketStatusCard:
+  desktop height: 112px
+  mobile rail card width: 118px
 ```
 
 Do not:
@@ -583,37 +602,155 @@ Personal/FK actions are login-gated:
 
 ## 17. CSS Rules
 
-Use existing classes first:
+All UI styling for quant home and related beginner-facing quant screens must use `styled-components`.
+
+Required dependency:
 
 ```text
-.card
-.t
-.btn
-.tag
-.stack
+styled-components
 ```
 
-Current quant-specific classes:
+If `styled-components` is not installed, install it before new UI work:
 
 ```text
-.quant-home-shell
-.quant-hero-split
-.quant-hero-panel
-.quant-hero-copy
-.quant-kpi-grid
-.compact-metric-card
-.market-status-grid
-.market-status-item
-.home-utility-rail
-.utility-news-scroll
-.utility-folder-scroll
-.ad-slot-card
-.soft-section
-.favorite-button
-.favorite-popover
+npm install styled-components
 ```
 
-Rules:
+Allowed global styling:
+
+- Use `createGlobalStyle` from `styled-components` for reset/base only.
+- Global reset may include only:
+  - `box-sizing: border-box`
+  - `html`, `body`, `#root` margin/padding reset
+  - base `min-height`
+  - base body font/background/text color from theme
+- Do not use global CSS for page layout, cards, buttons, rails, tables, navigation, or quant-specific selectors.
+
+Forbidden styling:
+
+- Do not add screen/component styles to `src/index.css`.
+- Do not create new `.css`, `.scss`, `.sass`, `.less`, or CSS module files.
+- Do not add new Tailwind utility styling for product UI.
+- Do not add new inline `style={{ ... }}` for layout/visual styling.
+- Do not use class selectors such as `.quant-*`, `.card`, `.btn`, `.stack`, `.market-status-item`, or `.favorite-button` for new or refactored UI.
+- Do not patch layout by `nth-child` selectors or DOM-order selectors.
+- Do not keep styles in route files if the UI can be a named styled component.
+
+Required theme/token source:
+
+```text
+src/app/theme.ts
+src/app/GlobalStyle.ts
+src/app/providers.tsx
+```
+
+Required token groups:
+
+- color: `bg`, `panel`, `softPanel`, `text`, `textMuted`, `border`, `divider`, `accent`, `up`, `down`, `warning`
+- spacing: `page`, `card`, `sectionGap`, `rowGap`
+- radius: `card`, `control`, `pill`, `circle`
+- layout: `headerHeight`, `sidebarWidth`, `rightRailWidth`, `bottomNavHeight`
+- breakpoint: `mobile`, `tablet`, `desktop`
+- font: `sans`, `mono`
+
+Implementation rules:
+
+- Every visual primitive must be a styled component with a semantic name.
+- Keep styled component names explicit: `HomeShell`, `SoftTopPanel`, `MetricRail`, `MetricCard`, `DecisionCard`, `FavoriteButton`.
+- Co-locate feature styles in that feature folder, usually `styles.ts`.
+- Shared styled UI primitives belong under `src/components/ui/*`.
+- Layout styled components belong under `src/layout/*`.
+- Responsive behavior belongs inside styled components with theme breakpoints.
+- Do not create `mobile/` and `desktop/` folder splits. If markup differs, use sibling components in the same feature folder, e.g. `DesktopDecisionTable.tsx` and `MobileDecisionList.tsx`.
+- Hide visual scrollbars through styled-components on scroll containers while preserving scrolling behavior.
+- Use `overflow-x: auto` for mobile horizontal rails only when cards cannot fit meaningfully in one viewport.
+- Use `scrollbar-width: none` and `::-webkit-scrollbar { display: none; }` inside the scroll container styled component.
+
+Required `src` structure for new/refactored work:
+
+```text
+src/
+  app/
+    router.tsx
+    providers.tsx
+    theme.ts
+    GlobalStyle.ts
+  components/
+    ui/
+      Button.tsx
+      Card.tsx
+      Badge.tsx
+      IconButton.tsx
+  layout/
+    AppLayout.tsx
+    Header.tsx
+    Sidebar.tsx
+    BottomNav.tsx
+  hooks/
+    useBreakpoint.ts
+  features/
+    quant/
+      api.ts
+      store.ts
+      types.ts
+      mock.ts
+      home/
+        QuantHomePage.tsx
+        QuantHeroSection.tsx
+        QuantMetricRail.tsx
+        QuantMetricCard.tsx
+        QuantMarketStatusRail.tsx
+        QuantDecisionSection.tsx
+        QuantDecisionCard.tsx
+        QuantUtilityRail.tsx
+        styles.ts
+      today/
+      models/
+    market/
+      api.ts
+      store.ts
+      types.ts
+    auth/
+      api.ts
+      store.ts
+      types.ts
+    reports/
+      api.ts
+      store.ts
+      types.ts
+    services/
+      api.ts
+      store.ts
+      types.ts
+  pages/
+    QuantHome.tsx
+    QuantToday.tsx
+    QuantModels.tsx
+  store/
+    index.ts
+    ui.store.ts
+```
+
+Folder ownership rules:
+
+- `pages/*` files are route wrappers only and must not own business UI or styling.
+- `features/<domain>/api.ts` owns that feature's endpoint functions.
+- `features/<domain>/store.ts` owns that feature's state/slice.
+- `features/<domain>/types.ts` owns that feature's types.
+- `src/api/client.ts` may exist only for shared HTTP client setup.
+- `src/store/index.ts` may exist only to compose feature stores.
+- `src/components/ui/*` may contain only reusable UI primitives used across multiple features.
+- `src/layout/*` owns app shell, header, sidebar, and bottom navigation.
+
+Refactor requirement for quant home:
+
+- Keep `apps/web/src/pages/QuantHome.tsx` as a route wrapper around `src/features/quant/home/QuantHomePage.tsx`.
+- Break extractable UI into named components under `src/features/quant/home/`.
+- Remove quant-home-specific styling from `src/index.css`.
+- Replace inline styles with styled-components.
+- Keep existing behavior and visual intent while migrating structure.
+
+Visual rules still apply:
 
 - No nested cards.
 - No marketing hero.

@@ -8,6 +8,10 @@ Read `README.md` first, then root `market-pulse-prod/CLAUDE.md`.
 - API calls must use production API client patterns.
 - User-facing reports go under `report/<domain>/<topic>/`, not `.agents`.
 - For quant home, today-stock, model overview, and beginner-facing dashboard work, read `.agents/guides/quant-home-design-guide.md` before planning or editing UI.
+- New or refactored UI must use `styled-components`; do not add screen/component styles to CSS files.
+- CSS files are allowed only for minimal reset/base if not yet migrated to `createGlobalStyle`; all product UI styling belongs in styled-components.
+- Organize frontend work by feature: `features/<domain>/{api.ts,store.ts,types.ts,...}` with route wrappers in `pages`, shared primitives in `components`, and shell/nav in `layout`.
+- API and store logic must be feature-scoped where possible; root `api` and `store` are for shared client/setup composition only.
 
 
 ## Recursive Scope

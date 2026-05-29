@@ -1,23 +1,24 @@
 import { mockNews } from "@/features/mock/marketMockData";
+import { Card, List, ListItem, MutedText, PageShell, PageTitle, SectionTitle, SubText } from "@/components/ui/Page";
 
 export function NewsList() {
   return (
-    <div className="stack max-w-[900px] mx-auto">
-      <div className="card">
-        <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>뉴스</h1>
-        <p style={{ margin: "8px 0 0", color: "var(--text-2)" }}>시장과 모델 판단에 영향을 줄 수 있는 주요 뉴스를 모았습니다.</p>
-      </div>
-      <div className="card">
-        <div className="news-list">
+    <PageShell $width="900px">
+      <Card>
+        <PageTitle>뉴스</PageTitle>
+        <SubText>시장과 모델 판단에 영향을 줄 수 있는 주요 뉴스를 모았습니다.</SubText>
+      </Card>
+      <Card>
+        <List>
           {mockNews.map((news) => (
-            <article key={news.id} className="news-item">
-              <h2 className="news-title" style={{ fontSize: 16 }}>{news.title}</h2>
-              <p style={{ color: "var(--text-2)", margin: "8px 0 0" }}>{news.summary}</p>
-              <div className="news-meta">{news.source} · {news.date}</div>
-            </article>
+            <ListItem key={news.id}>
+              <SectionTitle>{news.title}</SectionTitle>
+              <SubText>{news.summary}</SubText>
+              <MutedText>{news.source} · {news.date}</MutedText>
+            </ListItem>
           ))}
-        </div>
-      </div>
-    </div>
+        </List>
+      </Card>
+    </PageShell>
   );
 }

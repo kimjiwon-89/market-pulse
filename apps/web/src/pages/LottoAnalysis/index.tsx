@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { getToken } from "@/services/apiClient";
 import { mockLottoRounds } from "@/features/mock/marketMockData";
+import { Badge, Button, Card, CardHeader, Chip, ChipRow, Grid, Inline, List, ListItem, PageShell, PageTitle, SectionTitle, SubText } from "@/components/ui/Page";
 
 const strategies = [
   { name: "모멘텀", desc: "최근 자주 나온 번호와 흐름이 좋은 번호" },
@@ -20,39 +21,39 @@ export function LottoAnalysis() {
   }
 
   return (
-    <div className="stack max-w-[1000px] mx-auto">
-      <div className="card">
-        <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>로또</h1>
-        <p style={{ margin: "8px 0 0", color: "var(--text-2)" }}>통계 전략 기반 번호 분석 화면입니다. 내 조합 저장은 로그인 후 가능합니다.</p>
-      </div>
-      <div className="grid-3">
+    <PageShell $width="1000px">
+      <Card>
+        <PageTitle>로또</PageTitle>
+        <SubText>통계 전략 기반 번호 분석 화면입니다. 내 조합 저장은 로그인 후 가능합니다.</SubText>
+      </Card>
+      <Grid>
         {strategies.map((strategy) => (
-          <div key={strategy.name} className="card">
-            <div className="card-title" style={{ fontSize: 16 }}>{strategy.name}</div>
-            <p style={{ color: "var(--text-2)", margin: "10px 0 0" }}>{strategy.desc}</p>
-            <div className="chips" style={{ marginTop: 16 }}>
-              {[3, 11, 18, 24, 32, 41].slice(0, 4).map((num) => <span key={num} className="chip">{num}</span>)}
-            </div>
-          </div>
+          <Card key={strategy.name}>
+            <SectionTitle>{strategy.name}</SectionTitle>
+            <SubText>{strategy.desc}</SubText>
+            <ChipRow>{[3, 11, 18, 24].map((num) => <Chip key={num}>{num}</Chip>)}</ChipRow>
+          </Card>
         ))}
-      </div>
-      <div className="card">
-        <div className="card-head">
-          <div className="card-title">최근 회차</div>
-          <button className="btn sm" onClick={saveCombo}>내 조합 저장</button>
-        </div>
-        <div className="stack" style={{ gap: 12 }}>
+      </Grid>
+      <Card>
+        <CardHeader>
+          <SectionTitle>최근 회차</SectionTitle>
+          <Button type="button" onClick={saveCombo}>내 조합 저장</Button>
+        </CardHeader>
+        <List>
           {mockLottoRounds.map((round) => (
-            <div key={round.round} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-              <strong>{round.round}회</strong>
-              <div className="chips">
-                {round.numbers.map((num) => <span key={num} className="chip">{num}</span>)}
-                <span className="chip">+ {round.bonus}</span>
-              </div>
-            </div>
+            <ListItem key={round.round}>
+              <Inline $justify="space-between" $wrap>
+                <strong>{round.round}회</strong>
+                <ChipRow>
+                  {round.numbers.map((num) => <Chip key={num}>{num}</Chip>)}
+                  <Badge>+ {round.bonus}</Badge>
+                </ChipRow>
+              </Inline>
+            </ListItem>
           ))}
-        </div>
-      </div>
-    </div>
+        </List>
+      </Card>
+    </PageShell>
   );
 }
