@@ -22,13 +22,13 @@ class MarketDailyPriceReplayProviderTest {
         QuantBullV4ReplayFactMapper mapper = mock(QuantBullV4ReplayFactMapper.class);
         LocalDate from = LocalDate.of(2026, 5, 1);
         LocalDate to = LocalDate.of(2026, 5, 27);
-        when(mapper.findByConfigAndExitDateRange("BULL_V4_5_0_0_BALANCED_PAPER", from, to)).thenReturn(List.of(fact()));
+        when(mapper.findByConfigAndExitDateRange("BULL_V4_5_0_1_100M_BALANCED_PAPER", from, to)).thenReturn(List.of(fact()));
 
         List<ReplayTradeFact> facts = new MarketDailyPriceReplayProvider(mapper).bullV4ReplayFacts(from, to);
 
-        verify(mapper).findByConfigAndExitDateRange("BULL_V4_5_0_0_BALANCED_PAPER", from, to);
+        verify(mapper).findByConfigAndExitDateRange("BULL_V4_5_0_1_100M_BALANCED_PAPER", from, to);
         assertThat(facts).hasSize(1);
-        assertThat(facts.get(0).source()).isEqualTo("BULL_V4_5_0_0_REPLAY_BALANCED_PAPER");
+        assertThat(facts.get(0).source()).isEqualTo("BULL_V4_5_0_1_100M_REPLAY_BALANCED_PAPER");
         assertThat(facts.get(0).returnPct()).isEqualByComparingTo("10.00");
     }
 

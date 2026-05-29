@@ -48,6 +48,7 @@ const router = createBrowserRouter([
       { path: "my", element: <MyPage /> },
       { path: "quant", element: <QuantModels /> },
       { path: "quant/today", element: <QuantToday /> },
+      { path: "quant/:modelCode/month/:monthKey", element: <QuantModels /> },
       { path: "quant/:modelCode", element: <QuantModels /> },
       { path: "reports", element: <Reports /> },
       { path: "reports/:reportId", element: <Reports /> },

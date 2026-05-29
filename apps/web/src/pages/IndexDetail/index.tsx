@@ -1,7 +1,7 @@
 import { useParams } from "react-router-dom";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { mockIndices, mockStocks } from "@/features/mock/marketMockData";
-import { Card, ChartBox, DataTable, Mono, PageShell, PageTitle, SectionTitle, SubText, TableCard, TableScroll, TextLink, ValueText } from "@/components/ui/Page";
+import { Badge, Card, ChartBox, DataTable, Mono, PageHeaderCard, PageHeaderMeta, PageShell, PageTitle, SectionTitle, SubText, TableCard, TableScroll, TextLink } from "@/components/ui/Page";
 
 export function IndexDetail() {
   const { id } = useParams();
@@ -9,13 +9,14 @@ export function IndexDetail() {
 
   return (
     <PageShell $width="1000px">
-      <Card>
-        <TextLink to="/market">시장 보기</TextLink>
+      <PageHeaderCard>
         <PageTitle>{index.name}</PageTitle>
-        <ValueText $tone={index.changeRate >= 0 ? "up" : "down"}>
-          {index.value.toLocaleString("ko-KR")} · {index.changeRate}%
-        </ValueText>
-      </Card>
+        <PageHeaderMeta>
+          <TextLink to="/market">시장 보기</TextLink>
+          <Badge>{index.value.toLocaleString("ko-KR")}</Badge>
+          <Badge $tone={index.changeRate >= 0 ? "up" : "down"}>{index.changeRate}%</Badge>
+        </PageHeaderMeta>
+      </PageHeaderCard>
       <Card>
         <SectionTitle>흐름</SectionTitle>
         <ChartBox $height="280px">

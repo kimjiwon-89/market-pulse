@@ -5,37 +5,37 @@
 ───────────────────────────────────────────── */
 :root {
   /* 배경 */
-  --bg:           #ffffff;
-  --bg-alt:       #fafaf9;
-  --bg-panel:     #ffffff;
-  --bg-hover:     #f5f5f4;
-  --bg-input:     #ffffff;
-  --bg-skeleton:  #f1f1ef;
+  --bg:           #111111;
+  --bg-alt:       #171717;
+  --bg-panel:     #1f1f1f;
+  --bg-hover:     #2b2b2b;
+  --bg-input:     #171717;
+  --bg-skeleton:  #2b2b2b;
 
   /* 테두리 */
-  --border:        #e7e5e4;
-  --border-strong: #d6d3d1;
-  --divider:       #efeeec;
+  --border:        #333333;
+  --border-strong: #454545;
+  --divider:       #2f2f2f;
 
   /* 텍스트 */
-  --text:   #18181b;
-  --text-2: #44403c;
-  --text-3: #78716c;
-  --text-4: #a8a29e;
+  --text:   #fcfcfc;
+  --text-2: #d8d8d8;
+  --text-3: #a8a8a8;
+  --text-4: #737373;
 
   /* 액센트 */
-  --accent:      #2f77df;
+  --accent:      #0169cc;
   --accent-fg:   #ffffff;
-  --accent-soft: #eef5ff;
-  --accent-border: #cfe0ff;
+  --accent-soft: #06233f;
+  --accent-border: #064f98;
 
   /* 주가 방향 (한국 관례: 빨강=상승, 파랑=하락) */
-  --up:        #d62828;
-  --up-soft:   #fdecec;
-  --down:      #1e5edb;
-  --down-soft: #e8eefc;
-  --warning:   #f97316;
-  --flat:      #57534e;
+  --up:        #ff5b5b;
+  --up-soft:   #3a171b;
+  --down:      #6ea2ff;
+  --down-soft: #142540;
+  --warning:   #f59e0b;
+  --flat:      #8d99aa;
 
   /* 폰트 */
   --font-sans:  "Pretendard Variable", Pretendard, "Noto Sans KR", -apple-system, sans-serif;

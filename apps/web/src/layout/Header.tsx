@@ -16,6 +16,10 @@ const Shell = styled.header`
   flex-shrink: 0;
   border-bottom: 1px solid ${({ theme }) => theme.color.border};
   background: ${({ theme }) => theme.color.panel};
+
+  @media (max-width: ${({ theme }) => theme.breakpoint.mobile}) {
+    padding: 0 16px;
+  }
 `;
 
 const BrandArea = styled.div`
@@ -30,6 +34,11 @@ const BrandArea = styled.div`
   @media (max-width: ${({ theme }) => theme.breakpoint.tablet}) {
     width: auto;
     border-right: 0;
+  }
+
+  @media (max-width: ${({ theme }) => theme.breakpoint.mobile}) {
+    min-width: 0;
+    padding: 0;
   }
 `;
 
@@ -48,8 +57,7 @@ const BrandLogo = styled.img`
   display: inline-flex;
   width: 28px;
   height: 28px;
-  border-radius: ${({ theme }) => theme.radius.circle};
-  object-fit: cover;
+  object-fit: contain;
 `;
 
 const SearchArea = styled.div`
@@ -121,6 +129,11 @@ const Actions = styled.div`
   gap: 14px;
   flex-shrink: 0;
   padding-right: 24px;
+
+  @media (max-width: ${({ theme }) => theme.breakpoint.mobile}) {
+    margin-left: auto;
+    padding-right: 0;
+  }
 `;
 
 const TextAction = styled.button`
@@ -159,7 +172,7 @@ const ProfileButton = styled.button`
   height: 34px;
   border: 0;
   border-radius: ${({ theme }) => theme.radius.circle};
-  background: #e5e7eb;
+  background: ${({ theme }) => theme.color.hover};
   color: ${({ theme }) => theme.color.textMuted};
   font: inherit;
   font-size: 13px;

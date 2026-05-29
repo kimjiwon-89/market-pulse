@@ -1,8 +1,9 @@
 import { useNavigate } from "react-router-dom";
-import { mockNews } from "@/features/mock/marketMockData";
+import type { QuantNewsItem } from "@/features/quant/types";
 import {
   AdCard,
   AdLabel,
+  AdSlotFrame,
   BodyCopy,
   Card,
   SectionHead,
@@ -14,57 +15,76 @@ import {
   UtilityRow,
 } from "./styles";
 
-const favoriteFolders = [
-  { name: "메인 관심", count: 12 },
-  { name: "반도체", count: 6 },
-  { name: "리스크 체크", count: 3 },
-];
+interface QuantUtilityRailProps {
+  news: QuantNewsItem[];
+}
 
-export function QuantUtilityRail() {
+type QuantAdSlot = "desktop_side_top" | "mobile_inline_top";
+
+export function QuantNewsCard({ news }: QuantUtilityRailProps) {
   const navigate = useNavigate();
 
   return (
-    <UtilityRail>
-      <Card>
-        <SectionHead>
-          <SectionTitle>뉴스</SectionTitle>
-          <SmallButton type="button" onClick={() => navigate("/news")}>
-            더보기
-          </SmallButton>
-        </SectionHead>
-        <UtilityList $maxHeight="250px">
-          {mockNews.map((news) => (
-            <UtilityButton key={news.id} type="button" onClick={() => navigate("/news")}>
-              {news.title}
-            </UtilityButton>
-          ))}
-        </UtilityList>
-      </Card>
+    <Card>
+      <SectionHead>
+        <SectionTitle>뉴스</SectionTitle>
+        <SmallButton type="button" onClick={() => navigate("/news")}>
+          더보기
+        </SmallButton>
+      </SectionHead>
+      <UtilityList $maxHeight="250px">
+        {news.length === 0 ? <BodyCopy>표시할 최신 뉴스가 없습니다.</BodyCopy> : null}
+        {news.map((item) => (
+          <UtilityButton key={item.id} type="button" onClick={() => navigate("/news")}>
+            {item.title}
+          </UtilityButton>
+        ))}
+      </UtilityList>
+    </Card>
+  );
+}
 
-      <AdCard>
+export function QuantAdCard({ slot = "desktop_side_top" }: { slot?: QuantAdSlot }) {
+  return (
+    <AdSlotFrame $slot={slot}>
+      <AdCard data-ad-slot={slot}>
         <AdLabel>AD</AdLabel>
         <div>
-          <SectionTitle>광고 영역</SectionTitle>
-          <BodyCopy>추후 배너, 제휴 콘텐츠, 프로모션을 연결할 자리입니다.</BodyCopy>
+          <SectionTitle>{slot === "desktop_side_top" ? "광고 영역" : "모바일 광고 영역"}</SectionTitle>
+          <BodyCopy>{slot === "desktop_side_top" ? "데스크탑 상단 레일형 광고 슬롯입니다." : "모바일 인라인 배너형 광고 슬롯입니다."}</BodyCopy>
         </div>
       </AdCard>
+    </AdSlotFrame>
+  );
+}
 
-      <Card>
-        <SectionHead>
-          <SectionTitle>관심 폴더</SectionTitle>
-          <SmallButton type="button" onClick={() => navigate("/my")}>
-            관리
-          </SmallButton>
-        </SectionHead>
-        <UtilityList $maxHeight="160px">
-          {favoriteFolders.map((folder) => (
-            <UtilityRow key={folder.name} type="button" onClick={() => navigate("/my")}>
-              <span>{folder.name}</span>
-              <strong>{folder.count}</strong>
-            </UtilityRow>
-          ))}
-        </UtilityList>
-      </Card>
+export function QuantFavoriteFolderCard() {
+  const navigate = useNavigate();
+
+  return (
+    <Card>
+      <SectionHead>
+        <SectionTitle>관심 폴더</SectionTitle>
+        <SmallButton type="button" onClick={() => navigate("/my")}>
+          관리
+        </SmallButton>
+      </SectionHead>
+      <UtilityList $maxHeight="160px">
+        <UtilityRow type="button" onClick={() => navigate("/my")}>
+          <span>로그인 후 관심 폴더를 불러옵니다.</span>
+          <strong>-</strong>
+        </UtilityRow>
+      </UtilityList>
+    </Card>
+  );
+}
+
+export function QuantUtilityRail({ news }: QuantUtilityRailProps) {
+  return (
+    <UtilityRail>
+      <QuantNewsCard news={news} />
+      <QuantAdCard />
+      <QuantFavoriteFolderCard />
     </UtilityRail>
   );
 }

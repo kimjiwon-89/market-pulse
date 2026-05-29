@@ -1,17 +1,18 @@
-import { quantKpis } from "@/features/quant/mock";
+import type { QuantKpi } from "@/features/quant/types";
 import { MetricRail } from "./styles";
 import { QuantMetricCard } from "./QuantMetricCard";
 
 interface QuantMetricRailProps {
+  kpis: QuantKpi[];
   ids?: string[];
 }
 
-export function QuantMetricRail({ ids }: QuantMetricRailProps) {
-  const kpis = ids ? quantKpis.filter((kpi) => ids.includes(kpi.id)) : quantKpis;
+export function QuantMetricRail({ ids, kpis }: QuantMetricRailProps) {
+  const visibleKpis = ids ? kpis.filter((kpi) => ids.includes(kpi.id)) : kpis;
 
   return (
     <MetricRail>
-      {kpis.map((kpi) => (
+      {visibleKpis.map((kpi) => (
         <QuantMetricCard key={kpi.id} kpi={kpi} />
       ))}
     </MetricRail>

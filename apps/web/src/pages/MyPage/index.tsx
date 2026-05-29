@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { clearAuth, getRole, getToken, getUsername } from "@/services/apiClient";
-import { Badge, Button, Card, CardHeader, Gate, Grid, MutedText, PageShell, PageTitle, SectionTitle, SubText } from "@/components/ui/Page";
+import { Badge, Button, Card, CardHeader, Gate, Grid, MutedText, PageHeaderCard, PageHeaderMeta, PageShell, PageTitle, SectionTitle, SubText } from "@/components/ui/Page";
 
 const tiles = [
   ["관심 종목", "홈에서 저장한 종목이 여기에 표시됩니다."],
@@ -33,15 +33,14 @@ export function MyPage() {
 
   return (
     <PageShell $width="900px">
-      <Card>
-        <CardHeader>
-          <div>
-            <PageTitle>마이</PageTitle>
-            <SubText>{username} · {role ?? "USER"}</SubText>
-          </div>
+      <PageHeaderCard>
+        <PageTitle>마이</PageTitle>
+        <PageHeaderMeta>
+          <Badge $tone="accent">{username}</Badge>
+          <Badge>{role ?? "USER"}</Badge>
           <Button type="button" onClick={handleLogout}>로그아웃</Button>
-        </CardHeader>
-      </Card>
+        </PageHeaderMeta>
+      </PageHeaderCard>
       <Grid $columns="repeat(2, minmax(0, 1fr))">
         {tiles.map(([title, copy]) => (
           <Card key={title}>

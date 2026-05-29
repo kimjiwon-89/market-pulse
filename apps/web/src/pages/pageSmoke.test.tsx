@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppProviders } from "@/app/providers";
 import { Admin } from "./Admin";
 import { Dashboard } from "./Dashboard";
@@ -17,6 +18,96 @@ import { Reports } from "./Reports";
 import { Services } from "./Services";
 import { TarotPage } from "./Services/TarotPage";
 import { StockDetail } from "./StockDetail";
+
+vi.mock("@/features/quant/api", () => {
+  const decision = {
+    assetCode: "005930",
+    assetName: "삼성전자",
+    badgeText: "삼",
+    badgeTone: "blue",
+    modelNames: ["Bull v4 모델"],
+    modelLabel: "상승장 모델",
+    decisionLabel: "살펴볼 종목",
+    decisionCode: "BUY",
+    reasonBullets: ["Bull v4 후보"],
+    cautionBullets: ["리플레이 기반 후보"],
+  };
+  const report = {
+    id: "101",
+    title: "Bull v4 일간 리포트",
+    modelCode: "BULL_V4",
+    modelName: "Bull v4 모델",
+    publishedAt: "05.29 09:00",
+    summary: "Bull v4 리포트 요약",
+    keywords: ["Bull v4"],
+  };
+
+  return {
+    getQuantHomeSummary: vi.fn(async () => ({
+      decisions: [decision],
+      kpis: [],
+      models: [{
+        code: "BULL_V4",
+        name: "Bull v4 모델",
+        plainName: "상승장 리플레이 기반 종목 신호",
+        description: "Bull v4 운영 모델",
+        marketMode: "상승장 모델",
+        status: "정상 운영",
+        signalStrength: "보통",
+        focus: ["Bull v4"],
+        todayCount: 1,
+        seedMoney: 100000000,
+        totalReturnPct: 12.34,
+        totalProfit: 12340000,
+        currentCapital: 112340000,
+        monthlyReturnPct: 4.56,
+        monthlyMarketRegime: "BULL",
+      }],
+      reports: [report],
+      news: [],
+      asOf: "05.29 09:00",
+    })),
+    getBullQuantModelDetail: vi.fn(async () => ({
+      candidates: [{
+        assetCode: "005930",
+        assetName: "삼성전자",
+        date: "2026-05-29",
+        label: "후보",
+        reason: "Bull v4 조건 통과",
+        price: 81200,
+        returnPct: 3.2,
+      }],
+      trades: [
+        {
+          tradeId: "1",
+          assetCode: "005930",
+          assetName: "삼성전자",
+          side: "BUY",
+          fillTime: "2026-05-20T09:01:00",
+          fillPrice: 78000,
+          reason: "Bull v4 historical replay entry",
+        },
+        {
+          tradeId: "2",
+          assetCode: "005930",
+          assetName: "삼성전자",
+          side: "SELL",
+          fillTime: "2026-05-27T15:20:00",
+          fillPrice: 82000,
+          realizedReturnPct: 5.12,
+          reason: "Bull v4 historical replay exit",
+        },
+      ],
+    })),
+    getBullQuantDecisions: vi.fn(async () => [decision]),
+    getBullQuantReports: vi.fn(async () => [report]),
+    getBullQuantReportDetail: vi.fn(async () => ({
+      ...report,
+      sections: ["백엔드 리포트 본문"],
+      checkpoints: ["체크포인트"],
+    })),
+  };
+});
 
 function renderAt(path: string, element: React.ReactNode, route = path) {
   return render(
@@ -90,9 +181,9 @@ describe("page smoke rendering", () => {
     expect(screen.getByText("오늘의 종목과 시장을 같이 봅니다.")).toBeInTheDocument();
   });
 
-  it("renders quant report detail with user-facing body sections", () => {
+  it("renders quant report detail with user-facing body sections", async () => {
     renderAt("/reports/report-20260528-am", <Reports />, "/reports/:reportId");
-    expect(screen.getByText("핵심 판단")).toBeInTheDocument();
+    expect(await screen.findByText("핵심 판단")).toBeInTheDocument();
     expect(screen.getByText("모델 근거")).toBeInTheDocument();
     expect(screen.getByText("사용자 체크포인트")).toBeInTheDocument();
   });
@@ -101,5 +192,133 @@ describe("page smoke rendering", () => {
     renderAt("/services", <Services />);
     expect(screen.getByText("로또 분석")).toBeInTheDocument();
     expect(screen.getByText("타로 리딩")).toBeInTheDocument();
+  });
+
+  it("renders admin model version management skeleton", () => {
+    renderAt("/admin", <Admin />);
+    expect(screen.getByText("모델 버전 관리")).toBeInTheDocument();
+    expect(screen.getByText("BULL_V4")).toBeInTheDocument();
+    expect(screen.getByText("READY_FOR_APPROVAL")).toBeInTheDocument();
+  });
+
+  it("explains Bull v4 detail for first-time users", async () => {
+    renderAt("/quant/BULL_V4", <QuantModels />, "/quant/:modelCode");
+
+    expect(await screen.findByRole("heading", { name: "Bull v4 모델" })).toBeInTheDocument();
+    expect(screen.getByText("5.0.1")).toBeInTheDocument();
+    expect(screen.getByText("1억원 paper")).toBeInTheDocument();
+    expect(screen.getByText("1종목 1천만원")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "수익률" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "요약" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "후보 선정 규칙" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "손절 / 익절" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("tab", { name: "손절 / 익절" }));
+    expect(screen.getByRole("heading", { name: "손절 / 익절 규칙" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("tab", { name: "자금" }));
+    expect(screen.getByText("운영 시드머니는 1억원 paper 기준입니다.")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("tab", { name: "이번달 수익률" }));
+    expect(screen.getByRole("heading", { name: "이번달 수익률" })).toBeInTheDocument();
+    expect(screen.getByText("전월 대비")).toBeInTheDocument();
+    expect(screen.getByText("+4.56%p")).toBeInTheDocument();
+    expect(screen.getAllByText("+4.56%").length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { name: "최근 6개월 수익률" })).toBeInTheDocument();
+    expect(screen.getByLabelText("최근 6개월 월별 수익률 선 그래프")).toBeInTheDocument();
+    expect(screen.queryByText("10%")).not.toBeInTheDocument();
+    expect(screen.queryByText("50%")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("5월 수익률 +4.56%, 전월 대비 +4.56%p")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "5월" })).toHaveAttribute("href", "/quant/BULL_V4?tab=reports&month=2026-05");
+    expect(screen.getByRole("heading", { name: "광고 영역" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "요약" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "오늘 후보" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "리포트" })).toBeInTheDocument();
+
+    const text = document.body.textContent ?? "";
+    expect(text.indexOf("매매 기준")).toBeLessThan(text.indexOf("최근 6개월 수익률"));
+  });
+
+  it("shows candidate filters and trade record period filters on Bull v4 detail", async () => {
+    renderAt("/quant/BULL_V4", <QuantModels />, "/quant/:modelCode");
+
+    expect(await screen.findByRole("tab", { name: "요약" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "오늘 후보" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "기간별 후보" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "거래 내역" })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("tab", { name: "기간별 후보" }));
+
+    expect(screen.getByText("기준일")).toBeInTheDocument();
+    expect(screen.getByText("최근 30일")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("tab", { name: "거래 내역" }));
+
+    expect(screen.getByRole("tab", { name: "거래 내역", selected: true })).toBeInTheDocument();
+    expect(screen.getByText("최근 7일")).toBeInTheDocument();
+    expect(screen.getByText("BUY")).toBeInTheDocument();
+    expect(screen.getByText("SELL")).toBeInTheDocument();
+    expect(screen.getByText("+5.12%")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "최근 7일" }));
+
+    expect(screen.queryByText("Bull v4 historical replay entry")).not.toBeInTheDocument();
+    expect(screen.getByText("Bull v4 historical replay exit")).toBeInTheDocument();
+  });
+
+  it("orders Bull v4 detail as performance, model rule, ad, and candidate tabs", async () => {
+    renderAt("/quant/BULL_V4", <QuantModels />, "/quant/:modelCode");
+
+    expect(await screen.findByRole("heading", { name: "수익률" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "수익금" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "현재 자금" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "이번달 시장상황" })).toBeInTheDocument();
+    expect(screen.getAllByText("+12.34%").length).toBeGreaterThan(0);
+    expect(screen.getByText("12,340,000원")).toBeInTheDocument();
+    expect(screen.getAllByText("112,340,000원").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("BULL").length).toBeGreaterThan(0);
+    expect(screen.getByText("광고 영역")).toBeInTheDocument();
+
+    const text = document.body.textContent ?? "";
+    expect(text.indexOf("Bull v4 모델")).toBeLessThan(text.indexOf("수익률"));
+    expect(text.indexOf("수익률")).toBeLessThan(text.indexOf("광고 영역"));
+    expect(text.indexOf("광고 영역")).toBeLessThan(text.indexOf("요약"));
+    expect(text.indexOf("요약")).toBeLessThan(text.indexOf("오늘 후보"));
+  });
+
+  it("renders Bull v4 monthly summary page from a chart month", async () => {
+    renderAt("/quant/BULL_V4/month/2026-05", <QuantModels />, "/quant/:modelCode/month/:monthKey");
+
+    expect(await screen.findByRole("heading", { name: "2026년 5월 Bull v4 월 요약" })).toBeInTheDocument();
+    expect(screen.getByText("모델 상세로")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "월 수익률" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "거래 내용" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "후보 종목" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "이후 향방" })).toBeInTheDocument();
+    expect(screen.getAllByText("Bull v4 historical replay entry").length).toBeGreaterThan(0);
+    expect(screen.getByText("Bull v4 조건 통과")).toBeInTheDocument();
+  });
+
+  it("opens Bull v4 report tab for a selected chart month", async () => {
+    renderAt("/quant/BULL_V4?tab=reports&month=2026-05", <QuantModels />, "/quant/:modelCode");
+
+    expect(await screen.findByRole("tab", { name: "리포트", selected: true })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "2026년 5월 월간 리포트" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "2026년 5월 월간 리포트" })).toBeInTheDocument();
+    expect(screen.getByText("선택한 월의 수익률, 거래 내용, 후보, 이후 향방을 요약합니다.")).toBeInTheDocument();
+    expect(screen.getByText("월 수익률")).toBeInTheDocument();
+    expect(screen.getByText("거래 건수")).toBeInTheDocument();
+    expect(screen.getByText("중복 제외 종목 수")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "거래 내용" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "후보 종목" })).toBeInTheDocument();
+    expect(screen.getByText("기준일")).toBeInTheDocument();
+    expect(screen.getByText("최근 30일")).toBeInTheDocument();
+    expect(screen.getByText("Bull v4 일간 리포트")).toBeInTheDocument();
+  });
+
+  it("shows selected model-authored report detail inside Bull v4 report tab", async () => {
+    renderAt("/quant/BULL_V4?tab=reports&report=101", <QuantModels />, "/quant/:modelCode");
+
+    expect(await screen.findByRole("tab", { name: "리포트", selected: true })).toBeInTheDocument();
+    expect(screen.getAllByText("Bull v4 일간 리포트").length).toBeGreaterThan(0);
+    expect(await screen.findByText("백엔드 리포트 본문")).toBeInTheDocument();
+    expect(screen.getByText("체크포인트")).toBeInTheDocument();
   });
 });

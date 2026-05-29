@@ -5,10 +5,10 @@ import java.math.BigDecimal;
 public enum BullV4ReplayConfig {
     BALANCED_PAPER(
             "BULL_V4",
-            "5.0.0",
-            "BULL_V4_5_0_0_BALANCED_PAPER",
-            "BULL_V4_5_0_0_REPLAY_BALANCED_PAPER",
-            new BigDecimal("100000000")
+            "5.0.1",
+            "BULL_V4_5_0_1_100M_BALANCED_PAPER",
+            "BULL_V4_5_0_1_100M_REPLAY_BALANCED_PAPER",
+            new BigDecimal("10000000")
     );
 
     private final String modelCode;

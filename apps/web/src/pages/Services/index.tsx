@@ -1,15 +1,14 @@
 import { useNavigate } from "react-router-dom";
-import { Badge, Button, Card, CardHeader, Grid, PageShell, PageTitle, SectionTitle, Stack, SubText } from "@/components/ui/Page";
+import { Badge, Button, Card, CardHeader, Grid, PageHeaderCard, PageShell, PageTitle, SectionTitle, Stack, SubText } from "@/components/ui/Page";
 
 export function Services() {
   const navigate = useNavigate();
 
   return (
     <PageShell $width="900px">
-      <Card>
+      <PageHeaderCard>
         <PageTitle>서비스</PageTitle>
-        <SubText>퀀트 투자 화면과 분리된 부가 서비스를 한 곳에 모았습니다.</SubText>
-      </Card>
+      </PageHeaderCard>
       <Grid $columns="repeat(2, minmax(0, 1fr))">
         <Card>
           <CardHeader>

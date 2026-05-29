@@ -4,8 +4,11 @@ import com.marketpulse.domain.quant.live.dto.LiveQuantModelDetailDto;
 import com.marketpulse.domain.quant.live.dto.LiveQuantModelSummaryDto;
 import com.marketpulse.domain.quant.live.dto.LiveQuantReportDetailDto;
 import com.marketpulse.domain.quant.live.dto.WatchedAssetDto;
+import com.marketpulse.domain.quant.live.service.BullV4Runtime;
 import com.marketpulse.domain.quant.live.service.HistoricalReplayProvider;
 import com.marketpulse.domain.quant.live.service.LiveQuantSimulationService;
+import com.marketpulse.domain.quant.live.service.LiveQuantRuntimeRegistry;
+import com.marketpulse.domain.quant.live.service.RealtimeQuoteProvider;
 import com.marketpulse.domain.quant.live.service.ReplayTradeFact;
 import com.marketpulse.domain.quant.live.service.RuleBasedReportWriter;
 import org.junit.jupiter.api.Test;
@@ -18,8 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class LiveQuantSimulationServiceTest {
 
-    private final LiveQuantSimulationService service = new LiveQuantSimulationService(
-            new RuleBasedReportWriter(),
+    private final LiveQuantSimulationService service = service(
             assetCode -> java.util.Optional.of(switch (assetCode) {
                 case "005930" -> new BigDecimal("312000");
                 case "000660" -> new BigDecimal("184500");
@@ -27,43 +29,32 @@ class LiveQuantSimulationServiceTest {
                 case "068270" -> new BigDecimal("192000");
                 default -> BigDecimal.ZERO;
             }),
-            new FakeReplayProvider()
-    );
+            new FakeReplayProvider());
 
     @Test
     void visibleModelsExcludeMasterAndUseIndependentSeedMoney() {
         List<LiveQuantModelSummaryDto> models = service.getVisibleModels();
 
         assertThat(models).extracting(LiveQuantModelSummaryDto::modelCode)
-                .containsExactly("INDEX_REGIME", "BULL_V4", "SIDEWAYS_MODEL", "BEAR_MODEL");
+                .containsExactly("BULL_V4");
         assertThat(models)
                 .filteredOn(model -> model.modelCode().equals("BULL_V4"))
                 .singleElement()
                 .satisfies(model -> {
-                    assertThat(model.modelVersion()).isEqualTo("5.0.0");
-                    assertThat(model.configKey()).isEqualTo("BULL_V4_5_0_0_BALANCED_PAPER");
+                    assertThat(model.modelVersion()).isEqualTo("5.0.1");
+                    assertThat(model.configKey()).isEqualTo("BULL_V4_5_0_1_100M_BALANCED_PAPER");
                 });
         assertThat(models).extracting(LiveQuantModelSummaryDto::modelCode)
                 .doesNotContain("MASTER_MODEL");
         assertThat(models).allSatisfy(model ->
-                assertThat(model.seedMoney()).isEqualByComparingTo(new BigDecimal("1000000000")));
-        assertThat(models)
-                .filteredOn(model -> !model.modelCode().equals("BULL_V4"))
-                .allSatisfy(model -> {
-                    assertThat(model.status()).isEqualTo("SERVICE_PREPARING");
-                    assertThat(model.rawCandidateCountToday()).isZero();
-                    assertThat(model.actualEntryCountToday()).isZero();
-                    assertThat(model.openPositionCount()).isZero();
-                });
+                assertThat(model.seedMoney()).isEqualByComparingTo(new BigDecimal("100000000")));
     }
 
     @Test
     void bullModelIsDataDelayedWhenFrozenReplayHasNoFacts() {
-        LiveQuantSimulationService emptyReplayService = new LiveQuantSimulationService(
-                new RuleBasedReportWriter(),
+        LiveQuantSimulationService emptyReplayService = service(
                 assetCode -> java.util.Optional.of(new BigDecimal("312000")),
-                (fromDate, toDate) -> List.of()
-        );
+                (fromDate, toDate) -> List.of());
 
         assertThat(emptyReplayService.getVisibleModels())
                 .filteredOn(model -> model.modelCode().equals("BULL_V4"))
@@ -81,7 +72,7 @@ class LiveQuantSimulationServiceTest {
         assertThat(watchedAssets).extracting(WatchedAssetDto::assetCode)
                 .contains("111111", "222222");
         assertThat(watchedAssets).allSatisfy(asset ->
-                assertThat(asset.trackingSource()).isEqualTo("BULL_V4_5_0_0_REPLAY_BALANCED_PAPER"));
+                assertThat(asset.trackingSource()).isEqualTo("BULL_V4_5_0_1_100M_REPLAY_BALANCED_PAPER"));
     }
 
     @Test
@@ -151,7 +142,7 @@ class LiveQuantSimulationServiceTest {
                             new BigDecimal("12000"),
                             new BigDecimal("20.00"),
                             new BigDecimal("0.91"),
-                            "BULL_V4_5_0_0_REPLAY_BALANCED_PAPER"
+                            "BULL_V4_5_0_1_100M_REPLAY_BALANCED_PAPER"
                     ),
                     new ReplayTradeFact(
                             LocalDate.of(2026, 5, 21),
@@ -162,9 +153,14 @@ class LiveQuantSimulationServiceTest {
                             new BigDecimal("21000"),
                             new BigDecimal("5.00"),
                             new BigDecimal("0.82"),
-                            "BULL_V4_5_0_0_REPLAY_BALANCED_PAPER"
+                            "BULL_V4_5_0_1_100M_REPLAY_BALANCED_PAPER"
                     )
             );
         }
+    }
+
+    private LiveQuantSimulationService service(RealtimeQuoteProvider quoteProvider, HistoricalReplayProvider replayProvider) {
+        BullV4Runtime runtime = new BullV4Runtime(new RuleBasedReportWriter(), quoteProvider, replayProvider);
+        return new LiveQuantSimulationService(new LiveQuantRuntimeRegistry(List.of(runtime)));
     }
 }

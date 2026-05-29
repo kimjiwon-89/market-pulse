@@ -21,4 +21,8 @@ export const GlobalStyle = createGlobalStyle`
     font-family: ${({ theme }) => theme.font.sans};
     font-feature-settings: "tnum" on;
   }
+
+  :root {
+    color-scheme: dark;
+  }
 `;

@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { getToken } from "@/services/apiClient";
 import { mockMemos } from "@/features/mock/marketMockData";
-import { Button, Card, Gate, List, ListItem, MutedText, PageShell, PageTitle, SectionTitle, SubText } from "@/components/ui/Page";
+import { Button, Card, Gate, List, ListItem, MutedText, PageHeaderCard, PageShell, PageTitle, SectionTitle, SubText } from "@/components/ui/Page";
 
 export function MemoList() {
   const navigate = useNavigate();
@@ -19,10 +19,9 @@ export function MemoList() {
 
   return (
     <PageShell $width="900px">
-      <Card>
+      <PageHeaderCard>
         <PageTitle>내 메모</PageTitle>
-        <SubText>관심 종목과 리포트에 남긴 메모를 모아봅니다.</SubText>
-      </Card>
+      </PageHeaderCard>
       <Card>
         <List>
           {mockMemos.map((memo) => (

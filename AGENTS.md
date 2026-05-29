@@ -32,7 +32,7 @@ Do not recursively read archives or historical reports unless user asks for hist
 - Production DB schema changes must go through reviewed migrations.
 - RDS writes are allowed only for explicitly requested ingestion, backfill, model-cache generation, or validation jobs.
 - RDS data work does not authorize app deployment.
-- If user says "배포", "?�영 반영", "?�비?�에 ?�려", restate exact target and wait for confirmation before touching production infra.
+- If user says "배포", "?�영 반영", "?�비?�에 ?�려", restate exact target and wait for confirmation before touching production infra.
 
 ## Branch Rules
 
@@ -73,6 +73,28 @@ Normal PRs target `develop`. `develop` promotes to `main` through release PR and
 - Do not put final user-facing HTML reports in `.agents`.
 - Keep logs compact.
 
+## Quant Runtime Handoff Rules
+
+- New quant runtime candidate files provided by the user must be read from `D:\market-pulse\market-pulse-prod\.agents\handoff\quant\<MODEL_CODE>\`.
+- Each model version handoff should use this exact folder contract when possible:
+
+```text
+.agents/handoff/quant/<MODEL_CODE>/
+  README.md
+  validation.md
+  runtime-requirements.md
+  artifacts/
+  source/
+  sample-output/
+```
+
+- Treat `.agents/handoff/quant/<MODEL_CODE>/` as a review and implementation input only, not as a production runtime execution path.
+- Do not execute arbitrary uploaded model files inside the production API.
+- For accepted Java or rule-based runtime models, implement production code under `apps/api/src/main/java/com/marketpulse/domain/quant/live/service/` using the `LiveQuantModelRuntime` contract.
+- For accepted Python, ML, or artifact-based models, use a controlled worker or serving-container path, persist validated outputs into production serving tables, and keep user-facing API reads table-backed.
+- Runtime handoff files do not imply public exposure. Public exposure still requires `ACTIVE`, `visible`, validation passed, and admin approval.
+- If a handoff requires DB schema changes, implement them only through reviewed migrations that satisfy the DB and migration rules above.
+
 ## Domain Context Rules
 
 When working inside a domain folder:
@@ -109,6 +131,7 @@ Keep logs to 3-5 bullets:
 ## HTML Output Guide
 - Do not create HTML unless the user explicitly asks for HTML, or the user-facing plan/report is complete and the user requests an HTML deliverable.
 - Before creating or editing any HTML report, read `D:\market-pulse\.agents\guides\html-output-style.md` and follow it as a strict contract.
+- All user-facing text in HTML planning documents, reports, guides, and visual summaries must be written in Korean by default; code, API names, file paths, class names, commands, model IDs, brand/product names, unavoidable technical terms, and direct quotations are allowed exceptions.
 - Use `D:\market-pulse\report\rebuild\master-plan\archive\project-overview.html` as the required visual/structural reference.
 - Required default format: fixed 220px sidebar, `main.main` document body, section anchors, 1100px content width, compact cards/tables, and project-document navigation.
 - Do not use marketing heroes, full dashboard shells, wide KPI-first layouts, gradient/orb decoration, or unrelated custom CSS systems unless the user explicitly asks for a different style.

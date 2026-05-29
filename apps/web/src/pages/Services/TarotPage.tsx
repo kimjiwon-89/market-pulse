@@ -1,4 +1,4 @@
-import { Badge, Button, Card, CardHeader, Grid, PageShell, PageTitle, SectionTitle, Stack, SubText } from "@/components/ui/Page";
+import { Badge, Button, Card, CardHeader, Grid, PageHeaderCard, PageShell, PageTitle, SectionTitle, Stack, SubText } from "@/components/ui/Page";
 
 const cards = [
   { title: "현재", copy: "지금 가장 크게 작용하는 흐름을 정리합니다." },
@@ -9,10 +9,9 @@ const cards = [
 export function TarotPage() {
   return (
     <PageShell $width="900px">
-      <Card>
+      <PageHeaderCard>
         <PageTitle>타로</PageTitle>
-        <SubText>타로 리딩은 퀀트 투자 화면과 분리된 개인 서비스입니다.</SubText>
-      </Card>
+      </PageHeaderCard>
       <Grid>
         {cards.map((card, index) => (
           <Card key={card.title}>

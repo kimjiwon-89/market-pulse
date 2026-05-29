@@ -5,31 +5,38 @@ import {
   MarketStatusRail,
   MarketStatusValue,
 } from "./styles";
+import type { QuantHomeSummary } from "@/features/quant/types";
 
-const marketStatuses = [
-  {
-    label: "지수",
-    value: "약세 관찰",
-    detail: "KOSPI·KOSDAQ 모두 변동성 확대",
-  },
-  {
-    label: "수급",
-    value: "반도체 개선",
-    detail: "기관·외국인 흐름 동시 확인",
-  },
-  {
-    label: "체크",
-    value: "환율·금리",
-    detail: "단기 변동성은 계속 관찰",
-  },
-  {
-    label: "분위기",
-    value: "선별 강세",
-    detail: "강한 업종 중심으로 압축",
-  },
-];
+interface QuantMarketStatusRailProps {
+  summary: QuantHomeSummary;
+}
 
-export function QuantMarketStatusRail() {
+export function QuantMarketStatusRail({ summary }: QuantMarketStatusRailProps) {
+  const model = summary.models[0];
+  const latestReport = summary.reports[0];
+  const marketStatuses = [
+    {
+      label: "모델",
+      value: model?.status ?? "확인 중",
+      detail: model ? `${model.name}만 노출 중` : "Bull v4 상태를 불러오는 중",
+    },
+    {
+      label: "후보",
+      value: `${summary.decisions.length}개`,
+      detail: "백엔드 후보 API 기준",
+    },
+    {
+      label: "리포트",
+      value: latestReport ? "생성됨" : "없음",
+      detail: latestReport?.publishedAt ?? "생성된 Bull v4 리포트 없음",
+    },
+    {
+      label: "기준",
+      value: summary.asOf ?? "실시간",
+      detail: "백엔드 최신 모델 시간",
+    },
+  ];
+
   return (
     <MarketStatusRail>
       {marketStatuses.map((item) => (

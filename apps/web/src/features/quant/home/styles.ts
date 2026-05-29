@@ -1,14 +1,7 @@
 import styled, { css } from "styled-components";
 
 export const HomeShell = styled.div`
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) ${({ theme }) => theme.layout.rightRailWidth};
-  gap: ${({ theme }) => theme.spacing.sectionGap};
   width: 100%;
-
-  @media (max-width: ${({ theme }) => theme.breakpoint.desktop}) {
-    grid-template-columns: 1fr;
-  }
 `;
 
 export const Stack = styled.div`
@@ -17,14 +10,51 @@ export const Stack = styled.div`
   gap: ${({ theme }) => theme.spacing.sectionGap};
 `;
 
+export const DesktopOnly = styled.div`
+  display: contents;
+
+  @media (max-width: ${({ theme }) => theme.breakpoint.desktop}) {
+    display: none;
+  }
+`;
+
+export const MobileOnly = styled.div`
+  display: none;
+
+  @media (max-width: ${({ theme }) => theme.breakpoint.desktop}) {
+    display: contents;
+  }
+`;
+
+export const HomeContentGrid = styled.div`
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) ${({ theme }) => theme.layout.rightRailWidth};
+  gap: ${({ theme }) => theme.spacing.sectionGap};
+
+  @media (max-width: ${({ theme }) => theme.breakpoint.desktop}) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+export const HomeTopGrid = styled.div`
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) ${({ theme }) => theme.layout.rightRailWidth};
+  gap: ${({ theme }) => theme.spacing.sectionGap};
+  align-items: stretch;
+
+  @media (max-width: ${({ theme }) => theme.breakpoint.desktop}) {
+    grid-template-columns: 1fr;
+  }
+`;
+
 export const Card = styled.section<{ $soft?: boolean; $flush?: boolean }>`
-  padding: ${({ $flush, theme }) => ($flush ? "0" : theme.spacing.card)};
+  padding: ${({ $flush }) => ($flush ? "0" : "20px")};
   border: 1px solid ${({ $soft, theme }) => ($soft ? theme.color.softBorder : theme.color.border)};
   border-radius: ${({ theme }) => theme.radius.card};
   background: ${({ $soft, theme }) => ($soft ? theme.color.softPanel : theme.color.panel)};
 
   @media (max-width: ${({ theme }) => theme.breakpoint.tablet}) {
-    ${({ $soft }) => $soft && "padding: 10px;"}
+    padding: ${({ $flush }) => ($flush ? "0" : "16px")};
   }
 `;
 
@@ -38,6 +68,12 @@ export const HeroSplit = styled.div`
   }
 `;
 
+export const HeroSectionStack = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${({ theme }) => theme.spacing.sectionGap};
+`;
+
 export const HeroPanel = styled.div<{ $market?: boolean }>`
   display: flex;
   min-width: 0;
@@ -45,8 +81,8 @@ export const HeroPanel = styled.div<{ $market?: boolean }>`
   gap: 14px;
 
   ${({ $market, theme }) => $market && css`
-    padding-left: ${theme.spacing.sectionGap};
-    border-left: 1px solid ${theme.color.divider};
+    padding-top: ${theme.spacing.sectionGap};
+    border-top: 1px solid ${theme.color.divider};
   `}
 
   @media (max-width: ${({ theme }) => theme.breakpoint.desktop}) {
@@ -121,11 +157,11 @@ export const MarketTitle = styled.h2`
 const railStyles = css`
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
+  gap: 12px;
 
   @media (max-width: ${({ theme }) => theme.breakpoint.tablet}) {
     display: flex;
-    gap: 8px;
+    gap: 12px;
     margin-inline: -2px;
     overflow-x: auto;
     padding: 0 2px 4px;
@@ -151,16 +187,17 @@ export const MetricCard = styled.div`
   height: 112px;
   min-height: 112px;
   overflow: hidden;
-  padding: 12px 14px;
+  padding: 12px;
   border: 1px solid ${({ theme }) => theme.color.border};
   border-radius: ${({ theme }) => theme.radius.card};
   background: ${({ theme }) => theme.color.panel};
 
   @media (max-width: ${({ theme }) => theme.breakpoint.tablet}) {
-    flex: 0 0 118px;
+    flex: 0 0 38%;
+    max-width: 168px;
     height: auto;
-    min-height: 58px;
-    padding: 8px 10px;
+    min-height: 100px;
+    padding: 12px;
     overflow: visible;
     scroll-snap-align: start;
   }
@@ -176,7 +213,7 @@ export const MetricLabel = styled.div`
   white-space: nowrap;
 
   @media (max-width: ${({ theme }) => theme.breakpoint.tablet}) {
-    font-size: 10.5px;
+    font-size: 12px;
   }
 `;
 
@@ -208,8 +245,9 @@ export const MetricValue = styled.div<{ $tone?: "up" | "down" | "accent" }>`
   line-height: 1;
 
   @media (max-width: ${({ theme }) => theme.breakpoint.tablet}) {
-    margin-top: 5px;
-    font-size: 17px;
+    margin-top: 8px;
+    font-size: 20px;
+    line-height: 1.15;
   }
 `;
 
@@ -220,7 +258,9 @@ export const MetricSub = styled.div`
   line-height: 1.35;
 
   @media (max-width: ${({ theme }) => theme.breakpoint.tablet}) {
-    display: none;
+    margin-top: 6px;
+    font-size: 11px;
+    line-height: 1.3;
   }
 `;
 
@@ -236,16 +276,17 @@ export const MarketStatusCard = styled.div`
   height: 112px;
   min-height: 112px;
   overflow: hidden;
-  padding: 12px 14px;
+  padding: 12px;
   border: 1px solid ${({ theme }) => theme.color.border};
   border-radius: ${({ theme }) => theme.radius.card};
   background: ${({ theme }) => theme.color.panel};
 
   @media (max-width: ${({ theme }) => theme.breakpoint.tablet}) {
-    flex: 0 0 118px;
+    flex: 0 0 38%;
+    max-width: 168px;
     height: auto;
-    min-height: 58px;
-    padding: 8px 10px;
+    min-height: 100px;
+    padding: 12px;
     overflow: visible;
     scroll-snap-align: start;
   }
@@ -258,7 +299,7 @@ export const MarketStatusLabel = styled.span`
   font-weight: 700;
 
   @media (max-width: ${({ theme }) => theme.breakpoint.tablet}) {
-    font-size: 10.5px;
+    font-size: 12px;
   }
 `;
 
@@ -271,8 +312,8 @@ export const MarketStatusValue = styled.strong`
   line-height: 1.1;
 
   @media (max-width: ${({ theme }) => theme.breakpoint.tablet}) {
-    margin-top: 5px;
-    font-size: 13px;
+    margin-top: 8px;
+    font-size: 20px;
     line-height: 1.15;
   }
 `;
@@ -285,7 +326,9 @@ export const MarketStatusDetail = styled.small`
   line-height: 1.5;
 
   @media (max-width: ${({ theme }) => theme.breakpoint.tablet}) {
-    display: none;
+    margin-top: 6px;
+    font-size: 11px;
+    line-height: 1.3;
   }
 `;
 
@@ -293,7 +336,7 @@ export const SectionHead = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 18px 20px;
+  padding: 16px 20px;
 `;
 
 export const SectionTitle = styled.h2`
@@ -564,15 +607,31 @@ export const AdCard = styled(Card)`
   min-height: 180px;
   flex-direction: column;
   justify-content: space-between;
-  border-color: #cbd5e1;
+  border-color: ${({ theme }) => theme.color.borderStrong};
   border-style: dashed;
   background: ${({ theme }) => theme.color.softPanel};
+
+  ${HomeTopGrid} > & {
+    min-height: 100%;
+  }
+`;
+
+export const AdSlotFrame = styled.div<{ $slot: "desktop_side_top" | "mobile_inline_top" }>`
+  display: ${({ $slot }) => ($slot === "desktop_side_top" ? "contents" : "none")};
+
+  @media (max-width: ${({ theme }) => theme.breakpoint.desktop}) {
+    display: ${({ $slot }) => ($slot === "mobile_inline_top" ? "contents" : "none")};
+  }
+
+  ${AdCard} {
+    min-height: ${({ $slot }) => ($slot === "desktop_side_top" ? "100%" : "120px")};
+  }
 `;
 
 export const AdLabel = styled.div`
   width: fit-content;
   padding: 3px 8px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid ${({ theme }) => theme.color.borderStrong};
   border-radius: ${({ theme }) => theme.radius.pill};
   background: ${({ theme }) => theme.color.panel};
   color: ${({ theme }) => theme.color.textSubtle};

@@ -41,6 +41,30 @@ export const Card = styled.section<{ $soft?: boolean; $pad?: string }>`
   padding: ${({ $pad, theme }) => $pad ?? theme.spacing.card};
 `;
 
+export const PageHeaderCard = styled(Card)`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  min-height: 58px;
+  padding: 14px 18px;
+
+  @media (max-width: ${({ theme }) => theme.breakpoint.mobile}) {
+    align-items: flex-start;
+    padding: 14px 16px;
+  }
+`;
+
+export const PageHeaderMeta = styled.div`
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-left: auto;
+`;
+
 export const ClickCard = styled.button`
   display: block;
   width: 100%;
@@ -173,25 +197,25 @@ export const Badge = styled.span<{ $tone?: "up" | "down" | "warning" | "accent" 
   ${({ $tone, theme }) =>
     $tone === "up" &&
     css`
-      background: #fdecec;
+      background: ${theme.color.hover};
       color: ${theme.color.up};
-      border-color: #fdecec;
+      border-color: ${theme.color.border};
     `}
 
   ${({ $tone, theme }) =>
     $tone === "down" &&
     css`
-      background: #e8eefc;
+      background: ${theme.color.hover};
       color: ${theme.color.down};
-      border-color: #e8eefc;
+      border-color: ${theme.color.border};
     `}
 
   ${({ $tone, theme }) =>
     $tone === "warning" &&
     css`
-      background: #fff4e8;
+      background: ${theme.color.hover};
       color: ${theme.color.warning};
-      border-color: #ffe1bd;
+      border-color: ${theme.color.border};
     `}
 
   ${({ $tone, theme }) =>

@@ -1,13 +1,12 @@
 import { formatAmount, mockInvestorFlows } from "@/features/mock/marketMockData";
-import { Badge, Card, DataTable, PageShell, PageTitle, SubText, TableCard, TableScroll } from "@/components/ui/Page";
+import { Badge, DataTable, PageHeaderCard, PageShell, PageTitle, TableCard, TableScroll } from "@/components/ui/Page";
 
 export function InvestorTrend() {
   return (
     <PageShell $width="1000px">
-      <Card>
+      <PageHeaderCard>
         <PageTitle>투자자 동향</PageTitle>
-        <SubText>외국인, 기관, 개인의 주요 순매수 흐름을 정리합니다.</SubText>
-      </Card>
+      </PageHeaderCard>
       <TableCard>
         <TableScroll>
           <DataTable>

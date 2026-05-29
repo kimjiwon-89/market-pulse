@@ -2,7 +2,7 @@ import { useParams } from "react-router-dom";
 import { Bar, BarChart, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { formatWon, mockInvestorFlows, mockNews, mockStocks } from "@/features/mock/marketMockData";
 import { quantDecisions } from "@/features/quant/quantMockData";
-import { Badge, Card, CardHeader, ChartBox, Chip, ChipRow, Inline, List, ListItem, MutedText, PageShell, PageTitle, SectionTitle, Split, Stack, SubText, TextLink, ValueText } from "@/components/ui/Page";
+import { Badge, Card, ChartBox, Chip, ChipRow, Inline, List, ListItem, MutedText, PageHeaderCard, PageHeaderMeta, PageShell, PageTitle, SectionTitle, Split, Stack, SubText, TextLink } from "@/components/ui/Page";
 
 export function StockDetail() {
   const { code } = useParams();
@@ -12,19 +12,15 @@ export function StockDetail() {
 
   return (
     <PageShell $width="1100px">
-      <Card>
-        <TextLink to="/market">시장 보기</TextLink>
-        <CardHeader>
-          <div>
-            <PageTitle>{stock.name}</PageTitle>
-            <MutedText>{stock.code} · {stock.market} · {stock.sector}</MutedText>
-          </div>
-          <div>
-            <ValueText $tone={stock.changeRate >= 0 ? "up" : "down"}>{formatWon(stock.price)}</ValueText>
-            <MutedText>{stock.change.toLocaleString("ko-KR")} ({stock.changeRate}%)</MutedText>
-          </div>
-        </CardHeader>
-      </Card>
+      <PageHeaderCard>
+        <PageTitle>{stock.name}</PageTitle>
+        <PageHeaderMeta>
+          <TextLink to="/market">시장 보기</TextLink>
+          <Badge>{stock.code}</Badge>
+          <Badge>{stock.market}</Badge>
+          <Badge $tone={stock.changeRate >= 0 ? "up" : "down"}>{stock.changeRate}%</Badge>
+        </PageHeaderMeta>
+      </PageHeaderCard>
 
       <Split>
         <Stack>

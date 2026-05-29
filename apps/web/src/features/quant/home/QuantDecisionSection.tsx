@@ -1,8 +1,9 @@
 import { useNavigate } from "react-router-dom";
 import { FavoriteFolderPicker } from "@/features/quant/FavoriteFolderPicker";
 import { StockInitialBadge } from "@/features/quant/StockInitialBadge";
-import { quantDecisions } from "@/features/quant/mock";
+import type { QuantDecision } from "@/features/quant/types";
 import {
+  BodyCopy,
   DecisionSectionCard,
   DecisionTable,
   DesktopStockCell,
@@ -19,13 +20,17 @@ import {
 } from "./styles";
 import { DecisionCodeBadge, ModelNameList, QuantDecisionCard } from "./QuantDecisionCard";
 
-export function QuantDecisionSection() {
+interface QuantDecisionSectionProps {
+  decisions: QuantDecision[];
+}
+
+export function QuantDecisionSection({ decisions }: QuantDecisionSectionProps) {
   const navigate = useNavigate();
 
   return (
     <DecisionSectionCard $flush>
       <SectionHead>
-        <SectionTitle>오늘의 종목 판단</SectionTitle>
+        <SectionTitle>오늘 추천 후보</SectionTitle>
         <SmallButton type="button" onClick={() => navigate("/quant/today")}>
           전체 목록 보기
         </SmallButton>
@@ -42,7 +47,7 @@ export function QuantDecisionSection() {
             </tr>
           </thead>
           <tbody>
-            {quantDecisions.map((item) => (
+            {decisions.map((item) => (
               <tr key={item.assetCode}>
                 <FirstDecisionCell>
                   <DesktopStockCell>
@@ -69,8 +74,11 @@ export function QuantDecisionSection() {
           </tbody>
         </DecisionTable>
       </DesktopTableWrap>
+      {decisions.length === 0 ? (
+        <BodyCopy>현재 Bull v4 후보 종목이 없습니다.</BodyCopy>
+      ) : null}
       <MobileDecisionList>
-        {quantDecisions.map((item) => (
+        {decisions.map((item) => (
           <QuantDecisionCard key={item.assetCode} item={item} />
         ))}
       </MobileDecisionList>

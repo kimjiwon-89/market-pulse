@@ -102,8 +102,8 @@ public class QuantSchemaInitRunner implements CommandLineRunner {
                     'Runtime Bull model managed with model SemVer.',
                     'TRADING',
                     'RULE_BASED_REPLAY',
-                    'BULL_V4_5_0_0_BALANCED_PAPER',
-                    '{"modelVersion":"5.0.0","configKey":"BULL_V4_5_0_0_BALANCED_PAPER","seedMoney":1000000000,"positionCash":100000000}'::jsonb,
+                    'BULL_V4_5_0_1_100M_BALANCED_PAPER',
+                    '{"modelVersion":"5.0.1","configKey":"BULL_V4_5_0_1_100M_BALANCED_PAPER","seedMoney":100000000,"positionCash":10000000}'::jsonb,
                     true
                 )
                 ON CONFLICT (model_code) DO UPDATE
@@ -119,7 +119,7 @@ public class QuantSchemaInitRunner implements CommandLineRunner {
                 UPDATE quant_model_version
                 SET is_active = false
                 WHERE model_code = 'BULL_V4'
-                  AND version <> '5.0.0'
+                  AND version <> '5.0.1'
                 """);
         jdbcTemplate.update("""
                 INSERT INTO quant_model_version (
@@ -128,9 +128,9 @@ public class QuantSchemaInitRunner implements CommandLineRunner {
                 )
                 VALUES (
                     'BULL_V4',
-                    '5.0.0',
+                    '5.0.1',
                     'RULE_BASED_REPLAY',
-                    '{"runtimeConfigKey":"BULL_V4_5_0_0_BALANCED_PAPER","runtimeSource":"market_daily_price_replay"}'::jsonb,
+                    '{"runtimeConfigKey":"BULL_V4_5_0_1_100M_BALANCED_PAPER","runtimeSource":"market_daily_price_replay","sourceConfigKey":"BULL_V4_5_0_0_BALANCED_PAPER","seedMoney":100000000,"positionCash":10000000}'::jsonb,
                     '{"source":"market_daily_price","pipeline":"bull_v4_filtered_w4_range20_entry_confirmation"}'::jsonb,
                     '{"signalDate":"separated","rebalanceDate":"entry_date","executionDate":"entry_date","returnPeriod":"entry_to_exit"}'::jsonb,
                     true
@@ -278,7 +278,7 @@ public class QuantSchemaInitRunner implements CommandLineRunner {
                     return_pct         NUMERIC(12,6) NOT NULL,
                     score              NUMERIC(18,8),
                     exit_reason        VARCHAR(60),
-                    position_cash      NUMERIC(18,0) NOT NULL DEFAULT 100000000,
+                    position_cash      NUMERIC(18,0) NOT NULL DEFAULT 10000000,
                     pnl_krw            NUMERIC(18,0),
                     capital_return_pct NUMERIC(12,6),
                     created_at         TIMESTAMP DEFAULT NOW(),

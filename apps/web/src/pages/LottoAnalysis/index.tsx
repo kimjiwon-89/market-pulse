@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { getToken } from "@/services/apiClient";
 import { mockLottoRounds } from "@/features/mock/marketMockData";
-import { Badge, Button, Card, CardHeader, Chip, ChipRow, Grid, Inline, List, ListItem, PageShell, PageTitle, SectionTitle, SubText } from "@/components/ui/Page";
+import { Badge, Button, Card, CardHeader, Chip, ChipRow, Grid, Inline, List, ListItem, PageHeaderCard, PageShell, PageTitle, SectionTitle, SubText } from "@/components/ui/Page";
 
 const strategies = [
   { name: "모멘텀", desc: "최근 자주 나온 번호와 흐름이 좋은 번호" },
@@ -22,10 +22,9 @@ export function LottoAnalysis() {
 
   return (
     <PageShell $width="1000px">
-      <Card>
+      <PageHeaderCard>
         <PageTitle>로또</PageTitle>
-        <SubText>통계 전략 기반 번호 분석 화면입니다. 내 조합 저장은 로그인 후 가능합니다.</SubText>
-      </Card>
+      </PageHeaderCard>
       <Grid>
         {strategies.map((strategy) => (
           <Card key={strategy.name}>

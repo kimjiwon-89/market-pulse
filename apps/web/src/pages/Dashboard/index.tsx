@@ -17,6 +17,8 @@ import {
   ListItem,
   Mono,
   MutedText,
+  PageHeaderCard,
+  PageHeaderMeta,
   PageShell,
   PageTitle,
   RowButton,
@@ -44,17 +46,14 @@ export function Dashboard() {
 
   return (
     <PageShell $width="1200px">
-      <Card>
-        <CardHeader>
-          <div>
-            <PageTitle>시장 보기</PageTitle>
-            <SubText>지수, 주요 종목, 수급, 뉴스를 퀀트 모델 신호와 함께 확인하는 보조 화면입니다.</SubText>
-          </div>
+      <PageHeaderCard>
+        <PageTitle>시장 보기</PageTitle>
+        <PageHeaderMeta>
           <Button type="button" onClick={() => navigate("/quant/today")} $primary>
             오늘의 종목 보기
           </Button>
-        </CardHeader>
-      </Card>
+        </PageHeaderMeta>
+      </PageHeaderCard>
 
       <Grid>
         {mockIndices.map((item) => (

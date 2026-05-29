@@ -1,18 +1,66 @@
+import { useEffect, useState } from "react";
+import { getQuantHomeSummary } from "@/features/quant/api";
+import type { QuantHomeSummary } from "@/features/quant/types";
 import { QuantDecisionSection } from "./QuantDecisionSection";
 import { QuantHeroSection } from "./QuantHeroSection";
-import { QuantModelIntro } from "./QuantModelIntro";
-import { QuantUtilityRail } from "./QuantUtilityRail";
-import { HomeShell, Stack } from "./styles";
+import { QuantAdCard, QuantNewsCard } from "./QuantUtilityRail";
+import { BodyCopy, Card, HomeContentGrid, HomeShell, HomeTopGrid, MobileOnly, Stack } from "./styles";
+
+const emptySummary: QuantHomeSummary = {
+  decisions: [],
+  kpis: [
+    { id: "look", label: "오늘 후보", value: "0개", hint: "Bull v4 후보 종목", direction: "flat" },
+    { id: "caution", label: "경고", value: "0건", hint: "최신 리포트 기준", direction: "flat" },
+    { id: "performance", label: "누적 수익률", value: "-", hint: "Bull v4 리플레이 성과", direction: "flat" },
+    { id: "reports", label: "리포트", value: "0개", hint: "백엔드 생성 리포트", direction: "flat" },
+  ],
+  models: [],
+  reports: [],
+  news: [],
+};
 
 export function QuantHomePage() {
+  const [summary, setSummary] = useState<QuantHomeSummary>(emptySummary);
+  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+
+  useEffect(() => {
+    let mounted = true;
+    getQuantHomeSummary()
+      .then((data) => {
+        if (!mounted) return;
+        setSummary(data);
+        setStatus("ready");
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setStatus("error");
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   return (
     <HomeShell>
       <Stack>
-        <QuantHeroSection />
-        <QuantDecisionSection />
-        <QuantModelIntro />
+        {status === "error" ? (
+          <Card $soft>
+            <BodyCopy>실제 Bull v4 데이터를 불러오지 못했습니다. 백엔드 API 연결 상태를 확인해주세요.</BodyCopy>
+          </Card>
+        ) : null}
+        <HomeTopGrid>
+          <QuantHeroSection summary={summary} />
+          <QuantAdCard slot="desktop_side_top" />
+        </HomeTopGrid>
+        <MobileOnly>
+          <QuantAdCard slot="mobile_inline_top" />
+        </MobileOnly>
+        <HomeContentGrid>
+          <QuantDecisionSection decisions={summary.decisions} />
+          <QuantNewsCard news={summary.news} />
+        </HomeContentGrid>
       </Stack>
-      <QuantUtilityRail />
     </HomeShell>
   );
 }
