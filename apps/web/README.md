@@ -12,20 +12,45 @@ Responsibilities:
 - investor-flow views
 - quant/lottery/tarot serving views
 
-Current page structure:
+Current source structure:
 
 ```text
-src/features/mock/    shared market/news/lotto mock data
-src/features/quant/   typed mock data and shared quant UI primitives
-src/pages/QuantHome/  public home dashboard
-src/pages/QuantToday/ public today-stock decision list
-src/pages/QuantModels/ public model list and model detail
-src/pages/Reports/    public mock report list/detail
-src/pages/Services/   lotto/tarot service entry
-src/pages/LottoAnalysis/ mock lotto analysis
-src/pages/MyPage/     login-gated personal surface
-src/pages/Dashboard/  existing market dashboard, routed at /market
-src/pages/Admin/      admin-only operations and validation/backtest area
+src/app/                app router/provider/theme/global reset setup
+src/components/         shared UI primitives only
+src/layout/             app shell, header, sidebar, bottom nav
+src/hooks/              shared hooks
+src/features/
+  quant/
+    api.ts              quant endpoint functions
+    store.ts            quant feature state
+    types.ts            quant feature types
+    mock.ts             quant mock-data exports
+    home/               quant home feature UI and styled-components
+    today/              target folder for today-stock feature UI
+    models/             target folder for model-list/detail feature UI
+  market/               target market feature API/store/types/UI
+  auth/                 target auth feature API/store/types/UI
+  reports/              target reports feature API/store/types/UI
+  services/             target lotto/tarot service API/store/types/UI
+src/pages/              route wrappers only
+src/store/              shared store composition only
+```
+
+Implementation rules:
+
+- Product UI styling uses `styled-components`.
+- CSS files are not used for screen or component styles.
+- Global style is reset/base only, preferably through `src/app/GlobalStyle.ts`.
+- Feature API/store/type files live beside the feature under `src/features/<domain>/`.
+- `src/api` and `src/store` are for shared client/setup composition only.
+- Responsive UI stays in the same feature folder. If markup differs, split components such as `DesktopDecisionTable.tsx` and `MobileDecisionList.tsx`; do not create separate `mobile/` and `desktop/` folders.
+
+Migration status:
+
+```text
+src/features/quant/home/  migrated to feature-first styled-components
+src/pages/QuantHome.tsx   route wrapper for QuantHomePage
+src/index.css             legacy styles for not-yet-migrated screens/layout
 ```
 
 Route direction:
@@ -49,8 +74,8 @@ Stack target:
 - React
 - TypeScript
 - Vite
-- Tailwind CSS
 - React Router
+- styled-components
 
 Run:
 

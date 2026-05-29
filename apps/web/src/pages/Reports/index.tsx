@@ -1,62 +1,127 @@
-import { Link, useParams } from "react-router-dom";
-import { quantReports } from "@/features/quant/quantMockData";
+import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
+import { getBullQuantReportDetail, getBullQuantReports } from "@/features/quant/api";
+import type { QuantReportDetail, QuantReportSummary } from "@/features/quant/types";
+import { Badge, Card, CardHeader, CardLink, Chip, ChipRow, List, ListItem, MutedText, PageHeaderCard, PageHeaderMeta, PageShell, PageTitle, SectionTitle, Stack, SubText, TextLink } from "@/components/ui/Page";
 
 export function Reports() {
   const { reportId } = useParams();
-  const selected = reportId ? quantReports.find((report) => report.id === reportId) : null;
+  const [reports, setReports] = useState<QuantReportSummary[]>([]);
+  const [selected, setSelected] = useState<QuantReportDetail | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState(false);
 
-  if (reportId && !selected) {
+  useEffect(() => {
+    let mounted = true;
+
+    const request = reportId ? getBullQuantReportDetail(reportId).then((detail) => ({ detail, reports: [] })) : getBullQuantReports().then((items) => ({ detail: null, reports: items }));
+
+    request
+      .then(({ detail, reports: items }) => {
+        if (!mounted) return;
+        setSelected(detail);
+        setReports(items);
+        setLoaded(true);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setError(true);
+        setLoaded(true);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [reportId]);
+
+  if (reportId && !loaded) {
     return (
-      <div className="error-block">
-        <div className="error-title">리포트를 찾을 수 없습니다</div>
-        <Link className="btn" to="/reports">리포트 목록으로</Link>
-      </div>
+      <PageShell $width="880px">
+        <PageHeaderCard>
+          <PageTitle>리포트를 불러오는 중입니다</PageTitle>
+        </PageHeaderCard>
+      </PageShell>
+    );
+  }
+
+  if (reportId && (!selected || error)) {
+    return (
+      <PageShell $width="880px">
+        <PageHeaderCard>
+          <PageTitle>리포트를 찾을 수 없습니다</PageTitle>
+          <PageHeaderMeta><TextLink to="/reports">리포트 목록으로</TextLink></PageHeaderMeta>
+        </PageHeaderCard>
+      </PageShell>
     );
   }
 
   if (selected) {
     return (
-      <article className="stack max-w-[880px] mx-auto">
-        <div className="card">
-          <Link className="card-link" to="/reports">← 리포트 목록</Link>
-          <h1 style={{ margin: "14px 0 0", fontSize: 24, fontWeight: 800 }}>{selected.title}</h1>
-          <p className="card-sub" style={{ marginTop: 8 }}>{selected.modelName} · {selected.publishedAt}</p>
-        </div>
-        <div className="card">
-          <div className="card-title">요약</div>
-          <p style={{ color: "var(--text-2)", lineHeight: 1.8 }}>{selected.summary}</p>
-          <div className="chips" style={{ marginTop: 16 }}>
-            {selected.keywords.map((keyword) => <span key={keyword} className="chip">{keyword}</span>)}
-          </div>
-        </div>
-        <div className="card">
-          <div className="card-title">화면 구현 메모</div>
-          <p style={{ margin: "10px 0 0", color: "var(--text-3)" }}>
-            현재는 목데이터입니다. 실제 백엔드는 화면 확정 후 리포트 목록, 상세 본문, 모델 연결 정보를 제공하면 됩니다.
-          </p>
-        </div>
-      </article>
+      <PageShell $width="880px">
+        <PageHeaderCard as="article">
+          <PageTitle>{selected.title}</PageTitle>
+          <PageHeaderMeta>
+            <TextLink to="/reports">리포트 목록</TextLink>
+            <Badge $tone="accent">{selected.modelName}</Badge>
+            <MutedText>{selected.publishedAt}</MutedText>
+          </PageHeaderMeta>
+        </PageHeaderCard>
+        <Card>
+          <SectionTitle>핵심 판단</SectionTitle>
+          <SubText>{selected.summary}</SubText>
+          <ChipRow>
+            {selected.keywords.map((keyword) => <Chip key={keyword}>{keyword}</Chip>)}
+          </ChipRow>
+        </Card>
+        <Card>
+          <SectionTitle>모델 근거</SectionTitle>
+          <List>
+            {selected.sections.map((section, index) => <ListItem key={`${section}-${index}`}>{section}</ListItem>)}
+            {selected.sections.length === 0 ? <ListItem>백엔드 리포트 본문 섹션이 없습니다.</ListItem> : null}
+          </List>
+        </Card>
+        <Card $soft>
+          <SectionTitle>사용자 체크포인트</SectionTitle>
+          <List>
+            {selected.checkpoints.map((checkpoint, index) => <ListItem key={`${checkpoint}-${index}`}>{checkpoint}</ListItem>)}
+            {selected.checkpoints.length === 0 ? <ListItem>리포트 체크포인트가 없습니다.</ListItem> : null}
+          </List>
+        </Card>
+      </PageShell>
     );
   }
 
   return (
-    <div className="stack max-w-[1000px] mx-auto">
-      <div className="card">
-        <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>리포트</h1>
-        <p style={{ margin: "8px 0 0", color: "var(--text-2)" }}>모델이 오늘 어떤 이유로 판단했는지 쉬운 말로 정리합니다.</p>
-      </div>
-      <div className="stack">
-        {quantReports.map((report) => (
-          <Link key={report.id} to={`/reports/${report.id}`} className="card" style={{ textDecoration: "none", color: "inherit" }}>
-            <div className="card-head">
-              <div className="card-title" style={{ fontSize: 16 }}>{report.title}</div>
-              <span className="tag">{report.modelName}</span>
-            </div>
-            <p style={{ color: "var(--text-2)", margin: 0 }}>{report.summary}</p>
-            <div className="card-sub" style={{ marginTop: 14 }}>{report.publishedAt}</div>
-          </Link>
+    <PageShell $width="1000px">
+      <PageHeaderCard>
+        <PageTitle>리포트</PageTitle>
+        <PageHeaderMeta>
+          <MutedText>{reports.length}개</MutedText>
+        </PageHeaderMeta>
+      </PageHeaderCard>
+      {error ? (
+        <Card $soft>
+          <SubText>실제 리포트 목록을 불러오지 못했습니다.</SubText>
+        </Card>
+      ) : null}
+      <Stack>
+        {reports.map((report) => (
+          <CardLink key={report.id} to={`/reports/${report.id}`}>
+            <CardHeader>
+              <SectionTitle>{report.title}</SectionTitle>
+              <Badge $tone="accent">{report.modelName}</Badge>
+            </CardHeader>
+            <SubText>{report.summary}</SubText>
+            <MutedText>{report.publishedAt}</MutedText>
+          </CardLink>
         ))}
-      </div>
-    </div>
+        {reports.length === 0 && !error ? (
+          <Card>
+            <SectionTitle>리포트 없음</SectionTitle>
+            <SubText>아직 생성된 Bull v4 리포트가 없습니다.</SubText>
+          </Card>
+        ) : null}
+      </Stack>
+    </PageShell>
   );
 }

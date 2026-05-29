@@ -1,43 +1,52 @@
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { mockIndices, mockStocks } from "@/features/mock/marketMockData";
+import { Badge, Card, ChartBox, DataTable, Mono, PageHeaderCard, PageHeaderMeta, PageShell, PageTitle, SectionTitle, SubText, TableCard, TableScroll, TextLink } from "@/components/ui/Page";
 
 export function IndexDetail() {
   const { id } = useParams();
   const index = mockIndices.find((item) => item.code === id) ?? mockIndices[0];
 
   return (
-    <div className="stack max-w-[1000px] mx-auto">
-      <div className="card">
-        <Link className="card-link" to="/market">← 시장 보기</Link>
-        <h1 style={{ margin: "14px 0 0", fontSize: 24, fontWeight: 800 }}>{index.name}</h1>
-        <div className={index.changeRate >= 0 ? "num-lg up" : "num-lg down"} style={{ marginTop: 12 }}>
-          {index.value.toLocaleString("ko-KR")} · {index.changeRate}%
-        </div>
-      </div>
-      <div className="card">
-        <div className="card-title">흐름</div>
-        <div style={{ height: 280, marginTop: 16 }}>
+    <PageShell $width="1000px">
+      <PageHeaderCard>
+        <PageTitle>{index.name}</PageTitle>
+        <PageHeaderMeta>
+          <TextLink to="/market">시장 보기</TextLink>
+          <Badge>{index.value.toLocaleString("ko-KR")}</Badge>
+          <Badge $tone={index.changeRate >= 0 ? "up" : "down"}>{index.changeRate}%</Badge>
+        </PageHeaderMeta>
+      </PageHeaderCard>
+      <Card>
+        <SectionTitle>흐름</SectionTitle>
+        <ChartBox $height="280px">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={index.trend.map((value, day) => ({ day: `${day + 1}`, value }))}>
               <XAxis dataKey="day" />
               <YAxis domain={["dataMin - 20", "dataMax + 20"]} />
               <Tooltip />
-              <Line dataKey="value" stroke={index.changeRate >= 0 ? "var(--up)" : "var(--down)"} dot={false} strokeWidth={2} />
+              <Line dataKey="value" stroke={index.changeRate >= 0 ? "#d62828" : "#1e5edb"} dot={false} strokeWidth={2} />
             </LineChart>
           </ResponsiveContainer>
-        </div>
-      </div>
-      <div className="card">
-        <div className="card-title">관련 주요 종목</div>
-        <table className="t" style={{ marginTop: 12 }}>
-          <tbody>
-            {mockStocks.slice(0, 4).map((stock) => (
-              <tr key={stock.code}><td>{stock.name}</td><td>{stock.sector}</td><td className={stock.changeRate >= 0 ? "num up" : "num down"}>{stock.changeRate}%</td></tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+        </ChartBox>
+      </Card>
+      <TableCard>
+        <SectionTitle>관련 주요 종목</SectionTitle>
+        <SubText>지수 흐름과 같이 확인할 대표 종목입니다.</SubText>
+        <TableScroll>
+          <DataTable>
+            <tbody>
+              {mockStocks.slice(0, 4).map((stock) => (
+                <tr key={stock.code}>
+                  <td>{stock.name}<br /><Mono>{stock.code}</Mono></td>
+                  <td>{stock.sector}</td>
+                  <td className="num">{stock.changeRate}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </DataTable>
+        </TableScroll>
+      </TableCard>
+    </PageShell>
   );
 }

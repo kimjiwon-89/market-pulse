@@ -15,7 +15,7 @@ export interface QuantKpi {
 export interface QuantDecision {
   assetCode: string;
   assetName: string;
-  market: "KOSPI" | "KOSDAQ" | "ETF";
+  market?: "KOSPI" | "KOSDAQ" | "ETF";
   badgeText: string;
   badgeTone: StockBadgeTone;
   modelNames: string[];
@@ -36,6 +36,12 @@ export interface QuantModelSummary {
   signalStrength: "낮음" | "보통" | "높음";
   focus: string[];
   todayCount: number;
+  seedMoney?: number;
+  totalReturnPct?: number;
+  totalProfit?: number;
+  currentCapital?: number;
+  monthlyReturnPct?: number;
+  monthlyMarketRegime?: "BULL" | "SIDEWAY" | "BEAR";
 }
 
 export interface QuantReportSummary {
@@ -46,4 +52,71 @@ export interface QuantReportSummary {
   publishedAt: string;
   summary: string;
   keywords: string[];
+}
+
+export interface QuantReportDetail extends QuantReportSummary {
+  sections: string[];
+  checkpoints: string[];
+}
+
+export interface QuantCandidateHistoryItem {
+  assetCode: string;
+  assetName: string;
+  date: string;
+  label: string;
+  reason: string;
+  price?: number;
+  returnPct?: number;
+}
+
+export interface QuantTradeHistoryItem {
+  tradeId: string;
+  assetCode: string;
+  assetName: string;
+  side: "BUY" | "SELL" | string;
+  fillTime: string;
+  fillPrice?: number;
+  realizedReturnPct?: number;
+  reason: string;
+}
+
+export interface QuantModelDetail {
+  candidates: QuantCandidateHistoryItem[];
+  trades: QuantTradeHistoryItem[];
+}
+
+export interface QuantNewsItem {
+  id: string;
+  title: string;
+  source?: string;
+  publishedAt?: string;
+}
+
+export interface QuantMarketOverviewItem {
+  id: string;
+  label: string;
+  value: string;
+  regime: "BULL" | "SIDE" | "BEAR";
+  delta: string;
+  direction: "up" | "down" | "flat";
+}
+
+export interface QuantHotStockItem {
+  id: string;
+  label: string;
+  assetName: string;
+  assetCode?: string;
+  changeRate: string;
+  direction: "up" | "down" | "flat";
+}
+
+export interface QuantHomeSummary {
+  decisions: QuantDecision[];
+  kpis: QuantKpi[];
+  models: QuantModelSummary[];
+  reports: QuantReportSummary[];
+  news: QuantNewsItem[];
+  marketOverview?: QuantMarketOverviewItem[];
+  hotStocks?: QuantHotStockItem[];
+  asOf?: string;
 }

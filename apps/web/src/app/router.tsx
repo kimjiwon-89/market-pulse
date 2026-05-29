@@ -1,5 +1,5 @@
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
-import { DefaultLayout } from "@/components/common/DefaultLayout";
+import { DefaultLayout } from "@/layout/DefaultLayout";
 import { Dashboard } from "@/pages/Dashboard";
 import { IndexDetail } from "@/pages/IndexDetail";
 import { InvestorTrend } from "@/pages/InvestorTrend";
@@ -48,6 +48,7 @@ const router = createBrowserRouter([
       { path: "my", element: <MyPage /> },
       { path: "quant", element: <QuantModels /> },
       { path: "quant/today", element: <QuantToday /> },
+      { path: "quant/:modelCode/month/:monthKey", element: <QuantModels /> },
       { path: "quant/:modelCode", element: <QuantModels /> },
       { path: "reports", element: <Reports /> },
       { path: "reports/:reportId", element: <Reports /> },

@@ -8,6 +8,10 @@ Read `README.md` first, then root `market-pulse-prod/AGENTS.md`.
 - API calls must use production API client patterns.
 - User-facing reports go under `report/<domain>/<topic>/`, not `.agents`.
 - For quant home, today-stock, model overview, and beginner-facing dashboard work, read `.agents/guides/quant-home-design-guide.md` before planning or editing UI.
+- New or refactored UI must use `styled-components`; do not add screen/component styles to CSS files.
+- CSS files are allowed only for minimal reset/base if not yet migrated to `createGlobalStyle`; all product UI styling belongs in styled-components.
+- Organize frontend work by feature: `features/<domain>/{api.ts,store.ts,types.ts,...}` with route wrappers in `pages`, shared primitives in `components`, and shell/nav in `layout`.
+- API and store logic must be feature-scoped where possible; root `api` and `store` are for shared client/setup composition only.
 
 
 ## Recursive Scope
@@ -26,6 +30,7 @@ Read `README.md` first, then root `market-pulse-prod/AGENTS.md`.
 ## HTML Output Guide
 - Do not create HTML unless the user explicitly asks for HTML, or the user-facing plan/report is complete and the user requests an HTML deliverable.
 - Before creating or editing any HTML report, read `D:\market-pulse\.agents\guides\html-output-style.md` and follow it as a strict contract.
+- All user-facing text in HTML planning documents, reports, guides, and visual summaries must be written in Korean by default; code, API names, file paths, class names, commands, model IDs, brand/product names, unavoidable technical terms, and direct quotations are allowed exceptions.
 - Use `D:\market-pulse\report\rebuild\master-plan\archive\project-overview.html` as the required visual/structural reference.
 - Required default format: fixed 220px sidebar, `main.main` document body, section anchors, 1100px content width, compact cards/tables, and project-document navigation.
 - Do not use marketing heroes, full dashboard shells, wide KPI-first layouts, gradient/orb decoration, or unrelated custom CSS systems unless the user explicitly asks for a different style.

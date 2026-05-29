@@ -1,0 +1,76 @@
+<h2>Bull v4 상세 화면: 초보자도 이해하는 첫 화면</h2>
+<p class="subtitle">실제 종목 후보가 0개여도 사용자가 "이 모델이 무엇을 하고, 지금 왜 조용한지" 바로 알게 만드는 3가지 방향입니다.</p>
+
+<div class="cards">
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">A. 모델 설명 먼저</div>
+        <div class="mockup-body">
+          <h3>Bull v4는 상승장 후보를 찾는 모델입니다</h3>
+          <p>현재는 새 후보가 없습니다. 조건이 맞을 때만 종목을 보여줍니다.</p>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0;">
+            <div class="placeholder">운영 상태<br><strong>점검 필요</strong></div>
+            <div class="placeholder">오늘 후보<br><strong>0개</strong></div>
+            <div class="placeholder">누적 성과<br><strong>대기 중</strong></div>
+          </div>
+          <div class="placeholder">이 모델이 보는 조건: 상승장, 거래대금, 진입 확인, 손절/익절 규칙</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A. 설명형</h3>
+      <p>모델이 무엇인지, 왜 후보가 없는지, 어떤 기준으로 고르는지 가장 쉽게 설명합니다.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">B. 오늘 판단 먼저</div>
+        <div class="mockup-body">
+          <h3>오늘은 매수 후보 없음</h3>
+          <p>무리해서 추천하지 않습니다. Bull v4 조건을 통과한 종목만 보여줍니다.</p>
+          <div class="placeholder">오늘의 판단: 관망</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;">
+            <div class="placeholder">왜 없음?<br>시장/종목 조건 미충족</div>
+            <div class="placeholder">다음 확인<br>장 마감 데이터 반영 후</div>
+          </div>
+          <button class="mock-button">최근 리포트 보기</button>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B. 판단형</h3>
+      <p>사용자가 제일 궁금한 "그래서 오늘 살 게 있나?"에 먼저 답합니다.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">C. 신뢰 근거 먼저</div>
+        <div class="mockup-body">
+          <h3>검증된 종목 선별 규칙</h3>
+          <p>100M paper 기준으로 운영 중인 Bull v4 5.0.1입니다.</p>
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:14px 0;">
+            <div class="placeholder">운영 자금<br><strong>1억원</strong></div>
+            <div class="placeholder">1종목 기준<br><strong>1천만원</strong></div>
+            <div class="placeholder">최대 보유<br><strong>10종목</strong></div>
+            <div class="placeholder">버전<br><strong>5.0.1</strong></div>
+          </div>
+          <div class="placeholder">성과/검증 리포트, 위험 경고, 롤백 기준</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C. 신뢰형</h3>
+      <p>모델 버전, 운영 자금, 리스크 기준을 보여줘 "검증된 서비스" 느낌을 줍니다.</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>추천</h3>
+  <p>첫 버전은 <strong>B 판단형 + A 설명형 일부</strong>가 좋아 보입니다. 사용자는 먼저 "오늘은 살 게 있는지"를 알고 싶고, 비어 있을 때 이유 설명이 필요합니다.</p>
+</div>

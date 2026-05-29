@@ -1,19 +1,35 @@
+import { Badge, Button, Card, CardHeader, Grid, PageHeaderCard, PageShell, PageTitle, SectionTitle, Stack, SubText } from "@/components/ui/Page";
+
+const cards = [
+  { title: "현재", copy: "지금 가장 크게 작용하는 흐름을 정리합니다." },
+  { title: "흐름", copy: "선택지가 어디로 이어질지 차분히 살펴봅니다." },
+  { title: "조언", copy: "오늘 당장 무리하지 않아도 되는 점검 포인트를 남깁니다." },
+];
+
 export function TarotPage() {
   return (
-    <div className="stack max-w-[900px] mx-auto">
-      <div className="card">
-        <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>타로</h1>
-        <p style={{ margin: "8px 0 0", color: "var(--text-2)" }}>타로 서비스 화면의 목데이터 버전입니다.</p>
-      </div>
-      <div className="grid-3">
-        {["현재", "흐름", "조언"].map((card, index) => (
-          <div key={card} className="card" style={{ minHeight: 180 }}>
-            <div className="card-title">{card}</div>
-            <div style={{ marginTop: 28, fontSize: 42, fontWeight: 800, color: "var(--text-4)" }}>{index + 1}</div>
-            <p style={{ color: "var(--text-2)" }}>오늘의 선택을 차분히 점검해보세요.</p>
-          </div>
+    <PageShell $width="900px">
+      <PageHeaderCard>
+        <PageTitle>타로</PageTitle>
+      </PageHeaderCard>
+      <Grid>
+        {cards.map((card, index) => (
+          <Card key={card.title}>
+            <CardHeader>
+              <SectionTitle>{card.title}</SectionTitle>
+              <Badge>{index + 1}</Badge>
+            </CardHeader>
+            <SubText>{card.copy}</SubText>
+          </Card>
         ))}
-      </div>
-    </div>
+      </Grid>
+      <Card $soft>
+        <Stack $gap="12px">
+          <SectionTitle>리딩 요청</SectionTitle>
+          <SubText>질문은 계정에 연결되는 개인 콘텐츠입니다. 저장과 재열람은 로그인 후 연결합니다.</SubText>
+          <Button type="button">질문 작성</Button>
+        </Stack>
+      </Card>
+    </PageShell>
   );
 }

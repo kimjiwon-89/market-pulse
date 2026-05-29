@@ -25,6 +25,7 @@ Read `README.md` first, then root `market-pulse-prod/AGENTS.md`.
 ## HTML Output Guide
 - Do not create HTML unless the user explicitly asks for HTML, or the user-facing plan/report is complete and the user requests an HTML deliverable.
 - Before creating or editing any HTML report, read `D:\market-pulse\.agents\guides\html-output-style.md` and follow it as a strict contract.
+- All user-facing text in HTML planning documents, reports, guides, and visual summaries must be written in Korean by default; code, API names, file paths, class names, commands, model IDs, brand/product names, unavoidable technical terms, and direct quotations are allowed exceptions.
 - Use `D:\market-pulse\report\rebuild\master-plan\archive\project-overview.html` as the required visual/structural reference.
 - Required default format: fixed 220px sidebar, `main.main` document body, section anchors, 1100px content width, compact cards/tables, and project-document navigation.
 - Do not use marketing heroes, full dashboard shells, wide KPI-first layouts, gradient/orb decoration, or unrelated custom CSS systems unless the user explicitly asks for a different style.
