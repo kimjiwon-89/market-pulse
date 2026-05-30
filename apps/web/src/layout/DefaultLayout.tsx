@@ -28,6 +28,11 @@ const Main = styled.main`
     padding: 16px;
     padding-bottom: calc(76px + env(safe-area-inset-bottom));
   }
+
+  @media (max-width: 360px) {
+    padding: 12px;
+    padding-bottom: calc(72px + env(safe-area-inset-bottom));
+  }
 `;
 
 export function DefaultLayout() {

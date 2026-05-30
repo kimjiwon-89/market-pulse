@@ -4,6 +4,7 @@ import styled, { css } from "styled-components";
 export const PageShell = styled.div<{ $width?: string }>`
   width: 100%;
   max-width: ${({ $width }) => $width ?? "1120px"};
+  min-width: 0;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -35,10 +36,15 @@ export const Grid = styled.div<{ $columns?: string; $gap?: string }>`
 `;
 
 export const Card = styled.section<{ $soft?: boolean; $pad?: string }>`
+  min-width: 0;
   background: ${({ $soft, theme }) => ($soft ? theme.color.softPanel : theme.color.panel)};
   border: 1px solid ${({ $soft, theme }) => ($soft ? theme.color.softBorder : theme.color.border)};
   border-radius: ${({ theme }) => theme.radius.card};
   padding: ${({ $pad, theme }) => $pad ?? theme.spacing.card};
+
+  @media (max-width: ${({ theme }) => theme.breakpoint.mobile}) {
+    padding: ${({ $pad }) => $pad ?? "16px"};
+  }
 `;
 
 export const PageHeaderCard = styled(Card)`
@@ -63,6 +69,13 @@ export const PageHeaderMeta = styled.div`
   gap: 8px;
   flex-wrap: wrap;
   margin-left: auto;
+  min-width: 0;
+
+  @media (max-width: ${({ theme }) => theme.breakpoint.mobile}) {
+    justify-content: flex-start;
+    width: 100%;
+    margin-left: 0;
+  }
 `;
 
 export const ClickCard = styled.button`

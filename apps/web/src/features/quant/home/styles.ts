@@ -54,7 +54,7 @@ export const Card = styled.section<{ $soft?: boolean; $flush?: boolean }>`
   background: ${({ $soft, theme }) => ($soft ? theme.color.softPanel : theme.color.panel)};
 
   @media (max-width: ${({ theme }) => theme.breakpoint.tablet}) {
-    padding: ${({ $flush }) => ($flush ? "0" : "16px")};
+    padding: ${({ $flush }) => ($flush ? "0" : "20px")};
   }
 `;
 
@@ -72,6 +72,7 @@ export const HeroSectionStack = styled.div`
   display: flex;
   flex-direction: column;
   gap: ${({ theme }) => theme.spacing.sectionGap};
+  padding: 20px;
 `;
 
 export const HeroPanel = styled.div<{ $market?: boolean }>`
@@ -477,6 +478,148 @@ export const MobileDecisionList = styled.div`
   }
 `;
 
+export const SignalSectionCard = styled(Card)`
+  overflow: hidden;
+`;
+
+export const QuantSignalTabs = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: calc(100% - 40px);
+  padding: 4px;
+  margin: 0 20px 12px;
+  overflow-x: auto;
+  border: 1px solid ${({ theme }) => theme.color.border};
+  border-radius: ${({ theme }) => theme.radius.pill};
+  background: ${({ theme }) => theme.color.softPanel};
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  @media (max-width: ${({ theme }) => theme.breakpoint.tablet}) {
+    max-width: calc(100% - 32px);
+    margin-inline: 16px;
+  }
+`;
+
+export const QuantSignalTabButton = styled.button<{ $active: boolean }>`
+  min-width: 74px;
+  height: 34px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: ${({ theme }) => theme.radius.pill};
+  background: ${({ $active, theme }) => ($active ? theme.color.accent : "transparent")};
+  color: ${({ $active, theme }) => ($active ? "#fff" : theme.color.textMuted)};
+  font: inherit;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+
+  &:focus-visible {
+    outline: 2px solid ${({ theme }) => theme.color.accent};
+    outline-offset: 2px;
+  }
+`;
+
+export const QuantSignalList = styled.div`
+  display: flex;
+  max-height: calc(104px * 3 + 20px);
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  padding: 0 20px 20px;
+  scrollbar-width: thin;
+
+  @media (max-width: ${({ theme }) => theme.breakpoint.tablet}) {
+    max-height: calc(98px * 3 + 20px);
+    padding: 0 20px 20px;
+  }
+`;
+
+export const QuantSignalCard = styled.div`
+  min-height: 104px;
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid ${({ theme }) => theme.color.border};
+  border-radius: ${({ theme }) => theme.radius.card};
+  background: ${({ theme }) => theme.color.softPanel};
+
+  @media (max-width: ${({ theme }) => theme.breakpoint.tablet}) {
+    min-height: 98px;
+    padding: 12px;
+  }
+`;
+
+export const QuantSignalStock = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+`;
+
+export const QuantSignalName = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: ${({ theme }) => theme.color.text};
+  font-size: 15px;
+  font-weight: 800;
+
+  span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+`;
+
+export const QuantSignalMeta = styled.div`
+  margin-top: 3px;
+  color: ${({ theme }) => theme.color.textSubtle};
+  font-size: 12px;
+  line-height: 1.25;
+`;
+
+export const QuantSignalReasonRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+`;
+
+export const QuantSignalReason = styled.span`
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid ${({ theme }) => theme.color.border};
+  border-radius: ${({ theme }) => theme.radius.pill};
+  color: ${({ theme }) => theme.color.textMuted};
+  font-size: 12px;
+  font-weight: 700;
+`;
+
+export const QuantSignalEmpty = styled.div`
+  min-height: 104px;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed ${({ theme }) => theme.color.border};
+  border-radius: ${({ theme }) => theme.radius.card};
+  background: ${({ theme }) => theme.color.softPanel};
+  color: ${({ theme }) => theme.color.textSubtle};
+  font-size: 13px;
+  font-weight: 800;
+`;
+
 export const DecisionBadge = styled.span<{ $code: string }>`
   display: inline-flex;
   align-items: center;
@@ -573,7 +716,7 @@ export const UtilityList = styled.div<{ $maxHeight?: string }>`
   flex-direction: column;
   gap: 8px;
   overflow-y: auto;
-  padding-right: 4px;
+  padding: 0 20px 20px;
 `;
 
 export const UtilityButton = styled.button`
@@ -616,6 +759,7 @@ export const AdCard = styled(Card)`
   min-height: 180px;
   flex-direction: column;
   justify-content: space-between;
+  padding: 20px;
   border-color: ${({ theme }) => theme.color.borderStrong};
   border-style: dashed;
   background: ${({ theme }) => theme.color.softPanel};

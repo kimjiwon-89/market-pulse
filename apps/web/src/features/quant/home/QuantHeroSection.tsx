@@ -81,7 +81,7 @@ export function QuantHeroSection({ summary }: QuantHeroSectionProps) {
   ];
 
   return (
-    <Card $soft>
+    <Card $soft $flush>
       <HeroSectionStack>
         <HeroPanel>
           <div>

@@ -4,17 +4,12 @@ import styled from "styled-components";
 import { getInvestorTradeTop, getLastFridayBasicDate, getMarketIndices, getMarketStockRankings } from "@/features/market/api";
 import type { InvestorTradeTopItem, InvestorTradeType, InvestorType, MarketIndexItem, MarketStockRanking, MarketStockRankingSort } from "@/features/market/api";
 import { formatAmount, mockNews } from "@/features/mock/marketMockData";
-import { quantDecisions } from "@/features/quant/quantMockData";
 import {
-  Badge,
   Button,
   Card,
   CardHeader,
-  Chip,
-  ChipRow,
   ClickCard,
   DataTable,
-  Grid,
   Inline,
   List,
   ListItem,
@@ -239,34 +234,11 @@ export function Dashboard() {
               </DataTable>
             </MarketTableScroll>
           </MarketTableCard>
-
-          <Card>
-            <CardHeader>
-              <div>
-                <SectionTitle>퀀트 모델 신호</SectionTitle>
-                <SubText>오늘의 종목과 시장을 같이 봅니다.</SubText>
-              </div>
-            </CardHeader>
-            <Grid $columns="repeat(2, minmax(0, 1fr))">
-              {quantDecisions.slice(0, 4).map((item) => (
-                <Card key={item.assetCode} $soft $pad="16px">
-                  <Inline $justify="space-between">
-                    <strong>{item.assetName}</strong>
-                    <Badge $tone={item.decisionCode === "WARNING" ? "warning" : item.decisionCode === "BUY" ? "up" : "flat"}>{item.decisionCode}</Badge>
-                  </Inline>
-                  <MutedText>{item.modelNames.join(", ")}</MutedText>
-                  <ChipRow>
-                    {item.reasonBullets.slice(0, 2).map((reason) => <Chip key={reason}>{reason}</Chip>)}
-                  </ChipRow>
-                </Card>
-              ))}
-            </Grid>
-          </Card>
         </Stack>
 
         <Stack>
           <Card>
-            <CardHeader>
+            <SupplyHeader>
               <div>
                 <SectionTitle>수급 TOP20</SectionTitle>
                 <SubText>{formatRankingDate(rankingDate)} 기준</SubText>
@@ -277,7 +249,7 @@ export function Dashboard() {
               >
                 더보기
               </Button>
-            </CardHeader>
+            </SupplyHeader>
             <SupplyControls>
               <SupplyToggle aria-label="수급 투자자 필터">
                 <SupplyToggleButton type="button" $active={supplyInvestor === "FOREIGN"} onClick={() => setSupplyInvestor("FOREIGN")}>
@@ -474,6 +446,20 @@ const MarketChangeRate = styled.span<{ $tone: "up" | "down" | "flat" }>`
 const MarketTableMessage = styled.div`
   padding: 18px 0;
   color: ${({ theme }) => theme.color.textSubtle};
+`;
+
+const SupplyHeader = styled(CardHeader)`
+  align-items: flex-start;
+  flex-direction: row;
+  gap: 12px;
+
+  > div {
+    min-width: 0;
+  }
+
+  ${Button} {
+    flex: 0 0 auto;
+  }
 `;
 
 const SupplyControls = styled.div`
