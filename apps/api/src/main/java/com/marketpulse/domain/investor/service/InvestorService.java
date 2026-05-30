@@ -43,18 +43,14 @@ public class InvestorService {
             String tradeType,
             String date
     ) {
-        if ("INSTITUTION".equals(investorType)) {
-            return List.of();
-        }
-
-        String effectiveInvestor = "FOREIGN";
+        String effectiveInvestor = investorType != null ? investorType : "FOREIGN";
         String effectiveTrade = tradeType != null ? tradeType : "BUY";
         String effectiveMarket = market != null ? market : "KOSPI";
 
         LocalDate requestDate = date != null ? LocalDate.parse(date, FMT) : LocalDate.now();
 
-        // 오늘 → KIS API 실시간 호출
-        if (requestDate.equals(LocalDate.now())) {
+        // 오늘 외국인 → KIS API 실시간 호출. 그 외 투자자는 저장된 스냅샷을 우선 사용.
+        if (requestDate.equals(LocalDate.now()) && "FOREIGN".equals(effectiveInvestor)) {
             try {
                 return fetchForeignTradeTop(effectiveMarket, effectiveTrade);
             } catch (Exception e) {

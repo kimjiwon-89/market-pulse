@@ -379,9 +379,18 @@ export const DecisionSectionCard = styled(Card)`
 
 export const DesktopTableWrap = styled.div`
   display: block;
+  overflow-x: auto;
 
   @media (max-width: ${({ theme }) => theme.breakpoint.mobile}) {
     display: none;
+  }
+`;
+
+export const DecisionEmptyState = styled.div`
+  padding: 8px 20px 20px;
+
+  p {
+    margin-top: 0;
   }
 `;
 

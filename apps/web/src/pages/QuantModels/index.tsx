@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import styled from "styled-components";
 import { getBullQuantModelDetail, getBullQuantReportDetail, getQuantHomeSummary } from "@/features/quant/api";
-import type { QuantCandidateHistoryItem, QuantDecision, QuantModelDetail, QuantModelSummary, QuantReportDetail, QuantReportSummary, QuantTradeHistoryItem } from "@/features/quant/types";
+import type { QuantCandidateHistoryItem, QuantDecision, QuantModelCategory, QuantModelDetail, QuantModelSummary, QuantReportDetail, QuantReportSummary, QuantTradeHistoryItem } from "@/features/quant/types";
 import {
   Badge,
   Card,
@@ -31,6 +31,7 @@ import {
 type DetailTab = "overview" | "today" | "period" | "trades" | "reports";
 type PeriodFilter = "today" | "7" | "30" | "all";
 type SummaryTab = "candidate" | "entry" | "exit" | "capital" | "monthly";
+type ModelCategoryFilter = "전체" | QuantModelCategory;
 
 const EMPTY_DETAIL: QuantModelDetail = { candidates: [], trades: [] };
 
@@ -233,6 +234,7 @@ export function QuantModels() {
   const [tradeBaseDate, setTradeBaseDate] = useState(todayIso());
   const [reportPeriod, setReportPeriod] = useState<PeriodFilter>("30");
   const [reportBaseDate, setReportBaseDate] = useState(todayIso());
+  const [modelCategoryFilter, setModelCategoryFilter] = useState<ModelCategoryFilter>("전체");
 
   useEffect(() => {
     let mounted = true;
@@ -288,6 +290,14 @@ export function QuantModels() {
   }, [searchParams]);
 
   const selected = modelCode ? models.find((model) => model.code === modelCode) : null;
+  const modelCategoryFilters = useMemo<ModelCategoryFilter[]>(
+    () => ["전체", ...Array.from(new Set(models.map((model) => model.category)))],
+    [models],
+  );
+  const filteredModels = useMemo(
+    () => modelCategoryFilter === "전체" ? models : models.filter((model) => model.category === modelCategoryFilter),
+    [modelCategoryFilter, models],
+  );
 
   const selectedDecisions = useMemo(
     () => (selected ? decisions.filter((item) => item.modelNames.includes(selected.name)) : []),
@@ -880,7 +890,7 @@ export function QuantModels() {
       <PageHeaderCard>
         <PageTitle>모델 목록</PageTitle>
         <PageHeaderMeta>
-          <MutedText>{models.length}개</MutedText>
+          <MutedText>{filteredModels.length} / {models.length}개</MutedText>
         </PageHeaderMeta>
       </PageHeaderCard>
       {error ? (
@@ -888,22 +898,46 @@ export function QuantModels() {
           <SubText>실제 모델 목록을 불러오지 못했습니다.</SubText>
         </Card>
       ) : null}
+      <FilterBar>
+        <Inline $wrap>
+          <FilterLabel>카테고리</FilterLabel>
+          {modelCategoryFilters.map((category) => (
+            <FilterButton
+              key={category}
+              type="button"
+              $active={modelCategoryFilter === category}
+              onClick={() => setModelCategoryFilter(category)}
+            >
+              {category}
+            </FilterButton>
+          ))}
+        </Inline>
+      </FilterBar>
       <Grid>
-        {models.map((model) => (
-          <CardLink key={model.code} to={`/quant/${model.code}`}>
+        {filteredModels.map((model) => (
+          <ModelCardLink key={model.code} to={`/quant/${model.code}`}>
             <CardHeader>
               <SectionTitle>{model.name}</SectionTitle>
               <Badge $tone="accent">{model.status}</Badge>
             </CardHeader>
             <SubText>{model.plainName}</SubText>
-            <ChipRow>{model.focus.map((item) => <Chip key={item}>{item}</Chip>)}</ChipRow>
+            <ChipRow>
+              <Chip $active>{model.category}</Chip>
+              {model.focus.map((item) => <Chip key={item}>{item}</Chip>)}
+            </ChipRow>
             <MutedText>오늘 종목 {model.todayCount}개 · {model.marketMode}</MutedText>
-          </CardLink>
+          </ModelCardLink>
         ))}
         {models.length === 0 && !error ? (
           <Card>
             <SectionTitle>불러오는 중</SectionTitle>
             <SubText>Bull v4 모델 상태를 확인하고 있습니다.</SubText>
+          </Card>
+        ) : null}
+        {models.length > 0 && filteredModels.length === 0 ? (
+          <Card>
+            <SectionTitle>표시할 모델이 없습니다</SectionTitle>
+            <SubText>선택한 카테고리에 해당하는 모델이 없습니다.</SubText>
           </Card>
         ) : null}
       </Grid>
@@ -994,6 +1028,26 @@ const AdSlot = styled(Card)`
   justify-content: center;
   border-style: dashed;
   background: ${({ theme }) => theme.color.softPanel};
+`;
+
+const ModelCardLink = styled(CardLink)`
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-block: 28px;
+
+  ${CardHeader} {
+    margin-bottom: 0;
+  }
+
+  ${SubText},
+  ${MutedText} {
+    margin: 0;
+  }
+
+  ${ChipRow} {
+    margin-top: 0;
+  }
 `;
 
 const ModelHeader = styled(Card)`

@@ -1,4 +1,5 @@
 import { apiClient } from "@/services/apiClient";
+import { mockNews } from "@/features/mock/marketMockData";
 import type {
   QuantDecision,
   QuantHomeSummary,
@@ -6,6 +7,8 @@ import type {
   QuantKpi,
   QuantMarketOverviewItem,
   QuantModelDetail,
+  QuantModelCategory,
+  QuantModelLabel,
   QuantModelSummary,
   QuantNewsItem,
   QuantReportDetail,
@@ -49,6 +52,8 @@ interface LiveModelSummaryDto {
   rawCandidateCountToday?: number;
   actualEntryCountToday?: number;
   latestReportTime?: string;
+  category?: QuantModelCategory;
+  modelCategory?: QuantModelCategory;
 }
 
 interface LiveCandidateDto {
@@ -159,6 +164,10 @@ function toneFromCode(code: string): StockBadgeTone {
 }
 
 function mapModel(dto: LiveModelSummaryDto): QuantModelSummary {
+  const code = dto.modelCode || BULL_MODEL_CODE;
+  const name = dto.modelName || (code === BULL_MODEL_CODE ? BULL_MODEL_NAME : code);
+  const category = dto.category ?? dto.modelCategory ?? "상승장";
+  const marketMode: QuantModelLabel = category === "하락장" ? "하락장 모델" : category === "횡보장" ? "횡보장 모델" : "상승장 모델";
   const status = dto.status === "RUNNING" ? "정상 운영" : dto.status === "DATA_DELAYED" ? "관찰 중" : "관리자 점검";
   const signalStrength = (dto.actualEntryCountToday ?? 0) > 0 ? "높음" : (dto.rawCandidateCountToday ?? 0) > 0 ? "보통" : "낮음";
   const seedMoney = dto.seedMoney ?? BULL_PAPER_SEED_MONEY;
@@ -166,11 +175,14 @@ function mapModel(dto: LiveModelSummaryDto): QuantModelSummary {
   const totalReturnPct = dto.totalReturnPct ?? (seedMoney > 0 ? (totalProfit / seedMoney) * 100 : 0);
 
   return {
-    code: BULL_MODEL_CODE,
-    name: BULL_MODEL_NAME,
-    plainName: "상승장 리플레이 기반 종목 신호",
-    description: "승률보다 손익비와 체크포인트를 함께 보는 Bull v4 운영 모델입니다.",
-    marketMode: "상승장 모델",
+    code,
+    name,
+    plainName: code === BULL_MODEL_CODE ? "상승장 리플레이 기반 종목 신호" : `${name} 후보 신호`,
+    description: code === BULL_MODEL_CODE
+      ? "승률보다 손익비와 체크포인트를 함께 보는 Bull v4 운영 모델입니다."
+      : `${name} 모델이 선별한 후보 종목입니다.`,
+    category,
+    marketMode,
     status,
     signalStrength,
     focus: ["Bull v4", "리플레이 검증", "위험 체크포인트"],
@@ -184,7 +196,7 @@ function mapModel(dto: LiveModelSummaryDto): QuantModelSummary {
   };
 }
 
-function mapDecision(dto: LiveCandidateDto): QuantDecision {
+function mapDecision(dto: LiveCandidateDto, model: QuantModelSummary = mapModel(fallbackBullModel)): QuantDecision {
   const warning = (dto.expectedReturnPct ?? 0) < 0 || dto.decision === "WARNING";
 
   return {
@@ -192,8 +204,8 @@ function mapDecision(dto: LiveCandidateDto): QuantDecision {
     assetName: dto.assetName,
     badgeText: dto.assetName.slice(0, 1),
     badgeTone: toneFromCode(dto.assetCode),
-    modelNames: [BULL_MODEL_NAME],
-    modelLabel: "상승장 모델",
+    modelNames: [model.name],
+    modelLabel: model.marketMode,
     decisionLabel: warning ? "조심할 종목" : "살펴볼 종목",
     decisionCode: warning ? "WARNING" : "BUY",
     reasonBullets: [dto.reason || dto.candidateType || "Bull v4 후보로 선별됨"],
@@ -275,6 +287,15 @@ function mapNews(dto: NewsDto): QuantNewsItem {
   };
 }
 
+function buildFallbackNews(): QuantNewsItem[] {
+  return mockNews.slice(0, 5).map((item) => ({
+    id: item.id,
+    title: item.title,
+    source: item.source,
+    publishedAt: item.date,
+  }));
+}
+
 function regimeFromChangeRate(changeRate?: number): QuantMarketOverviewItem["regime"] {
   if (changeRate === undefined) return "SIDE";
   if (changeRate >= 1) return "BULL";
@@ -350,24 +371,33 @@ function buildKpis(model: QuantModelSummary | undefined, rawModel: LiveModelSumm
 }
 
 export async function getQuantHomeSummary(): Promise<QuantHomeSummary> {
-  const [models, candidates, reports, news, kospi, kosdaq] = await Promise.all([
+  const [models, reports, news, kospi, kosdaq] = await Promise.all([
     getData<LiveModelSummaryDto[]>("/quant/live/models").catch(() => []),
-    getData<LiveCandidateDto[]>(`/quant/live/models/${BULL_MODEL_CODE}/candidates`).catch(() => []),
     getData<LiveReportSummaryDto[]>("/quant/live/reports", { modelCode: BULL_MODEL_CODE }).catch(() => []),
     getData<NewsDto[]>("/news/inquire-daily-news", { limit: 5 }).catch(() => []),
     getData<IndexResponseDto>("/index/inquire-daily-indexchartprice", { indexCode: "0001" }).catch(() => undefined),
     getData<IndexResponseDto>("/index/inquire-daily-indexchartprice", { indexCode: "1001" }).catch(() => undefined),
   ]);
 
-  const bullModelDto = models.find((model) => model.modelCode === BULL_MODEL_CODE) ?? fallbackBullModel;
+  const visibleModelDtos = models.length > 0 ? models : [fallbackBullModel];
+  const mappedModels = visibleModelDtos.map(mapModel);
+  const allCandidates = await Promise.all(visibleModelDtos.map(async (modelDto) => {
+    const model = mapModel(modelDto);
+    const candidates = await getData<LiveCandidateDto[]>(`/quant/live/models/${model.code}/candidates`).catch(() => []);
+    return candidates.map((item) => mapDecision(item, model));
+  }));
+  const decisions = allCandidates.flat();
+  const bullModelDto = visibleModelDtos.find((model) => model.modelCode === BULL_MODEL_CODE) ?? fallbackBullModel;
   const bullModel = mapModel(bullModelDto);
 
+  const mappedNews = news.map(mapNews).filter((item) => item.title !== "제목 없음");
+
   return {
-    decisions: candidates.map(mapDecision),
+    decisions,
     kpis: buildKpis(bullModel, bullModelDto, reports),
-    models: [bullModel],
+    models: mappedModels,
     reports: reports.map(mapReport),
-    news: news.map(mapNews).filter((item) => item.title !== "제목 없음"),
+    news: mappedNews.length > 0 ? mappedNews : buildFallbackNews(),
     marketOverview: [
       mapIndex("kospi", "KOSPI", kospi),
       mapIndex("kosdaq", "KOSDAQ", kosdaq),
@@ -389,7 +419,7 @@ export async function getBullQuantModelDetail() {
 
 export async function getBullQuantDecisions() {
   const candidates = await getData<LiveCandidateDto[]>(`/quant/live/models/${BULL_MODEL_CODE}/candidates`);
-  return candidates.map(mapDecision);
+  return candidates.map((item) => mapDecision(item, mapModel(fallbackBullModel)));
 }
 
 export async function getBullQuantReports() {

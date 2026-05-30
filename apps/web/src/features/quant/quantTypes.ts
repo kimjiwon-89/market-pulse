@@ -1,6 +1,7 @@
 export type QuantDecisionLabel = "살펴볼 종목" | "기다릴 종목" | "조심할 종목";
 export type QuantDecisionCode = "BUY" | "SELL" | "WARNING" | "SIDE";
 export type QuantModelLabel = "상승장 모델" | "횡보장 모델" | "하락장 모델" | "여러 모델";
+export type QuantModelCategory = "상승장" | "횡보장" | "하락장" | "기타";
 export type StockBadgeTone = "red" | "blue" | "navy" | "purple" | "black";
 
 export interface QuantKpi {
@@ -31,6 +32,7 @@ export interface QuantModelSummary {
   name: string;
   plainName: string;
   description: string;
+  category: QuantModelCategory;
   marketMode: QuantModelLabel;
   status: "정상 운영" | "관찰 중" | "관리자 점검";
   signalStrength: "낮음" | "보통" | "높음";

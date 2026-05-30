@@ -6,6 +6,8 @@ export type {
   QuantHotStockItem,
   QuantMarketOverviewItem,
   QuantModelDetail,
+  QuantModelCategory,
+  QuantModelLabel,
   QuantModelSummary,
   QuantNewsItem,
   QuantReportDetail,

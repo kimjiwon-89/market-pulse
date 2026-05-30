@@ -1,9 +1,25 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FavoriteFolderPicker } from "@/features/quant/FavoriteFolderPicker";
 import { StockInitialBadge } from "@/features/quant/StockInitialBadge";
-import { getBullQuantDecisions, getQuantHomeSummary } from "@/features/quant/api";
+import { getQuantHomeSummary } from "@/features/quant/api";
 import type { QuantDecision } from "@/features/quant/quantTypes";
-import { Badge, Card, DataTable, Inline, Mono, MutedText, PageHeaderCard, PageHeaderMeta, PageShell, PageTitle, SectionTitle, Stack, SubText, TableCard, TableScroll } from "@/components/ui/Page";
+import {
+  Badge,
+  Card,
+  DataTable,
+  Inline,
+  Mono,
+  MutedText,
+  PageHeaderCard,
+  PageHeaderMeta,
+  PageShell,
+  PageTitle,
+  SectionTitle,
+  Stack,
+  SubText,
+  TableCard,
+  TableScroll,
+} from "@/components/ui/Page";
 
 function tone(code: QuantDecision["decisionCode"]) {
   if (code === "BUY") return "up";
@@ -19,10 +35,10 @@ export function QuantToday() {
 
   useEffect(() => {
     let mounted = true;
-    Promise.all([getBullQuantDecisions(), getQuantHomeSummary()])
-      .then(([items, summary]) => {
+    getQuantHomeSummary()
+      .then((summary) => {
         if (!mounted) return;
-        setDecisions(items);
+        setDecisions(summary.decisions);
         setAsOf(summary.asOf);
       })
       .catch(() => {
@@ -35,18 +51,28 @@ export function QuantToday() {
     };
   }, []);
 
+  const modelCount = useMemo(
+    () => new Set(decisions.flatMap((item) => item.modelNames)).size,
+    [decisions],
+  );
+
   return (
     <PageShell $width="1100px">
       <PageHeaderCard>
-        <PageTitle>오늘의 종목</PageTitle>
+        <div>
+          <PageTitle>오늘 추천 후보 전체</PageTitle>
+          <SubText>운영 중인 모든 모델이 오늘 추천한 후보를 한곳에서 봅니다.</SubText>
+        </div>
         <PageHeaderMeta>
           <MutedText><Mono>기준 {asOf ?? "-"}</Mono></MutedText>
+          <Badge $tone="flat">{decisions.length}개</Badge>
+          <Badge $tone="flat">{modelCount}개 모델</Badge>
         </PageHeaderMeta>
       </PageHeaderCard>
 
       {error ? (
         <Card $soft>
-          <SubText>실제 Bull v4 후보 종목을 불러오지 못했습니다.</SubText>
+          <SubText>오늘 추천 후보를 불러오지 못했습니다. 잠시 후 다시 확인해주세요.</SubText>
         </Card>
       ) : null}
 
@@ -56,7 +82,8 @@ export function QuantToday() {
             <thead>
               <tr>
                 <th>종목</th>
-                <th>신호 모델</th>
+                <th>추천 모델</th>
+                <th>판단</th>
                 <th>이유</th>
                 <th>조심할 점</th>
                 <th aria-label="관심" />
@@ -64,20 +91,18 @@ export function QuantToday() {
             </thead>
             <tbody>
               {decisions.map((item) => (
-                <tr key={item.assetCode}>
+                <tr key={`${item.assetCode}-${item.modelNames.join("-")}`}>
                   <td>
                     <Inline>
                       <StockInitialBadge text={item.badgeText} tone={item.badgeTone} />
                       <Stack $gap="3px">
-                        <Inline $gap="6px">
-                          <strong>{item.assetName}</strong>
-                          <Badge $tone={tone(item.decisionCode)}>{item.decisionCode}</Badge>
-                        </Inline>
+                        <strong>{item.assetName}</strong>
                         <MutedText><Mono>{[item.assetCode, item.market].filter(Boolean).join(" · ")}</Mono></MutedText>
                       </Stack>
                     </Inline>
                   </td>
                   <td>{item.modelNames.join(", ")}</td>
+                  <td><Badge $tone={tone(item.decisionCode)}>{item.decisionLabel}</Badge></td>
                   <td>{item.reasonBullets.join(", ")}</td>
                   <td>{item.cautionBullets.join(", ")}</td>
                   <td>
@@ -87,7 +112,7 @@ export function QuantToday() {
               ))}
               {decisions.length === 0 ? (
                 <tr>
-                  <td colSpan={5}>현재 Bull v4 후보 종목이 없습니다.</td>
+                  <td colSpan={6}>현재 표시할 추천 후보가 없습니다.</td>
                 </tr>
               ) : null}
             </tbody>
@@ -97,7 +122,7 @@ export function QuantToday() {
 
       <Card $soft>
         <SectionTitle>읽는 법</SectionTitle>
-        <SubText>BUY는 살펴볼 종목, SIDE는 기다릴 종목, WARNING은 조심할 종목입니다. 자동 매매나 수익 보장을 의미하지 않습니다.</SubText>
+        <SubText>여러 모델이 같은 종목을 추천할 수 있습니다. 후보는 매수 지시가 아니라 살펴볼 종목 목록이며, 자동 매매나 수익 보장을 의미하지 않습니다.</SubText>
       </Card>
     </PageShell>
   );

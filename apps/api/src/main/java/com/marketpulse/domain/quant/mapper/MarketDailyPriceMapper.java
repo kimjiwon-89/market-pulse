@@ -2,6 +2,7 @@ package com.marketpulse.domain.quant.mapper;
 
 import com.marketpulse.domain.quant.vo.MarketDailyPriceVo;
 import com.marketpulse.domain.quant.vo.MonthlyPickVo;
+import com.marketpulse.domain.market.dto.MarketStockRankingDto;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -39,6 +40,12 @@ public interface MarketDailyPriceMapper {
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate,
             @Param("topN") int topN
+    );
+
+    List<MarketStockRankingDto> findStockRankings(
+            @Param("tradeDate") LocalDate tradeDate,
+            @Param("sort") String sort,
+            @Param("limit") int limit
     );
 
     MarketDailyPriceVo findFirstByTypeAndDateRange(

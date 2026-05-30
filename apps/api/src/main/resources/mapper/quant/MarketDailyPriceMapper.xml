@@ -112,6 +112,57 @@
         LIMIT #{topN}
     </select>
 
+    <select id="findStockRankings" resultType="com.marketpulse.domain.market.dto.MarketStockRankingDto">
+        WITH ranked AS (
+            SELECT
+                ROW_NUMBER() OVER (
+                    ORDER BY
+                    <choose>
+                        <when test="sort == 'TRADE_AMOUNT'">
+                            (COALESCE(p.volume, 0)::numeric * COALESCE(p.close_price, 0)) DESC,
+                            COALESCE(p.volume, 0) DESC,
+                            p.asset_code
+                        </when>
+                        <otherwise>
+                            COALESCE(p.volume, 0) DESC,
+                            (COALESCE(p.volume, 0)::numeric * COALESCE(p.close_price, 0)) DESC,
+                            p.asset_code
+                        </otherwise>
+                    </choose>
+                ) AS rank,
+                p.asset_code AS code,
+                p.asset_name AS name,
+                NULL::varchar AS market,
+                p.sector AS sector,
+                p.close_price AS closePrice,
+                COALESCE(p.volume, 0) AS volume,
+                (COALESCE(p.volume, 0)::numeric * COALESCE(p.close_price, 0)) AS tradeAmount,
+                CASE
+                    WHEN prev.close_price IS NULL OR prev.close_price = 0 THEN 0
+                    ELSE ROUND(((p.close_price - prev.close_price) / prev.close_price) * 100, 2)
+                END AS changeRate,
+                p.trade_date AS tradeDate
+            FROM market_daily_price p
+            LEFT JOIN LATERAL (
+                SELECT close_price
+                FROM market_daily_price
+                WHERE asset_type = p.asset_type
+                  AND asset_code = p.asset_code
+                  AND trade_date &lt; p.trade_date
+                  AND close_price IS NOT NULL
+                ORDER BY trade_date DESC
+                LIMIT 1
+            ) prev ON TRUE
+            WHERE p.asset_type = 'STOCK'
+              AND p.trade_date = #{tradeDate}
+              AND p.close_price IS NOT NULL
+        )
+        SELECT rank, code, name, market, sector, closePrice, volume, tradeAmount, changeRate, tradeDate
+        FROM ranked
+        WHERE rank &lt;= #{limit}
+        ORDER BY rank
+    </select>
+
     <select id="findFirstByTypeAndDateRange" resultType="MarketDailyPriceVo">
         SELECT *
         FROM market_daily_price
