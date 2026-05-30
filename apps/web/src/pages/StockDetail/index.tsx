@@ -1,19 +1,69 @@
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Bar, BarChart, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import styled from "styled-components";
 import { formatWon, mockInvestorFlows, mockNews, mockStocks } from "@/features/mock/marketMockData";
 import { quantDecisions } from "@/features/quant/quantMockData";
+import { getStockChart, getStockDetail } from "@/features/stock/api";
+import type { StockChartItem, StockDetailItem } from "@/features/stock/api";
+import { StockLogo } from "@/features/stock/StockLogo";
 import { Badge, Card, ChartBox, Chip, ChipRow, Inline, List, ListItem, MutedText, PageHeaderCard, PageHeaderMeta, PageShell, PageTitle, SectionTitle, Split, Stack, SubText, TextLink } from "@/components/ui/Page";
 
 export function StockDetail() {
   const { code } = useParams();
-  const stock = mockStocks.find((item) => item.code === code) ?? mockStocks[0];
+  const fallbackStock = useMemo(() => mockStocks.find((item) => item.code === code) ?? mockStocks[0], [code]);
+  const [apiStock, setApiStock] = useState<StockDetailItem | null>(null);
+  const [chart, setChart] = useState<StockChartItem[]>([]);
+  const stock = apiStock
+    ? {
+        code: apiStock.code,
+        name: apiStock.name,
+        market: apiStock.market || fallbackStock.market,
+        price: apiStock.currentPrice,
+        changeRate: apiStock.changeRate ?? 0,
+        sector: apiStock.sector || fallbackStock.sector,
+        marketCap: formatMarketCap(apiStock.marketCap),
+      }
+    : fallbackStock;
   const decision = quantDecisions.find((item) => item.assetCode === stock.code);
-  const chart = [92, 94, 93, 97, 99, 96, 101].map((value, index) => ({ day: `${index + 1}`, value: value * (stock.price / 100) }));
+
+  useEffect(() => {
+    if (!code) return;
+    let canceled = false;
+    getStockDetail(code)
+      .then((item) => {
+        if (!canceled) setApiStock(item);
+      })
+      .catch(() => {
+        if (!canceled) setApiStock(null);
+      });
+    return () => {
+      canceled = true;
+    };
+  }, [code]);
+
+  useEffect(() => {
+    if (!code) return;
+    let canceled = false;
+    getStockChart(code, "3M")
+      .then((items) => {
+        if (!canceled) setChart(items);
+      })
+      .catch(() => {
+        if (!canceled) setChart([]);
+      });
+    return () => {
+      canceled = true;
+    };
+  }, [code]);
 
   return (
     <PageShell $width="1100px">
       <PageHeaderCard>
-        <PageTitle>{stock.name}</PageTitle>
+        <TitleBlock>
+          <StockLogo code={stock.code} name={stock.name} size={48} />
+          <PageTitle>{stock.name}</PageTitle>
+        </TitleBlock>
         <PageHeaderMeta>
           <TextLink to="/market">시장 보기</TextLink>
           <Badge>{stock.code}</Badge>
@@ -25,16 +75,23 @@ export function StockDetail() {
       <Split>
         <Stack>
           <Card>
-            <SectionTitle>가격 흐름</SectionTitle>
+            <SectionTitle>일봉 종가 추이</SectionTitle>
             <ChartBox $height="280px">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chart}>
-                  <XAxis dataKey="day" />
-                  <YAxis hide domain={["dataMin", "dataMax"]} />
-                  <Tooltip formatter={(value) => formatWon(Number(value))} />
-                  <Line dataKey="value" stroke={stock.changeRate >= 0 ? "#d62828" : "#1e5edb"} strokeWidth={2} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
+              {chart.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chart}>
+                    <XAxis dataKey="date" tickFormatter={formatChartDate} />
+                    <YAxis hide domain={["dataMin", "dataMax"]} />
+                    <Tooltip
+                      labelFormatter={(label) => formatChartDate(String(label))}
+                      formatter={(value) => formatWon(Number(value))}
+                    />
+                    <Line dataKey="close" stroke={stock.changeRate >= 0 ? "#d62828" : "#1e5edb"} strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <ChartEmpty>일봉 차트 데이터가 준비되지 않았습니다.</ChartEmpty>
+              )}
             </ChartBox>
           </Card>
           <Card>
@@ -86,3 +143,32 @@ export function StockDetail() {
     </PageShell>
   );
 }
+
+const TitleBlock = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+`;
+
+function formatMarketCap(value?: number) {
+  if (!value) return "-";
+  if (Math.abs(value) >= 1_0000_0000_0000) {
+    return `${Math.round(value / 1_0000_0000_0000).toLocaleString("ko-KR")}조`;
+  }
+  if (Math.abs(value) >= 1_0000_0000) {
+    return `${Math.round(value / 1_0000_0000).toLocaleString("ko-KR")}억`;
+  }
+  return formatWon(value);
+}
+
+function formatChartDate(value: string) {
+  if (value.length === 8) return `${value.slice(4, 6)}.${value.slice(6, 8)}`;
+  return value;
+}
+
+const ChartEmpty = styled(MutedText)`
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;

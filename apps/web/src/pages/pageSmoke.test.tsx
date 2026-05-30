@@ -81,11 +81,42 @@ const { getInvestorTradeTopMock } = vi.hoisted(() => ({
   }))),
 }));
 
+const { searchStocksMock, getStockDetailMock, getStockChartMock } = vi.hoisted(() => ({
+  searchStocksMock: vi.fn(async () => [
+    { code: "005930", name: "삼성전자", market: "KOSPI", sector: "반도체" },
+    { code: "000660", name: "SK하이닉스", market: "KOSPI", sector: "반도체" },
+  ]),
+  getStockDetailMock: vi.fn(async () => ({
+    code: "000660",
+    name: "SK하이닉스",
+    market: "KOSPI",
+    sector: "반도체",
+    currentPrice: 223700,
+    changeRate: -0.26,
+    volume: 34500000,
+    tradingValue: 7717650000000,
+    marketCap: 162000000000000,
+    openPrice: 224000,
+    highPrice: 225000,
+    lowPrice: 221000,
+  })),
+  getStockChartMock: vi.fn(async () => [
+    { date: "20260522", close: 221000, open: 220000, high: 222000, low: 219000, volume: 1000, changeRate: 0.4 },
+    { date: "20260523", close: 223700, open: 222000, high: 224000, low: 221000, volume: 1100, changeRate: 1.2 },
+  ]),
+}));
+
 vi.mock("@/features/market/api", () => ({
   getLastFridayBasicDate: () => "20260529",
   getMarketIndices: getMarketIndicesMock,
   getMarketStockRankings: getMarketStockRankingsMock,
   getInvestorTradeTop: getInvestorTradeTopMock,
+}));
+
+vi.mock("@/features/stock/api", () => ({
+  searchStocks: searchStocksMock,
+  getStockDetail: getStockDetailMock,
+  getStockChart: getStockChartMock,
 }));
 
 vi.mock("@/features/quant/api", () => {
@@ -148,7 +179,7 @@ vi.mock("@/features/quant/api", () => {
       news: [],
       asOf: "05.29 09:00",
     })),
-    getBullQuantModelDetail: vi.fn(async () => ({
+    getQuantModelDetail: vi.fn(async () => ({
       candidates: [{
         assetCode: "005930",
         assetName: "삼성전자",
@@ -229,9 +260,14 @@ describe("page smoke rendering", () => {
     expect(screen.getByRole("heading", { name: "KOSPI" })).toBeInTheDocument();
   });
 
-  it("renders stock detail", () => {
+  it("renders stock detail from the stock API", async () => {
     renderAt("/stock/000660", <StockDetail />, "/stock/:code");
-    expect(screen.getByRole("heading", { name: "SK하이닉스" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "SK하이닉스" })).toBeInTheDocument();
+    expect(getStockDetailMock).toHaveBeenCalledWith("000660");
+    expect(getStockChartMock).toHaveBeenCalledWith("000660", "3M");
+    expect(screen.getByLabelText("SK하이닉스 로고")).toHaveAttribute("src", "/stock-logos/000660.svg");
+    expect(screen.getByText("162조")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "일봉 종가 추이" })).toBeInTheDocument();
   });
 
   it("renders logged-out personal page gates", () => {
@@ -332,11 +368,13 @@ describe("page smoke rendering", () => {
     expect(screen.getByText("타로 리딩")).toBeInTheDocument();
   });
 
-  it("renders admin model version management skeleton", () => {
+  it("renders admin work tabs and model package management", () => {
     renderAt("/admin", <Admin />);
-    expect(screen.getByText("모델 버전 관리")).toBeInTheDocument();
-    expect(screen.getByText("BULL_V4")).toBeInTheDocument();
-    expect(screen.getByText("READY_FOR_APPROVAL")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "관리자 처리할 일" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "계정" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "모델", selected: true })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "버그" })).toBeInTheDocument();
+    expect(screen.getByText("모델 패키지 관리")).toBeInTheDocument();
   });
 
   it("explains Bull v4 detail for first-time users", async () => {

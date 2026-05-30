@@ -21,4 +21,8 @@ public class MarketStockRankingDto {
     private BigDecimal tradeAmount;
     private BigDecimal changeRate;
     private LocalDate tradeDate;
+    private BigDecimal openPrice;
+    private BigDecimal highPrice;
+    private BigDecimal lowPrice;
+    private Long marketCap;
 }

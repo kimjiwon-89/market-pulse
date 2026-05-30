@@ -86,7 +86,7 @@ export function QuantHeroSection({ summary }: QuantHeroSectionProps) {
         <HeroPanel>
           <div>
             <MarketTitle>오늘 시장 요약</MarketTitle>
-            <HeroDescription>KOSPI, KOSDAQ 장세와 모델 성과, 리포트 현황을 먼저 확인합니다.</HeroDescription>
+            <HeroDescription>KOSPI/KOSDAQ 지수 감시 모델의 장세, 전략, 리스크 예산을 먼저 확인합니다.</HeroDescription>
           </div>
           <MarketStatusRail>
             {overviewCards.map((item) => (

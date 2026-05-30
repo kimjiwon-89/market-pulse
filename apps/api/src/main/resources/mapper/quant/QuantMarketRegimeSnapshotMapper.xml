@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.marketpulse.domain.quant.mapper.QuantMarketRegimeSnapshotMapper">
+
+    <insert id="upsert">
+        INSERT INTO quant_market_regime_snapshot (
+            trade_date,
+            cache_date,
+            live_kospi,
+            live_kosdaq,
+            kospi_regime,
+            kosdaq_regime,
+            kospi_allowed_strategy,
+            kosdaq_allowed_strategy,
+            kospi_risk_budget,
+            kosdaq_risk_budget,
+            combined_regime,
+            allowed_strategy,
+            confidence,
+            risk_budget,
+            bull_score,
+            bear_score,
+            stress_score,
+            breadth_ma20,
+            breadth_ma60,
+            volatility_20,
+            liquidity_trend,
+            updated_at
+        )
+        VALUES (
+            #{tradeDate},
+            #{cacheDate},
+            #{liveKospi},
+            #{liveKosdaq},
+            #{kospiRegime},
+            #{kosdaqRegime},
+            #{kospiAllowedStrategy},
+            #{kosdaqAllowedStrategy},
+            #{kospiRiskBudget},
+            #{kosdaqRiskBudget},
+            #{combinedRegime},
+            #{allowedStrategy},
+            #{confidence},
+            #{riskBudget},
+            #{bullScore},
+            #{bearScore},
+            #{stressScore},
+            #{breadthMa20},
+            #{breadthMa60},
+            #{volatility20},
+            #{liquidityTrend},
+            NOW()
+        )
+        ON CONFLICT (trade_date) DO UPDATE SET
+            cache_date       = EXCLUDED.cache_date,
+            live_kospi       = EXCLUDED.live_kospi,
+            live_kosdaq      = EXCLUDED.live_kosdaq,
+            kospi_regime     = EXCLUDED.kospi_regime,
+            kosdaq_regime    = EXCLUDED.kosdaq_regime,
+            kospi_allowed_strategy  = EXCLUDED.kospi_allowed_strategy,
+            kosdaq_allowed_strategy = EXCLUDED.kosdaq_allowed_strategy,
+            kospi_risk_budget       = EXCLUDED.kospi_risk_budget,
+            kosdaq_risk_budget      = EXCLUDED.kosdaq_risk_budget,
+            combined_regime  = EXCLUDED.combined_regime,
+            allowed_strategy = EXCLUDED.allowed_strategy,
+            confidence       = EXCLUDED.confidence,
+            risk_budget      = EXCLUDED.risk_budget,
+            bull_score       = EXCLUDED.bull_score,
+            bear_score       = EXCLUDED.bear_score,
+            stress_score     = EXCLUDED.stress_score,
+            breadth_ma20     = EXCLUDED.breadth_ma20,
+            breadth_ma60     = EXCLUDED.breadth_ma60,
+            volatility_20    = EXCLUDED.volatility_20,
+            liquidity_trend  = EXCLUDED.liquidity_trend,
+            updated_at       = NOW()
+    </insert>
+
+    <select id="findLatest" resultType="com.marketpulse.domain.quant.live.service.MarketRegimeSnapshot">
+        SELECT trade_date,
+               cache_date,
+               live_kospi,
+               live_kosdaq,
+               kospi_regime,
+               kosdaq_regime,
+               kospi_allowed_strategy,
+               kosdaq_allowed_strategy,
+               kospi_risk_budget,
+               kosdaq_risk_budget,
+               combined_regime,
+               allowed_strategy,
+               confidence,
+               risk_budget,
+               bull_score,
+               bear_score,
+               stress_score,
+               breadth_ma20,
+               breadth_ma60,
+               volatility_20,
+               liquidity_trend,
+               updated_at
+        FROM quant_market_regime_snapshot
+        ORDER BY trade_date DESC, updated_at DESC
+        LIMIT 1
+    </select>
+</mapper>

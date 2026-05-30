@@ -35,6 +35,10 @@ opendart:
     base-url: ${OPENDART_API_BASE_URL:https://opendart.fss.or.kr/api}
     key: ${OPENDART_API_KEY:}
 
+market-pulse:
+  quant:
+    package-root: ${QUANT_MODEL_PACKAGE_ROOT:../../domains/quant-serving/packages}
+
 app:
   cors:
     allowed-origins:

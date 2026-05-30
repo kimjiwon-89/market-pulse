@@ -5,6 +5,8 @@ import type {
   QuantHomeSummary,
   QuantHotStockItem,
   QuantKpi,
+  QuantMarketRegime,
+  QuantMarketRegimeSnapshot,
   QuantMarketOverviewItem,
   QuantModelDetail,
   QuantModelCategory,
@@ -119,6 +121,31 @@ interface IndexResponseDto {
   };
 }
 
+interface MarketRegimeSnapshotDto {
+  tradeDate?: string;
+  cacheDate?: string;
+  liveKospi?: number | string;
+  liveKosdaq?: number | string;
+  kospiRegime?: QuantMarketRegime;
+  kosdaqRegime?: QuantMarketRegime;
+  kospiAllowedStrategy?: string;
+  kosdaqAllowedStrategy?: string;
+  kospiRiskBudget?: number | string;
+  kosdaqRiskBudget?: number | string;
+  combinedRegime?: QuantMarketRegime;
+  allowedStrategy?: string;
+  confidence?: number | string;
+  riskBudget?: number | string;
+  bullScore?: number;
+  bearScore?: number;
+  stressScore?: number;
+  breadthMa20?: number | string;
+  breadthMa60?: number | string;
+  volatility20?: number | string;
+  liquidityTrend?: number | string;
+  updatedAt?: string;
+}
+
 async function getData<T>(path: string, params?: Record<string, unknown>): Promise<T> {
   const response = await apiClient.get<ApiResponse<T> | T>(path, { params });
   const body = response.data;
@@ -168,7 +195,7 @@ function mapModel(dto: LiveModelSummaryDto): QuantModelSummary {
   const name = dto.modelName || (code === BULL_MODEL_CODE ? BULL_MODEL_NAME : code);
   const category = dto.category ?? dto.modelCategory ?? "상승장";
   const marketMode: QuantModelLabel = category === "하락장" ? "하락장 모델" : category === "횡보장" ? "횡보장 모델" : "상승장 모델";
-  const status = dto.status === "RUNNING" ? "정상 운영" : dto.status === "DATA_DELAYED" ? "관찰 중" : "관리자 점검";
+  const status = dto.status === "RUNNING" ? "정상 운영" : dto.status === "DATA_DELAYED" || dto.status === "PACKAGE_READY" ? "관찰 중" : "관리자 점검";
   const signalStrength = (dto.actualEntryCountToday ?? 0) > 0 ? "높음" : (dto.rawCandidateCountToday ?? 0) > 0 ? "보통" : "낮음";
   const seedMoney = dto.seedMoney ?? BULL_PAPER_SEED_MONEY;
   const totalProfit = dto.totalProfit ?? 0;
@@ -303,16 +330,79 @@ function regimeFromChangeRate(changeRate?: number): QuantMarketOverviewItem["reg
   return "SIDE";
 }
 
+function normalizeRegime(value?: string): QuantMarketRegime {
+  if (value === "BULL" || value === "BEAR" || value === "CRASH" || value === "SIDEWAYS" || value === "SIDE") {
+    return value;
+  }
+  return "SIDEWAYS";
+}
+
+function directionFromRegime(regime: QuantMarketRegime): QuantMarketOverviewItem["direction"] {
+  if (regime === "BULL") return "up";
+  if (regime === "BEAR" || regime === "CRASH") return "down";
+  return "flat";
+}
+
+function formatRiskBudget(value?: number) {
+  if (value === undefined || Number.isNaN(value)) return "리스크 -";
+  return `리스크 ${Math.round(value * 100)}%`;
+}
+
+function mapMarketRegime(dto?: MarketRegimeSnapshotDto): QuantMarketRegimeSnapshot | undefined {
+  if (!dto) return undefined;
+
+  return {
+    tradeDate: dto.tradeDate,
+    cacheDate: dto.cacheDate,
+    liveKospi: parseNumber(dto.liveKospi),
+    liveKosdaq: parseNumber(dto.liveKosdaq),
+    kospiRegime: normalizeRegime(dto.kospiRegime),
+    kosdaqRegime: normalizeRegime(dto.kosdaqRegime),
+    kospiAllowedStrategy: dto.kospiAllowedStrategy,
+    kosdaqAllowedStrategy: dto.kosdaqAllowedStrategy,
+    kospiRiskBudget: parseNumber(dto.kospiRiskBudget),
+    kosdaqRiskBudget: parseNumber(dto.kosdaqRiskBudget),
+    combinedRegime: normalizeRegime(dto.combinedRegime),
+    allowedStrategy: dto.allowedStrategy,
+    confidence: parseNumber(dto.confidence),
+    riskBudget: parseNumber(dto.riskBudget),
+    bullScore: dto.bullScore,
+    bearScore: dto.bearScore,
+    stressScore: dto.stressScore,
+    breadthMa20: parseNumber(dto.breadthMa20),
+    breadthMa60: parseNumber(dto.breadthMa60),
+    volatility20: parseNumber(dto.volatility20),
+    liquidityTrend: parseNumber(dto.liquidityTrend),
+    updatedAt: dto.updatedAt,
+  };
+}
+
 function mapIndex(
   id: "kospi" | "kosdaq",
   label: "KOSPI" | "KOSDAQ",
   dto?: IndexResponseDto,
+  regime?: QuantMarketRegimeSnapshot,
 ): QuantMarketOverviewItem {
   const current = dto?.output1;
   const changeRate = parseNumber(current?.bstp_nmix_prdy_ctrt);
   const changePoint = parseNumber(current?.bstp_nmix_prdy_vrss);
   const price = parseNumber(current?.bstp_nmix_prpr);
   const direction = changeRate === undefined ? "flat" : changeRate > 0 ? "up" : changeRate < 0 ? "down" : "flat";
+  const regimeName = id === "kospi" ? regime?.kospiRegime : regime?.kosdaqRegime;
+  const liveValue = id === "kospi" ? regime?.liveKospi : regime?.liveKosdaq;
+  const allowedStrategy = id === "kospi" ? regime?.kospiAllowedStrategy : regime?.kosdaqAllowedStrategy;
+  const riskBudget = id === "kospi" ? regime?.kospiRiskBudget : regime?.kosdaqRiskBudget;
+
+  if (regimeName) {
+    return {
+      id,
+      label,
+      value: liveValue === undefined ? "-" : liveValue.toLocaleString("ko-KR", { maximumFractionDigits: 2 }),
+      regime: regimeName,
+      delta: `${allowedStrategy ?? "전략 확인 중"} · ${formatRiskBudget(riskBudget)}`,
+      direction: directionFromRegime(regimeName),
+    };
+  }
 
   return {
     id,
@@ -371,13 +461,15 @@ function buildKpis(model: QuantModelSummary | undefined, rawModel: LiveModelSumm
 }
 
 export async function getQuantHomeSummary(): Promise<QuantHomeSummary> {
-  const [models, reports, news, kospi, kosdaq] = await Promise.all([
+  const [models, reports, news, kospi, kosdaq, regimeSnapshot] = await Promise.all([
     getData<LiveModelSummaryDto[]>("/quant/live/models").catch(() => []),
     getData<LiveReportSummaryDto[]>("/quant/live/reports", { modelCode: BULL_MODEL_CODE }).catch(() => []),
     getData<NewsDto[]>("/news/inquire-daily-news", { limit: 5 }).catch(() => []),
     getData<IndexResponseDto>("/index/inquire-daily-indexchartprice", { indexCode: "0001" }).catch(() => undefined),
     getData<IndexResponseDto>("/index/inquire-daily-indexchartprice", { indexCode: "1001" }).catch(() => undefined),
+    getData<MarketRegimeSnapshotDto>("/quant/live/market-regime/latest").catch(() => undefined),
   ]);
+  const marketRegime = mapMarketRegime(regimeSnapshot);
 
   const visibleModelDtos = models.length > 0 ? models : [fallbackBullModel];
   const mappedModels = visibleModelDtos.map(mapModel);
@@ -399,11 +491,12 @@ export async function getQuantHomeSummary(): Promise<QuantHomeSummary> {
     reports: reports.map(mapReport),
     news: mappedNews.length > 0 ? mappedNews : buildFallbackNews(),
     marketOverview: [
-      mapIndex("kospi", "KOSPI", kospi),
-      mapIndex("kosdaq", "KOSDAQ", kosdaq),
+      mapIndex("kospi", "KOSPI", kospi, marketRegime),
+      mapIndex("kosdaq", "KOSDAQ", kosdaq, marketRegime),
     ],
+    marketRegime,
     hotStocks: buildHotStocks(),
-    asOf: formatDateTime(bullModelDto?.latestReportTime),
+    asOf: formatDateTime(marketRegime?.updatedAt) ?? formatDateTime(bullModelDto?.latestReportTime),
   };
 }
 
@@ -413,6 +506,14 @@ export async function getBullQuantModel() {
 }
 
 export async function getBullQuantModelDetail() {
+  return getQuantModelDetail(BULL_MODEL_CODE);
+}
+
+export async function getQuantModelDetail(modelCode: string) {
+  if (modelCode !== BULL_MODEL_CODE) {
+    const detail = await getData<LiveModelDetailDto>(`/quant/live/models/${modelCode}`);
+    return mapModelDetail(detail);
+  }
   const detail = await getData<LiveModelDetailDto>(`/quant/live/models/${BULL_MODEL_CODE}`);
   return mapModelDetail(detail);
 }

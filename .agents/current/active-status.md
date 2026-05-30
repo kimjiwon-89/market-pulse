@@ -278,3 +278,7 @@ Date: 2026-05-28
 - Intent: codify the user-approved quant runtime handoff location.
 - Outcome: added a strict `AGENTS.md` contract for `.agents/handoff/quant/<MODEL_CODE>/` packages, including folder shape, production execution limits, runtime implementation path, worker/container rule, exposure gates, and migration requirement.
 - Changed files: `AGENTS.md`, `CLAUDE.md`, `.agents/current/active-status.md`.
+
+- Intent: receive the lab `kosdaq-bull-v1.0.0` package through the standard prod handoff path.
+- Outcome: copied the lab package into `.agents/handoff/quant/kosdaq-bull/` with prod-facing README, validation, runtime requirements, artifacts, source package, and empty sample-output marker. This is review input only; no runtime implementation, public exposure, live orders, deployment, or production DB change was performed.
+- Changed files: `.agents/handoff/quant/kosdaq-bull/*`, `.agents/current/active-status.md`.

@@ -11,20 +11,43 @@ import com.marketpulse.domain.quant.live.dto.LiveQuantReportSummaryDto;
 import com.marketpulse.domain.quant.live.dto.LiveQuantTradeDto;
 import com.marketpulse.domain.quant.live.dto.OutcomeCheckpointDto;
 import com.marketpulse.domain.quant.live.dto.WatchedAssetDto;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class LiveQuantSimulationService {
     private final LiveQuantRuntimeRegistry registry;
+    private final QuantModelPackageService packageService;
+
+    @Autowired
+    public LiveQuantSimulationService(LiveQuantRuntimeRegistry registry, ObjectProvider<QuantModelPackageService> packageService) {
+        this.registry = registry;
+        this.packageService = packageService.getIfAvailable();
+    }
 
     public LiveQuantSimulationService(LiveQuantRuntimeRegistry registry) {
         this.registry = registry;
+        this.packageService = null;
     }
 
     public List<LiveQuantModelSummaryDto> getVisibleModels() {
-        return registry.visibleSummaries();
+        List<LiveQuantModelSummaryDto> runtimeModels = registry.visibleSummaries();
+        if (packageService == null) {
+            return runtimeModels;
+        }
+
+        Set<String> runtimeCodes = new HashSet<>(runtimeModels.stream()
+                .map(LiveQuantModelSummaryDto::modelCode)
+                .toList());
+        List<LiveQuantModelSummaryDto> packageModels = packageService.publicVisibleSummaries().stream()
+                .filter(summary -> !runtimeCodes.contains(summary.modelCode()))
+                .toList();
+        return java.util.stream.Stream.concat(runtimeModels.stream(), packageModels.stream()).toList();
     }
 
     public LiveQuantModelDetailDto getModelDetail(String modelCode) {

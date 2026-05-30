@@ -94,13 +94,40 @@ export interface QuantNewsItem {
   publishedAt?: string;
 }
 
+export type QuantMarketRegime = "BULL" | "SIDEWAYS" | "SIDE" | "BEAR" | "CRASH";
+
 export interface QuantMarketOverviewItem {
   id: string;
   label: string;
   value: string;
-  regime: "BULL" | "SIDE" | "BEAR";
+  regime: QuantMarketRegime;
   delta: string;
   direction: "up" | "down" | "flat";
+}
+
+export interface QuantMarketRegimeSnapshot {
+  tradeDate?: string;
+  cacheDate?: string;
+  liveKospi?: number;
+  liveKosdaq?: number;
+  kospiRegime?: QuantMarketRegime;
+  kosdaqRegime?: QuantMarketRegime;
+  kospiAllowedStrategy?: string;
+  kosdaqAllowedStrategy?: string;
+  kospiRiskBudget?: number;
+  kosdaqRiskBudget?: number;
+  combinedRegime?: QuantMarketRegime;
+  allowedStrategy?: string;
+  confidence?: number;
+  riskBudget?: number;
+  bullScore?: number;
+  bearScore?: number;
+  stressScore?: number;
+  breadthMa20?: number;
+  breadthMa60?: number;
+  volatility20?: number;
+  liquidityTrend?: number;
+  updatedAt?: string;
 }
 
 export interface QuantHotStockItem {
@@ -119,6 +146,7 @@ export interface QuantHomeSummary {
   reports: QuantReportSummary[];
   news: QuantNewsItem[];
   marketOverview?: QuantMarketOverviewItem[];
+  marketRegime?: QuantMarketRegimeSnapshot;
   hotStocks?: QuantHotStockItem[];
   asOf?: string;
 }

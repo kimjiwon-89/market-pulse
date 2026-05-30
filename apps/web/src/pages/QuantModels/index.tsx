@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import styled from "styled-components";
-import { getBullQuantModelDetail, getBullQuantReportDetail, getQuantHomeSummary } from "@/features/quant/api";
+import { getBullQuantReportDetail, getQuantHomeSummary, getQuantModelDetail } from "@/features/quant/api";
 import type { QuantCandidateHistoryItem, QuantDecision, QuantModelCategory, QuantModelDetail, QuantModelSummary, QuantReportDetail, QuantReportSummary, QuantTradeHistoryItem } from "@/features/quant/types";
 import {
   Badge,
@@ -240,7 +240,7 @@ export function QuantModels() {
     let mounted = true;
     Promise.all([
       getQuantHomeSummary(),
-      modelCode ? getBullQuantModelDetail().catch(() => EMPTY_DETAIL) : Promise.resolve(EMPTY_DETAIL),
+      modelCode ? getQuantModelDetail(modelCode).catch(() => EMPTY_DETAIL) : Promise.resolve(EMPTY_DETAIL),
     ])
       .then(([summary, modelDetail]) => {
         if (!mounted) return;

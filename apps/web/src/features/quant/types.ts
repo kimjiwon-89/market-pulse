@@ -4,6 +4,8 @@ export type {
   QuantHomeSummary,
   QuantKpi,
   QuantHotStockItem,
+  QuantMarketRegime,
+  QuantMarketRegimeSnapshot,
   QuantMarketOverviewItem,
   QuantModelDetail,
   QuantModelCategory,
