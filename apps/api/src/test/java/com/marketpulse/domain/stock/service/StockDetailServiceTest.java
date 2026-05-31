@@ -1,16 +1,20 @@
 package com.marketpulse.domain.stock.service;
 
 import com.marketpulse.domain.quant.mapper.MarketDailyPriceMapper;
+import com.marketpulse.domain.market.dto.MarketStockRankingDto;
+import com.marketpulse.domain.stock.dto.StockDetailDto;
 import com.marketpulse.domain.stock.dto.StockMinuteCandleDto;
 import com.marketpulse.domain.stock.dto.StockOrderbookDto;
 import com.marketpulse.domain.stock.vo.KisMinutePriceResponse;
 import com.marketpulse.domain.stock.vo.KisMinutePriceVo;
 import com.marketpulse.domain.stock.vo.KisOrderbookVo;
+import com.marketpulse.domain.stock.vo.StockPriceVo;
 import com.marketpulse.external.client.ExternalApiClient;
 import com.marketpulse.global.response.KisResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.ParameterizedTypeReference;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -26,6 +30,37 @@ class StockDetailServiceTest {
     private final ExternalApiClient externalApiClient = mock(ExternalApiClient.class);
     private final MarketDailyPriceMapper marketDailyPriceMapper = mock(MarketDailyPriceMapper.class);
     private final StockDetailService service = new StockDetailService(externalApiClient, marketDailyPriceMapper);
+
+    @Test
+    void getDetailBackfillsMissingKisNameFromLatestMarketDailyPrice() {
+        KisResponse<StockPriceVo> response = new KisResponse<>();
+        response.setRt_cd("0");
+        StockPriceVo output = new StockPriceVo();
+        output.setCurrentPrice("13250");
+        output.setChangeRate("30.00");
+        output.setVolume("1000000");
+        response.setOutput(output);
+        when(externalApiClient.callGet(
+                eq("/uapi/domestic-stock/v1/quotations/inquire-price"),
+                eq("FHKST01010100"),
+                anyMap(),
+                any(ParameterizedTypeReference.class)
+        )).thenReturn(response);
+        MarketStockRankingDto fallback = new MarketStockRankingDto();
+        fallback.setCode("001740");
+        fallback.setName("SK네트웍스");
+        fallback.setMarket("KOSPI");
+        fallback.setSector("유통");
+        fallback.setClosePrice(new BigDecimal("13250"));
+        when(marketDailyPriceMapper.findLatestStockDetail("001740")).thenReturn(fallback);
+
+        StockDetailDto detail = service.getDetail("001740");
+
+        assertThat(detail.getName()).isEqualTo("SK네트웍스");
+        assertThat(detail.getMarket()).isEqualTo("KOSPI");
+        assertThat(detail.getSector()).isEqualTo("유통");
+        assertThat(detail.getCurrentPrice()).isEqualTo(13250);
+    }
 
     @Test
     void getMinuteChartReturnsAscendingNormalizedCandles() {

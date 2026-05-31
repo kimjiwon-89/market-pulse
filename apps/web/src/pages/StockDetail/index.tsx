@@ -111,7 +111,7 @@ export function StockDetail() {
   const stock = detail
     ? {
         code: detail.code,
-        name: detail.name,
+        name: detail.name || fallbackStock.name,
         market: detail.market || fallbackStock.market,
         price: detail.currentPrice,
         changeRate: detail.changeRate ?? 0,
@@ -193,7 +193,8 @@ export function StockDetail() {
   const maxPanOffset = Math.max(0, financialChartData.length - visibleCount);
   const safeChartPanOffset = clamp(chartPanOffset, 0, maxPanOffset);
   const filteredNews = useMemo(() => {
-    const name = stock.name.toLowerCase();
+    const name = (stock.name || "").toLowerCase();
+    if (!name) return [];
     return mockNews.filter((item) => `${item.title} ${item.summary}`.toLowerCase().includes(name)).slice(0, 3);
   }, [stock.name]);
   const isLoggedIn = Boolean(getToken());
@@ -255,8 +256,8 @@ export function StockDetail() {
                 <Chip>{quantCandidates.length}개 후보</Chip>
                 <Chip>{quantTrades.length}개 거래</Chip>
               </ChipRow>
-              {quantCandidates.slice(0, 2).map((item) => (
-                <SignalRow key={`${item.assetCode}-${item.date}-${item.label}`}>
+              {quantCandidates.slice(0, 2).map((item, index) => (
+                <SignalRow key={`${item.assetCode}-${item.date}-${item.label}-${index}`}>
                   <strong>{item.label}</strong>
                   <span>{item.date} · {item.reason}</span>
                 </SignalRow>

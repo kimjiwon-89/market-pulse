@@ -73,9 +73,12 @@ public class StockDetailService {
                 log.warn("KIS detail empty for code={}", code);
                 return null;
             }
+            MarketStockRankingDto fallback = findLatestStockDetailQuietly(code);
             return StockDetailDto.builder()
                     .code(code)
-                    .name(v.getStockName())
+                    .name(firstNonBlank(v.getStockName(), fallback != null ? fallback.getName() : null))
+                    .market(fallback != null ? fallback.getMarket() : null)
+                    .sector(fallback != null ? fallback.getSector() : null)
                     .currentPrice(parseLong(v.getCurrentPrice()))
                     .prdyVrss(parseLong(v.getPrdyVrss()))
                     .prdyVrssSign(v.getPrdyVrssSign())
@@ -98,7 +101,7 @@ public class StockDetailService {
     }
 
     private StockDetailDto getMarketDailyDetail(String code) {
-        MarketStockRankingDto v = marketDailyPriceMapper.findLatestStockDetail(code);
+        MarketStockRankingDto v = findLatestStockDetailQuietly(code);
         if (v == null) {
             return null;
         }
@@ -124,6 +127,15 @@ public class StockDetailService {
                 .weekHigh(0)
                 .weekLow(0)
                 .build();
+    }
+
+    private MarketStockRankingDto findLatestStockDetailQuietly(String code) {
+        try {
+            return marketDailyPriceMapper.findLatestStockDetail(code);
+        } catch (Exception e) {
+            log.warn("market daily stock detail lookup failed for code={}: {}", code, e.getMessage());
+            return null;
+        }
     }
 
     public List<StockChartItemDto> getChart(String code, String period) {
@@ -357,6 +369,12 @@ public class StockDetailService {
 
     private double toDouble(BigDecimal value) {
         return value != null ? value.doubleValue() : 0.0;
+    }
+
+    private String firstNonBlank(String primary, String fallback) {
+        if (primary != null && !primary.isBlank()) return primary;
+        if (fallback != null && !fallback.isBlank()) return fallback;
+        return null;
     }
 
     private void validateStockCode(String code) {
