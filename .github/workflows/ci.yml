@@ -44,7 +44,8 @@ jobs:
       - name: Validate API Docker image
         uses: docker/build-push-action@v5
         with:
-          context: ./apps/api
+          context: .
+          file: ./apps/api/Dockerfile
           push: false
           tags: market-pulse-api:ci
 
