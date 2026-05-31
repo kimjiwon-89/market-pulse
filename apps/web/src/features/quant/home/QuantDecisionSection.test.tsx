@@ -11,11 +11,11 @@ const decision: QuantDecision = {
   assetName: "삼성전자",
   badgeText: "삼",
   badgeTone: "blue",
-  modelNames: ["Bull v4 모델"],
+  modelNames: ["KOSPI Bull v1"],
   modelLabel: "상승장 모델",
   decisionLabel: "살펴볼 종목",
   decisionCode: "BUY",
-  reasonBullets: ["Bull v4 후보"],
+  reasonBullets: ["모델 후보"],
   cautionBullets: ["리플레이 기반 후보"],
 };
 
@@ -38,7 +38,7 @@ describe("QuantDecisionSection", () => {
   it("shows a padded empty state instead of an empty table when candidates are unavailable", () => {
     renderSection([]);
 
-    expect(screen.getByText("오늘 날짜로 새로 발생한 추천 후보가 없습니다. 과거 검증 후보는 각 모델 상세에서 확인해주세요.")).toBeInTheDocument();
+    expect(screen.getByText("표시할 추천 후보가 없습니다. 과거 검증 후보는 각 모델 상세에서 확인해주세요.")).toBeInTheDocument();
     expect(screen.queryByRole("columnheader", { name: "종목" })).not.toBeInTheDocument();
   });
 
@@ -48,7 +48,7 @@ describe("QuantDecisionSection", () => {
     expect(screen.getByRole("columnheader", { name: "종목" })).toBeInTheDocument();
     expect(screen.getAllByText("삼성전자").length).toBeGreaterThan(0);
     expect(screen.getAllByRole("link", { name: /삼성전자/ })[0]).toHaveAttribute("href", "/stock/005930");
-    expect(screen.queryByText("오늘 날짜로 새로 발생한 추천 후보가 없습니다. 과거 검증 후보는 각 모델 상세에서 확인해주세요.")).not.toBeInTheDocument();
+    expect(screen.queryByText("표시할 추천 후보가 없습니다. 과거 검증 후보는 각 모델 상세에서 확인해주세요.")).not.toBeInTheDocument();
   });
 
   it("opens the all-model candidate list from the full list button", async () => {

@@ -9,9 +9,9 @@ import { BodyCopy, Card, HomeContentGrid, HomeShell, HomeTopGrid, MobileOnly, St
 const emptySummary: QuantHomeSummary = {
   decisions: [],
   kpis: [
-    { id: "look", label: "오늘 후보", value: "0개", hint: "Bull v4 후보 종목", direction: "flat" },
+    { id: "look", label: "추천 후보", value: "0개", hint: "모델 추천 후보", direction: "flat" },
     { id: "caution", label: "경고", value: "0건", hint: "최신 리포트 기준", direction: "flat" },
-    { id: "performance", label: "누적 수익률", value: "-", hint: "Bull v4 리플레이 성과", direction: "flat" },
+    { id: "performance", label: "누적 수익률", value: "-", hint: "모델 검증 성과", direction: "flat" },
     { id: "reports", label: "리포트", value: "0개", hint: "백엔드 생성 리포트", direction: "flat" },
   ],
   models: [],
@@ -46,7 +46,7 @@ export function QuantHomePage() {
       <Stack>
         {status === "error" ? (
           <Card $soft>
-            <BodyCopy>실제 Bull v4 데이터를 불러오지 못했습니다. 백엔드 API 연결 상태를 확인해주세요.</BodyCopy>
+            <BodyCopy>실제 모델 데이터를 불러오지 못했습니다. 백엔드 API 연결 상태를 확인해주세요.</BodyCopy>
           </Card>
         ) : null}
         <HomeTopGrid>

@@ -91,6 +91,7 @@ const {
   getStockOrderbookMock,
   getStockDisclosuresMock,
   getStockReportsMock,
+  getQuantModelDetailMock,
 } = vi.hoisted(() => ({
   searchStocksMock: vi.fn(async () => [
     { code: "005930", name: "삼성전자", market: "KOSPI", sector: "반도체" },
@@ -143,6 +144,38 @@ const {
   getStockReportsMock: vi.fn(async () => [
     { source: "증권사", title: "HBM 수요 점검", publishedAt: "2026-05-29", url: "https://example.com/report", summary: "메모리 업황 회복 점검", licenseStatus: "metadata-only" },
   ]),
+  getQuantModelDetailMock: vi.fn(async () => ({
+    candidates: [{
+      assetCode: "005930",
+      assetName: "삼성전자",
+      date: "2026-05-29",
+      label: "후보",
+      reason: "공개 모델 조건 통과",
+      price: 81200,
+      returnPct: 3.2,
+    }],
+    trades: [
+      {
+        tradeId: "1",
+        assetCode: "005930",
+        assetName: "삼성전자",
+        side: "BUY",
+        fillTime: "2026-05-20T09:01:00",
+        fillPrice: 78000,
+        reason: "historical replay entry",
+      },
+      {
+        tradeId: "2",
+        assetCode: "005930",
+        assetName: "삼성전자",
+        side: "SELL",
+        fillTime: "2026-05-27T15:20:00",
+        fillPrice: 82000,
+        realizedReturnPct: 5.12,
+        reason: "historical replay exit",
+      },
+    ],
+  })),
 }));
 
 vi.mock("@/features/market/api", () => ({
@@ -225,38 +258,7 @@ vi.mock("@/features/quant/api", () => {
       news: [],
       asOf: "05.29 09:00",
     })),
-    getQuantModelDetail: vi.fn(async () => ({
-      candidates: [{
-        assetCode: "005930",
-        assetName: "삼성전자",
-        date: "2026-05-29",
-        label: "후보",
-        reason: "Bull v4 조건 통과",
-        price: 81200,
-        returnPct: 3.2,
-      }],
-      trades: [
-        {
-          tradeId: "1",
-          assetCode: "005930",
-          assetName: "삼성전자",
-          side: "BUY",
-          fillTime: "2026-05-20T09:01:00",
-          fillPrice: 78000,
-          reason: "Bull v4 historical replay entry",
-        },
-        {
-          tradeId: "2",
-          assetCode: "005930",
-          assetName: "삼성전자",
-          side: "SELL",
-          fillTime: "2026-05-27T15:20:00",
-          fillPrice: 82000,
-          realizedReturnPct: 5.12,
-          reason: "Bull v4 historical replay exit",
-        },
-      ],
-    })),
+    getQuantModelDetail: getQuantModelDetailMock,
     getBullQuantDecisions: vi.fn(async () => [decision]),
     getBullQuantReports: vi.fn(async () => [report]),
     getQuantReports: vi.fn(async () => [report]),
@@ -282,6 +284,7 @@ function renderAt(path: string, element: React.ReactNode, route = path) {
 
 describe("page smoke rendering", () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     localStorage.clear();
   });
 
@@ -336,6 +339,11 @@ describe("page smoke rendering", () => {
     expect(getStockOrderbookMock).toHaveBeenCalledWith("000660");
     expect(getStockDisclosuresMock).toHaveBeenCalledWith("000660");
     expect(getStockReportsMock).toHaveBeenCalledWith("000660");
+    expect(getQuantModelDetailMock).toHaveBeenCalledWith("KOSPI_BULL");
+    expect(getQuantModelDetailMock).toHaveBeenCalledWith("KOSDAQ_BULL");
+    expect(getQuantModelDetailMock).toHaveBeenCalledWith("KOSPI_WATCH");
+    expect(getQuantModelDetailMock).toHaveBeenCalledWith("KOSDAQ_WATCH");
+    expect(getQuantModelDetailMock).not.toHaveBeenCalledWith("BULL_V4");
     expect(screen.getByLabelText("SK하이닉스 로고")).toHaveAttribute("src", "/stock-logos/000660.svg");
     expect(screen.getAllByText("162조").length).toBeGreaterThan(0);
     expect(screen.getByRole("heading", { name: "요약" })).toBeInTheDocument();
@@ -577,7 +585,7 @@ describe("page smoke rendering", () => {
   it("renders Bull v4 monthly summary page from a chart month", async () => {
     renderAt("/quant/BULL_V4/month/2026-05", <QuantModels />, "/quant/:modelCode/month/:monthKey");
 
-    expect(await screen.findByRole("heading", { name: "2026년 5월 Bull v4 월 요약" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "2026년 5월 모델 월 요약" })).toBeInTheDocument();
     expect(screen.getByText("모델 상세로")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "월 수익률" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "거래 내용" })).toBeInTheDocument();

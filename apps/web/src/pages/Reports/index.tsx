@@ -118,7 +118,7 @@ export function Reports() {
         {reports.length === 0 && !error ? (
           <Card>
             <SectionTitle>리포트 없음</SectionTitle>
-            <SubText>아직 생성된 Bull v4 리포트가 없습니다.</SubText>
+            <SubText>아직 생성된 공개 모델 리포트가 없습니다.</SubText>
           </Card>
         ) : null}
       </Stack>
