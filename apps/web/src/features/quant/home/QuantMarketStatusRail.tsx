@@ -18,7 +18,7 @@ export function QuantMarketStatusRail({ summary }: QuantMarketStatusRailProps) {
     {
       label: "모델",
       value: model?.status ?? "확인 중",
-      detail: model ? `${model.name}만 노출 중` : "Bull v4 상태를 불러오는 중",
+      detail: model ? `${model.name} 기준` : "모델 상태를 불러오는 중",
     },
     {
       label: "후보",
@@ -28,7 +28,7 @@ export function QuantMarketStatusRail({ summary }: QuantMarketStatusRailProps) {
     {
       label: "리포트",
       value: latestReport ? "생성됨" : "없음",
-      detail: latestReport?.publishedAt ?? "생성된 Bull v4 리포트 없음",
+      detail: latestReport?.publishedAt ?? "생성된 모델 리포트 없음",
     },
     {
       label: "기준",

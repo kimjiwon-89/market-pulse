@@ -10,11 +10,53 @@ vi.mock("@/services/apiClient", () => ({
       }
 
       if (path === "/quant/live/models") {
-        return Promise.resolve({ data: [] });
+        return Promise.resolve({
+          data: {
+            success: true,
+            data: [
+              {
+                modelCode: "BULL_V4",
+                modelName: "Bull v4 모델",
+                status: "RUNNING",
+                seedMoney: 100000000,
+                totalReturnPct: 999,
+                totalProfit: 999000000,
+                monthlyReturnPct: 0,
+                rawCandidateCountToday: 1,
+                actualEntryCountToday: 1,
+              },
+              {
+                modelCode: "KOSPI_BULL",
+                modelName: "KOSPI Bull v1",
+                status: "PACKAGE_READY",
+                seedMoney: 100000000,
+                totalReturnPct: 81.87,
+                totalProfit: 81870000,
+                monthlyReturnPct: 0,
+                rawCandidateCountToday: 1,
+                actualEntryCountToday: 1,
+              },
+            ],
+          },
+        });
       }
 
-      if (path === "/quant/live/models/BULL_V4/candidates") {
-        return Promise.resolve({ data: [] });
+      if (path === "/quant/live/models/KOSPI_BULL/candidates") {
+        return Promise.resolve({
+          data: {
+            success: true,
+            data: [{
+              assetCode: "005930",
+              assetName: "삼성전자",
+              signalDate: "2026-05-30",
+              candidateType: "HISTORICAL_VALIDATION",
+              decision: "POST",
+              reason: "최근 검증 후보",
+              signalPrice: 86100,
+              expectedReturnPct: 4.24,
+            }],
+          },
+        });
       }
 
       if (path === "/quant/live/reports") {
@@ -126,6 +168,18 @@ describe("getQuantHomeSummary", () => {
       assetName: "삼성전자",
       assetCode: "005930",
       changeRate: "05/26 · +4.24%",
+    });
+  });
+
+  it("hides legacy Bull v4 and falls back to latest candidates when today has none", async () => {
+    const summary = await getQuantHomeSummary();
+
+    expect(summary.models.map((model) => model.code)).toEqual(["KOSPI_BULL"]);
+    expect(summary.decisions).toHaveLength(1);
+    expect(summary.decisions[0]).toMatchObject({
+      assetCode: "005930",
+      assetName: "삼성전자",
+      modelNames: ["KOSPI Bull v1"],
     });
   });
 });

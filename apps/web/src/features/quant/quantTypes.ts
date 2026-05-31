@@ -17,6 +17,7 @@ export interface QuantDecision {
   assetCode: string;
   assetName: string;
   signalDate?: string;
+  sourceType?: string;
   market?: "KOSPI" | "KOSDAQ" | "ETF";
   badgeText: string;
   badgeTone: StockBadgeTone;

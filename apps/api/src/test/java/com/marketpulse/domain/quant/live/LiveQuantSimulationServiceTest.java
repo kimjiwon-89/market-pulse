@@ -32,37 +32,22 @@ class LiveQuantSimulationServiceTest {
             new FakeReplayProvider());
 
     @Test
-    void visibleModelsExcludeMasterAndUseIndependentSeedMoney() {
+    void visibleModelsHideLegacyBullV4Runtime() {
         List<LiveQuantModelSummaryDto> models = service.getVisibleModels();
 
         assertThat(models).extracting(LiveQuantModelSummaryDto::modelCode)
-                .containsExactly("BULL_V4");
-        assertThat(models)
-                .filteredOn(model -> model.modelCode().equals("BULL_V4"))
-                .singleElement()
-                .satisfies(model -> {
-                    assertThat(model.modelVersion()).isEqualTo("5.0.1");
-                    assertThat(model.configKey()).isEqualTo("BULL_V4_5_0_1_100M_BALANCED_PAPER");
-                });
-        assertThat(models).extracting(LiveQuantModelSummaryDto::modelCode)
-                .doesNotContain("MASTER_MODEL");
-        assertThat(models).allSatisfy(model ->
-                assertThat(model.seedMoney()).isEqualByComparingTo(new BigDecimal("100000000")));
+                .doesNotContain("BULL_V4", "MASTER_MODEL");
     }
 
     @Test
-    void bullModelIsDataDelayedWhenFrozenReplayHasNoFacts() {
+    void hiddenBullModelIsNotExposedWhenFrozenReplayHasNoFacts() {
         LiveQuantSimulationService emptyReplayService = service(
                 assetCode -> java.util.Optional.of(new BigDecimal("312000")),
                 (fromDate, toDate) -> List.of());
 
         assertThat(emptyReplayService.getVisibleModels())
-                .filteredOn(model -> model.modelCode().equals("BULL_V4"))
-                .singleElement()
-                .satisfies(model -> {
-                    assertThat(model.status()).isEqualTo("DATA_DELAYED");
-                    assertThat(model.actualEntryCountToday()).isZero();
-                });
+                .extracting(LiveQuantModelSummaryDto::modelCode)
+                .doesNotContain("BULL_V4");
     }
 
     @Test
@@ -115,10 +100,9 @@ class LiveQuantSimulationServiceTest {
     }
 
     @Test
-    void reportsExposeWeeklyHistoryAndMayDailyHistoryOnly() {
-        assertThat(service.getReports("WEEKLY", null)).isNotEmpty();
-        assertThat(service.getReports("DAILY", null))
-                .allSatisfy(report -> assertThat(report.reportDate()).startsWith("202605"));
+    void aggregateReportsHideLegacyBullV4Runtime() {
+        assertThat(service.getReports("WEEKLY", null)).isEmpty();
+        assertThat(service.getReports("DAILY", null)).isEmpty();
     }
 
     @Test
