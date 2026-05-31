@@ -1,0 +1,14 @@
+.git
+.agents
+report
+datasets
+node_modules
+apps/web/node_modules
+apps/web/dist
+apps/api/target
+**/.DS_Store
+**/*.log
+
+# Keep API source and accepted quant package artifacts for the API image.
+!apps/api/**
+!domains/quant-serving/packages/**

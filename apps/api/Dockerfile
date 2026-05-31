@@ -1,11 +1,12 @@
 FROM eclipse-temurin:17-jdk-alpine AS build
 WORKDIR /app
-COPY pom.xml .
-COPY src ./src
+COPY apps/api/pom.xml .
+COPY apps/api/src ./src
 RUN apk add --no-cache maven && mvn -B package -DskipTests
 
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
 COPY --from=build /app/target/market-pulse-api.jar app.jar
+COPY domains/quant-serving/packages ./domains/quant-serving/packages
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]
