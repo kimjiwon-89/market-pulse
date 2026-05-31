@@ -15,7 +15,7 @@ export interface StockSearchItem {
 
 export interface StockDetailItem {
   code: string;
-  name: string;
+  name?: string | null;
   market?: string | null;
   sector?: string | null;
   currentPrice: number;

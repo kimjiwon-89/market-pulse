@@ -37,11 +37,13 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 public class QuantModelPackageService {
     private static final BigDecimal DEFAULT_SEED_MONEY = new BigDecimal("100000000");
     private static final BigDecimal ONE_HUNDRED = new BigDecimal("100");
+    private static final Set<String> HIDDEN_MODEL_CODES = Set.of("BULL_V4");
 
     private final QuantModelPackageScanner scanner;
     private final QuantModelPackageRegistryMapper mapper;
@@ -93,6 +95,7 @@ public class QuantModelPackageService {
 
     public List<LiveQuantModelSummaryDto> publicVisibleSummaries() {
         return mapper.findPublicVisible().stream()
+                .filter(item -> !isHiddenModel(item.getModelCode()))
                 .map(this::toSummary)
                 .toList();
     }
@@ -122,11 +125,15 @@ public class QuantModelPackageService {
         if (modelCode != null && !modelCode.isBlank()) {
             return List.of(packageReport(requirePublicVisible(modelCode)));
         }
-        return mapper.findPublicVisible().stream().map(this::packageReport).toList();
+        return mapper.findPublicVisible().stream()
+                .filter(item -> !isHiddenModel(item.getModelCode()))
+                .map(this::packageReport)
+                .toList();
     }
 
     public LiveQuantReportDetailDto publicVisibleReport(Long reportId) {
         QuantModelPackageRegistryVo vo = mapper.findPublicVisible().stream()
+                .filter(item -> !isHiddenModel(item.getModelCode()))
                 .filter(item -> packageReportId(item.getModelCode()).equals(reportId))
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("Unknown visible quant package report: " + reportId));
@@ -466,10 +473,14 @@ public class QuantModelPackageService {
 
     private QuantModelPackageRegistryVo requirePublicVisible(String modelCode) {
         QuantModelPackageRegistryVo vo = mapper.findByCode(modelCode);
-        if (vo == null || !Boolean.TRUE.equals(vo.getPublicVisible())) {
+        if (vo == null || isHiddenModel(vo.getModelCode()) || !Boolean.TRUE.equals(vo.getPublicVisible())) {
             throw new IllegalArgumentException("Unknown visible quant package model: " + modelCode);
         }
         return vo;
+    }
+
+    private boolean isHiddenModel(String modelCode) {
+        return modelCode != null && HIDDEN_MODEL_CODES.contains(modelCode);
     }
 
     private BigDecimal normalizedSeedMoney(BigDecimal seedMoney) {
