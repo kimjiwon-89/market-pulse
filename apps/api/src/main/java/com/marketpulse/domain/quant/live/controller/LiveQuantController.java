@@ -2,7 +2,10 @@ package com.marketpulse.domain.quant.live.controller;
 
 import com.marketpulse.domain.quant.live.dto.*;
 import com.marketpulse.domain.quant.live.service.BullV4ReplayPrecomputeService;
+import com.marketpulse.domain.quant.live.service.LiveQuantPaperTradingService;
 import com.marketpulse.domain.quant.live.service.LiveQuantSimulationService;
+import com.marketpulse.domain.quant.live.service.MarketRegimeMonitorService;
+import com.marketpulse.domain.quant.live.service.MarketRegimeSnapshot;
 import com.marketpulse.global.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,6 +24,7 @@ import java.util.List;
 public class LiveQuantController {
     private final LiveQuantSimulationService service;
     private final BullV4ReplayPrecomputeService precomputeService;
+    private final MarketRegimeMonitorService marketRegimeMonitorService;
 
     @GetMapping("/models")
     public ApiResponse<List<LiveQuantModelSummaryDto>> getModels() {
@@ -103,5 +107,20 @@ public class LiveQuantController {
     @GetMapping("/bull-v4/replay/cache-status")
     public ApiResponse<BullV4ReplayCacheStatusDto> getBullV4ReplayCacheStatus() {
         return ApiResponse.success(precomputeService.cacheStatus());
+    }
+
+    @GetMapping("/market-regime/latest")
+    public ApiResponse<MarketRegimeSnapshot> getLatestMarketRegime() {
+        return ApiResponse.success(marketRegimeMonitorService.latest());
+    }
+
+    @PostMapping("/market-regime/refresh")
+    public ApiResponse<MarketRegimeSnapshot> refreshMarketRegime() {
+        return ApiResponse.success(marketRegimeMonitorService.refreshLatest());
+    }
+
+    @PostMapping("/paper-trading/run")
+    public ApiResponse<LiveQuantPaperTradingService.RunResult> runPaperTradingOnce() {
+        return ApiResponse.success(service.runPaperTradingOnce());
     }
 }

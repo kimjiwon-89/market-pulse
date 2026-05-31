@@ -1,5 +1,6 @@
 package com.marketpulse.domain.stock.service;
 
+import com.marketpulse.domain.quant.mapper.MarketDailyPriceMapper;
 import com.marketpulse.domain.stock.dto.StockMinuteCandleDto;
 import com.marketpulse.domain.stock.dto.StockOrderbookDto;
 import com.marketpulse.domain.stock.vo.KisMinutePriceResponse;
@@ -23,7 +24,8 @@ import static org.mockito.Mockito.when;
 class StockDetailServiceTest {
 
     private final ExternalApiClient externalApiClient = mock(ExternalApiClient.class);
-    private final StockDetailService service = new StockDetailService(externalApiClient);
+    private final MarketDailyPriceMapper marketDailyPriceMapper = mock(MarketDailyPriceMapper.class);
+    private final StockDetailService service = new StockDetailService(externalApiClient, marketDailyPriceMapper);
 
     @Test
     void getMinuteChartReturnsAscendingNormalizedCandles() {

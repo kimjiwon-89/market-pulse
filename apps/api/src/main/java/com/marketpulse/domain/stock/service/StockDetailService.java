@@ -1,6 +1,8 @@
 package com.marketpulse.domain.stock.service;
 
 import com.marketpulse.domain.investor.dto.InvestorDailyItem;
+import com.marketpulse.domain.market.dto.MarketStockRankingDto;
+import com.marketpulse.domain.quant.mapper.MarketDailyPriceMapper;
 import com.marketpulse.domain.stock.dto.StockChartItemDto;
 import com.marketpulse.domain.stock.dto.StockDetailDto;
 import com.marketpulse.domain.stock.dto.StockDisclosureDto;
@@ -25,6 +27,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -37,6 +40,7 @@ import java.util.Map;
 public class StockDetailService {
 
     private final ExternalApiClient externalApiClient;
+    private final MarketDailyPriceMapper marketDailyPriceMapper;
 
     @Value("${opendart.api.key:}")
     private String openDartApiKey;
@@ -89,8 +93,37 @@ public class StockDetailService {
                     .build();
         } catch (Exception e) {
             log.error("KIS detail API failed for code={}: {}", code, e.getMessage());
+            return getMarketDailyDetail(code);
+        }
+    }
+
+    private StockDetailDto getMarketDailyDetail(String code) {
+        MarketStockRankingDto v = marketDailyPriceMapper.findLatestStockDetail(code);
+        if (v == null) {
             return null;
         }
+        long currentPrice = toLong(v.getClosePrice());
+        long tradeAmount = toLong(v.getTradeAmount());
+        return StockDetailDto.builder()
+                .code(v.getCode())
+                .name(v.getName())
+                .market(v.getMarket())
+                .sector(v.getSector())
+                .currentPrice(currentPrice)
+                .prdyVrss(0)
+                .prdyVrssSign("")
+                .changeRate(toDouble(v.getChangeRate()))
+                .volume(v.getVolume() != null ? v.getVolume() : 0L)
+                .tradingValue(tradeAmount)
+                .marketCap(v.getMarketCap() != null ? v.getMarketCap() : 0L)
+                .openPrice(toLong(v.getOpenPrice()))
+                .highPrice(toLong(v.getHighPrice()))
+                .lowPrice(toLong(v.getLowPrice()))
+                .per(0)
+                .pbr(0)
+                .weekHigh(0)
+                .weekLow(0)
+                .build();
     }
 
     public List<StockChartItemDto> getChart(String code, String period) {
@@ -120,7 +153,7 @@ public class StockDetailService {
             List<StockDailyPriceVo> items = response.getOutput2();
             if (items == null || items.isEmpty()) {
                 log.warn("KIS chart empty for code={}", code);
-                return List.of();
+                return getMarketDailyChart(code, startDate, endDate);
             }
 
             return items.stream()
@@ -133,11 +166,44 @@ public class StockDetailService {
                             .volume(parseLong(v.getVolume()))
                             .changeRate(parseDouble(v.getChangeRate()))
                             .build())
+                    .sorted(Comparator.comparing(StockChartItemDto::getDate))
                     .toList();
         } catch (Exception e) {
             log.error("KIS chart API failed for code={}: {}", code, e.getMessage());
+            return getMarketDailyChart(code, startDate, endDate);
+        }
+    }
+
+    private List<StockChartItemDto> getMarketDailyChart(String code, LocalDate startDate, LocalDate endDate) {
+        List<com.marketpulse.domain.quant.vo.MarketDailyPriceVo> rows =
+                marketDailyPriceMapper.findByCodeAndDateRange(code, "STOCK", startDate, endDate);
+        if (rows == null || rows.isEmpty()) {
             return List.of();
         }
+        final BigDecimal[] previousClose = {null};
+        return rows.stream()
+                .sorted(Comparator.comparing(com.marketpulse.domain.quant.vo.MarketDailyPriceVo::getTradeDate))
+                .map(row -> {
+                    BigDecimal close = row.getClosePrice();
+                    double changeRate = 0.0;
+                    if (previousClose[0] != null && previousClose[0].compareTo(BigDecimal.ZERO) != 0 && close != null) {
+                        changeRate = close.subtract(previousClose[0])
+                                .divide(previousClose[0], 6, java.math.RoundingMode.HALF_UP)
+                                .multiply(BigDecimal.valueOf(100))
+                                .doubleValue();
+                    }
+                    previousClose[0] = close;
+                    return StockChartItemDto.builder()
+                            .date(row.getTradeDate() != null ? row.getTradeDate().format(FMT) : "")
+                            .close(toLong(row.getClosePrice()))
+                            .open(toLong(row.getOpenPrice()))
+                            .high(toLong(row.getHighPrice()))
+                            .low(toLong(row.getLowPrice()))
+                            .volume(row.getVolume() != null ? row.getVolume() : 0L)
+                            .changeRate(changeRate)
+                            .build();
+                })
+                .toList();
     }
 
     public StockInvestorDto getInvestor(String code) {
@@ -283,6 +349,14 @@ public class StockDetailService {
         if (s == null || s.isBlank()) return 0.0;
         try { return Double.parseDouble(s.trim().replace(",", "")); }
         catch (NumberFormatException e) { return 0.0; }
+    }
+
+    private long toLong(BigDecimal value) {
+        return value != null ? value.longValue() : 0L;
+    }
+
+    private double toDouble(BigDecimal value) {
+        return value != null ? value.doubleValue() : 0.0;
     }
 
     private void validateStockCode(String code) {

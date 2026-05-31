@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "modelCode": "kosdaq-bull",
+  "modelVersion": "1.0.0",
+  "runtimeConfigKey": "kosdaq-bull-v1.0.0",
+  "runDate": "2026-05-29",
+  "packagedDate": "2026-05-29",
+  "currency": "KRW",
+  "marketScope": "KOSDAQ",
+  "sourceCandidate": {
+    "modelCode": "BULL_V5_KOSDAQ",
+    "modelVersion": "5.1.0-kosdaq",
+    "selectedVariant": "KOSDAQ_BULL_V5_RET60_MAX_100",
+    "report": "domains/quant/legacy-quant-model-lab/.Codex/reports/2026-05-29_bull-v5-market-scope-test.md",
+    "tradesCsv": "domains/quant/legacy-quant-model-lab/.Codex/reports/2026-05-29_bull-v5-market-scope-test-trades.csv"
+  },
+  "portfolio": {
+    "seedCapitalKrw": 1000000000,
+    "positionCashKrw": 100000000,
+    "maxPositions": 10,
+    "maxBuysPerSignalDay": 5,
+    "targetWeightPerPositionPct": 10.0,
+    "liquidityCapPctOfSignalDayTradeAmount": 3.0
+  },
+  "runtimeParameters": {
+    "marketScope": "KOSDAQ",
+    "entryDelayDays": 5,
+    "entryLocMin": 0.55,
+    "entryMa20DistMin": 0.02,
+    "entryNextBodyMin": 0.005,
+    "range20Max": 0.4,
+    "ret60Max": 1.0,
+    "topN": 50,
+    "regimeGate": "KOSPI_MA20_AND_KOSDAQ_MA20",
+    "stopLossPct": -12.0,
+    "earlyFailClosePct": -6.0,
+    "earlyFailDays": 3,
+    "trailTriggerPct": 20.0,
+    "trailGivebackPct": 20.0,
+    "conditionalExtensionReturnPct": 25.0,
+    "conditionalExtensionMaxHoldDays": 60,
+    "baseMaxHoldDays": 30,
+    "netTradingCostPct": 0.3
+  },
+  "metrics": {
+    "train": {
+      "cumulativeReturnPct": 55.8,
+      "activeMonthAvgReturnPct": 3.99,
+      "worstMonthPct": -1.23,
+      "maxDrawdownPct": -1.66,
+      "winRatePct": 68.42,
+      "tradeCount": 19,
+      "earlyFailCount": 1,
+      "stopLossCount": 4,
+      "turnoverPct": 190.0
+    },
+    "post": {
+      "cumulativeReturnPct": 38.25,
+      "activeMonthAvgReturnPct": 4.78,
+      "worstMonthPct": -1.86,
+      "maxDrawdownPct": -1.86,
+      "winRatePct": 53.33,
+      "tradeCount": 15,
+      "earlyFailCount": 1,
+      "stopLossCount": 3,
+      "turnoverPct": 150.0
+    },
+    "baselineComparison": {
+      "baselineModelCode": "BULL_V4",
+      "baselineScope": "KOSDAQ_ONLY",
+      "baselineTrainCumulativeReturnPct": 53.31,
+      "baselineTrainAvgMonthPct": 3.14,
+      "baselineTrainMaxDrawdownPct": -3.48,
+      "baselineTrainWinRatePct": 59.09,
+      "baselinePostCumulativeReturnPct": 62.23,
+      "baselinePostAvgMonthPct": 6.91,
+      "baselinePostMaxDrawdownPct": -3.09,
+      "baselinePostWinRatePct": 57.14
+    },
+    "unmeasured": {
+      "sharpe": null,
+      "recent30DayReturnPct": null,
+      "sectorConcentrationPct": null,
+      "candidateCount": null
+    },
+    "warningCount": 3
+  },
+  "validation": {
+    "status": "READY_FOR_APPROVAL",
+    "publicExposureApproved": false,
+    "liveOrdersApproved": false,
+    "dateRange": {
+      "preFrom": "2012-01-01",
+      "preTo": "2022-04-30",
+      "trainFrom": "2022-05-01",
+      "trainTo": "2025-07-31",
+      "postFrom": "2025-08-01",
+      "postTo": "2026-05-20"
+    },
+    "knownGaps": [
+      "Post-period total return and trade count are lower than KOSDAQ-only BULL_V4 baseline",
+      "Sharpe or another risk-adjusted metric is not measured",
+      "Sector concentration is not measured",
+      "Production must reproduce replay cache before exposure"
+    ]
+  }
+}

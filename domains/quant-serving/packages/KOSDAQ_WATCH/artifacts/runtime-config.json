@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "runtimeConfigKey": "kosdaq-watch-v0.1.0",
+  "modelCode": "kosdaq-watch",
+  "modelVersion": "0.1.0",
+  "family": "KOSDAQ_WATCH",
+  "enabled": false,
+  "publicExposure": false,
+  "paperOnly": true,
+  "shadowOnly": true,
+  "liveOrdersEnabled": false,
+  "marketScope": "KOSDAQ",
+  "sourceImplementation": {
+    "model": "domains/quant/legacy-quant-model-lab/.Codex/models/market-supervisor",
+    "classifierScript": "research/scripts/market_regime_model.py",
+    "realtimeScript": "research/scripts/compute_realtime_regime.py"
+  },
+  "inputs": {
+    "liveIndexRequired": "KOSDAQ",
+    "requiredIndexes": ["KOSPI", "KOSDAQ"],
+    "cachedFeatures": [
+      "kospi_ma20",
+      "kospi_ma60",
+      "kospi_ma20_slope_5d",
+      "kospi_vol20",
+      "kosdaq_ma20",
+      "kosdaq_ma60",
+      "kosdaq_ma20_slope_5d",
+      "kosdaq_vol20",
+      "breadth_ma20",
+      "breadth_ma60",
+      "advance_ratio_5d",
+      "liquidity_trend"
+    ],
+    "liveFeatures": ["live_kospi", "live_kosdaq"]
+  },
+  "classifier": {
+    "regimeLabels": ["BULL", "SIDEWAYS", "BEAR", "CRASH"],
+    "singleIndexBullScoreMin": 5,
+    "singleIndexBearScoreMin": 4,
+    "crashBreadthMax": 0.2,
+    "crashVolMin": 0.04,
+    "bullVolNormalMax": 0.025,
+    "bearVolElevatedMin": 0.03,
+    "persistenceDays": 3,
+    "mergePolicy": "combined supervisor uses conservative merge: CRASH > BEAR > SIDEWAYS > BULL"
+  },
+  "policy": {
+    "BULL": {
+      "allowedStrategy": "W4_BREAKOUT",
+      "riskBudget": 1.0
+    },
+    "SIDEWAYS": {
+      "allowedStrategy": "W4_RESTRICT",
+      "riskBudget": 0.5
+    },
+    "BEAR": {
+      "allowedStrategy": "W4_RECOVER",
+      "riskBudget": 0.2
+    },
+    "CRASH": {
+      "allowedStrategy": "CASH",
+      "riskBudget": 0.0
+    }
+  },
+  "cache": {
+    "required": true,
+    "recommendedFactTable": "quant_market_regime_snapshot",
+    "serveFromCacheOnlyForUserFacingRequests": true,
+    "hideWhenCacheEmpty": true,
+    "hideWhenDataDelayed": true
+  },
+  "approval": {
+    "paperShadowOnly": true,
+    "publicExposureApproved": false,
+    "liveOrdersApproved": false
+  }
+}

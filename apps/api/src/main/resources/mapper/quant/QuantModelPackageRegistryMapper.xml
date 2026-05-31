@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.marketpulse.domain.quant.mapper.QuantModelPackageRegistryMapper">
+
+    <sql id="packageColumns">
+        model_code AS modelCode,
+        model_name AS modelName,
+        model_version AS modelVersion,
+        category,
+        description,
+        package_path AS packagePath,
+        package_status AS packageStatus,
+        public_visible AS publicVisible,
+        runtime_ready AS runtimeReady,
+        admin_note AS adminNote,
+        seed_money AS seedMoney,
+        expected_monthly_return_pct AS expectedMonthlyReturnPct,
+        discovered_at AS discoveredAt,
+        updated_at AS updatedAt
+    </sql>
+
+    <select id="findAll" resultType="QuantModelPackageRegistryVo">
+        SELECT <include refid="packageColumns"/>
+        FROM quant_model_package_registry
+        ORDER BY public_visible DESC, updated_at DESC, model_code ASC
+    </select>
+
+    <select id="findPublicVisible" resultType="QuantModelPackageRegistryVo">
+        SELECT <include refid="packageColumns"/>
+        FROM quant_model_package_registry
+        WHERE public_visible = TRUE
+        ORDER BY updated_at DESC, model_code ASC
+    </select>
+
+    <select id="findByCode" resultType="QuantModelPackageRegistryVo">
+        SELECT <include refid="packageColumns"/>
+        FROM quant_model_package_registry
+        WHERE model_code = #{modelCode}
+    </select>
+
+    <insert id="upsertDetected">
+        INSERT INTO quant_model_package_registry (
+            model_code, model_name, model_version, category, description, package_path,
+            seed_money, expected_monthly_return_pct
+        )
+        VALUES (
+            #{modelCode}, #{modelName}, #{modelVersion}, #{category}, #{description}, #{packagePath},
+            #{seedMoney}, #{expectedMonthlyReturnPct}
+        )
+        ON CONFLICT (model_code) DO UPDATE SET
+            model_name = EXCLUDED.model_name,
+            model_version = EXCLUDED.model_version,
+            category = EXCLUDED.category,
+            description = EXCLUDED.description,
+            package_path = EXCLUDED.package_path,
+            seed_money = EXCLUDED.seed_money,
+            expected_monthly_return_pct = EXCLUDED.expected_monthly_return_pct,
+            updated_at = NOW()
+    </insert>
+
+    <update id="updateVisibility">
+        UPDATE quant_model_package_registry
+        SET public_visible = #{publicVisible},
+            package_status = #{packageStatus},
+            admin_note = #{adminNote},
+            updated_at = NOW()
+        WHERE model_code = #{modelCode}
+    </update>
+</mapper>

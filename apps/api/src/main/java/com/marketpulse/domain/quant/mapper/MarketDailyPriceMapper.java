@@ -2,6 +2,9 @@ package com.marketpulse.domain.quant.mapper;
 
 import com.marketpulse.domain.quant.vo.MarketDailyPriceVo;
 import com.marketpulse.domain.quant.vo.MonthlyPickVo;
+import com.marketpulse.domain.market.dto.MarketStockRankingDto;
+import com.marketpulse.domain.quant.live.service.MarketRegimeFeatureRow;
+import com.marketpulse.domain.stock.vo.StockMasterVo;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -41,10 +44,37 @@ public interface MarketDailyPriceMapper {
             @Param("topN") int topN
     );
 
+    List<MarketStockRankingDto> findStockRankings(
+            @Param("tradeDate") LocalDate tradeDate,
+            @Param("sort") String sort,
+            @Param("limit") int limit
+    );
+
+    LocalDate findLatestStockTradeDateOnOrBefore(
+            @Param("tradeDate") LocalDate tradeDate
+    );
+
+    List<StockMasterVo> searchLatestStocks(
+            @Param("q") String q,
+            @Param("limit") int limit
+    );
+
+    MarketStockRankingDto findLatestStockDetail(
+            @Param("code") String code
+    );
+
     MarketDailyPriceVo findFirstByTypeAndDateRange(
             @Param("assetType") String assetType,
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate
+    );
+
+    LocalDate findLatestIndexTradeDate();
+
+    MarketRegimeFeatureRow findMarketRegimeFeatures(
+            @Param("targetDate") LocalDate targetDate,
+            @Param("fromDate") LocalDate fromDate,
+            @Param("breadthLimit") int breadthLimit
     );
 
     List<MonthlyPickVo> findMonthlyMomentumPicks(

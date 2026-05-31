@@ -32,6 +32,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers("/api/quant/collect", "/api/quant/collect/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.DELETE, "/api/quant/cache").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.POST, "/api/quant/live/market-regime/refresh").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/quant/models/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PATCH, "/api/quant/models/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.DELETE, "/api/quant/models/**").hasRole("ADMIN")

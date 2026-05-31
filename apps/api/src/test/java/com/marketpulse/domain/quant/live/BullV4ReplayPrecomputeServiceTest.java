@@ -36,16 +36,16 @@ class BullV4ReplayPrecomputeServiceTest {
         BullV4ReplayPrecomputeResultDto result = new BullV4ReplayPrecomputeService(priceMapper, factMapper)
                 .precomputeDaily(targetDate);
 
-        verify(factMapper).deleteByConfigAndExitDateRange("BULL_V4_5_0_0_BALANCED_PAPER", fromDate, targetDate);
+        verify(factMapper).deleteByConfigAndExitDateRange("BULL_V4_5_0_1_100M_BALANCED_PAPER", fromDate, targetDate);
         verify(priceMapper).findBullV4PaperReplayPicks(fromDate, targetDate);
         ArgumentCaptor<List<QuantBullV4ReplayFactVo>> captor = ArgumentCaptor.forClass(List.class);
         verify(factMapper).upsertBatch(captor.capture());
         assertThat(result.insertedCount()).isEqualTo(1);
-        assertThat(result.modelVersion()).isEqualTo("5.0.0");
+        assertThat(result.modelVersion()).isEqualTo("5.0.1");
         assertThat(captor.getValue()).singleElement().satisfies(fact -> {
-            assertThat(fact.getConfigKey()).isEqualTo("BULL_V4_5_0_0_BALANCED_PAPER");
-            assertThat(fact.getPositionCash()).isEqualByComparingTo("100000000");
-            assertThat(fact.getPnlKrw()).isEqualByComparingTo("10000000");
+            assertThat(fact.getConfigKey()).isEqualTo("BULL_V4_5_0_1_100M_BALANCED_PAPER");
+            assertThat(fact.getPositionCash()).isEqualByComparingTo("10000000");
+            assertThat(fact.getPnlKrw()).isEqualByComparingTo("1000000");
             assertThat(fact.getReturnPct()).isEqualByComparingTo("10.000000");
         });
     }
@@ -55,17 +55,17 @@ class BullV4ReplayPrecomputeServiceTest {
         MarketDailyPriceMapper priceMapper = mock(MarketDailyPriceMapper.class);
         QuantBullV4ReplayFactMapper factMapper = mock(QuantBullV4ReplayFactMapper.class);
         QuantBullV4ReplayCacheStatusVo status = new QuantBullV4ReplayCacheStatusVo();
-        status.setConfigKey("BULL_V4_5_0_0_BALANCED_PAPER");
+        status.setConfigKey("BULL_V4_5_0_1_100M_BALANCED_PAPER");
         status.setCachedRows(3L);
         status.setFirstExitDate(LocalDate.of(2025, 10, 10));
         status.setLatestExitDate(LocalDate.of(2025, 11, 25));
         status.setLatestUpdatedAt(LocalDateTime.of(2026, 5, 27, 16, 30));
-        when(factMapper.findCacheStatus("BULL_V4_5_0_0_BALANCED_PAPER")).thenReturn(status);
+        when(factMapper.findCacheStatus("BULL_V4_5_0_1_100M_BALANCED_PAPER")).thenReturn(status);
 
         BullV4ReplayCacheStatusDto dto = new BullV4ReplayPrecomputeService(priceMapper, factMapper).cacheStatus();
 
         assertThat(dto.ready()).isTrue();
-        assertThat(dto.modelVersion()).isEqualTo("5.0.0");
+        assertThat(dto.modelVersion()).isEqualTo("5.0.1");
         assertThat(dto.cachedRows()).isEqualTo(3);
         assertThat(dto.latestExitDate()).isEqualTo(LocalDate.of(2025, 11, 25));
     }

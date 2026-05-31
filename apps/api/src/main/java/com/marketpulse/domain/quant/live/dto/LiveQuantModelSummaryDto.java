@@ -7,6 +7,7 @@ public record LiveQuantModelSummaryDto(
         String modelVersion,
         String configKey,
         String modelName,
+        String category,
         String status,
         BigDecimal seedMoney,
         BigDecimal totalReturnPct,

@@ -1,101 +1,90 @@
-import { useState } from 'react';
-import type { FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { apiClient, setAuth } from '@/services/apiClient';
+import { useState } from "react";
+import type { FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
+import styled from "styled-components";
+import { setAuth } from "@/services/apiClient";
+import { Button, Card, MutedText, PageTitle, Stack, SubText } from "@/components/ui/Page";
+
+const LoginShell = styled.main`
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: ${({ theme }) => theme.color.bg};
+`;
+
+const LoginCard = styled(Card)`
+  width: min(100%, 380px);
+`;
+
+const Field = styled.label`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: ${({ theme }) => theme.color.textMuted};
+  font-size: 12px;
+  font-weight: 700;
+
+  input {
+    height: 38px;
+    border: 1px solid ${({ theme }) => theme.color.border};
+    border-radius: ${({ theme }) => theme.radius.control};
+    padding: 0 10px;
+    color: ${({ theme }) => theme.color.text};
+    font: inherit;
+  }
+`;
 
 export function Login() {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    setError('');
+    setError("");
     setLoading(true);
-    try {
-      const res = await apiClient.post('/auth/login', { username, password });
-      const { token, username: uname, role } = res.data.data;
-      setAuth(token, uname, role);
-      navigate('/', { replace: true });
-    } catch {
-      setError('아이디 또는 비밀번호가 틀렸습니다');
-    } finally {
+    window.setTimeout(() => {
+      if (!username.trim() || !password.trim()) {
+        setError("아이디와 비밀번호를 입력해주세요");
+        setLoading(false);
+        return;
+      }
+      const role = username.toLowerCase().includes("admin") ? "ADMIN" : "USER";
+      setAuth("mock-token", username, role);
+      navigate("/", { replace: true });
       setLoading(false);
-    }
+    }, 250);
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div className="card" style={{ width: 360, padding: '2rem' }}>
-        <h2 style={{ marginBottom: '1.5rem', fontSize: '1.25rem', fontWeight: 600 }}>
-          Market Pulse
-        </h2>
-
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>아이디</label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-              autoFocus
-              style={{
-                padding: '0.5rem 0.75rem',
-                borderRadius: 6,
-                border: '1px solid var(--border)',
-                background: 'var(--bg-card)',
-                color: 'var(--text-primary)',
-                fontSize: '0.9375rem',
-                outline: 'none',
-              }}
-            />
+    <LoginShell>
+      <LoginCard>
+        <Stack>
+          <div>
+            <PageTitle>Market Pulse</PageTitle>
+            <SubText>관심 종목, 메모, 알림을 사용하려면 로그인하세요.</SubText>
           </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>비밀번호</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              style={{
-                padding: '0.5rem 0.75rem',
-                borderRadius: 6,
-                border: '1px solid var(--border)',
-                background: 'var(--bg-card)',
-                color: 'var(--text-primary)',
-                fontSize: '0.9375rem',
-                outline: 'none',
-              }}
-            />
-          </div>
-
-          {error && (
-            <p style={{ fontSize: '0.8125rem', color: 'var(--color-down)', margin: 0 }}>{error}</p>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="btn btn--primary"
-            style={{ marginTop: '0.5rem', width: '100%' }}
-          >
-            {loading ? '로그인 중...' : '로그인'}
-          </button>
-
-          <button
-            type="button"
-            className="btn ghost"
-            style={{ width: '100%', marginTop: '0.25rem' }}
-            onClick={() => navigate('/')}
-          >
-            홈으로
-          </button>
-        </form>
-      </div>
-    </div>
+          <form onSubmit={handleSubmit}>
+            <Stack $gap="12px">
+              <Field>
+                아이디
+                <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} required autoFocus />
+              </Field>
+              <Field>
+                비밀번호
+                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+              </Field>
+              {error && <MutedText>{error}</MutedText>}
+              <Button type="submit" disabled={loading} $primary>{loading ? "로그인 중..." : "로그인"}</Button>
+              <Button type="button" onClick={() => navigate("/")}>홈으로</Button>
+            </Stack>
+          </form>
+        </Stack>
+      </LoginCard>
+    </LoginShell>
   );
 }

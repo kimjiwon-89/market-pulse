@@ -9,6 +9,8 @@ public class StockDetailDto {
 
     private String code;
     private String name;
+    private String market;
+    private String sector;
     private long   currentPrice;
     private long   prdyVrss;
     private String prdyVrssSign;

@@ -1,0 +1,9 @@
+{
+  "modelCode": "KOSPI_BULL",
+  "modelName": "KOSPI Bull v1",
+  "modelVersion": "1.0.0",
+  "category": "상승장",
+  "description": "KOSPI 전용 상승장 paper-shadow 후보 패키지입니다.",
+  "seedMoney": 100000000,
+  "expectedMonthlyReturnPct": 0.0
+}

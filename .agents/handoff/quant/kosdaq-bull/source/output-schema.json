@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "modelCode": "kosdaq-bull",
+  "modelVersion": "1.0.0",
+  "runtimeConfigKey": "kosdaq-bull-v1.0.0",
+  "marketScope": "KOSDAQ",
+  "outputs": [
+    {
+      "name": "candidateSignals",
+      "type": "array",
+      "description": "KOSDAQ-only selected signals with entry and exit replay fields."
+    },
+    {
+      "name": "portfolioReplay",
+      "type": "object",
+      "description": "Replay metrics including costs, turnover, MDD, and monthly returns."
+    },
+    {
+      "name": "servingSummary",
+      "type": "object",
+      "description": "Runtime summary safe for admin/paper exposure when cache is fresh."
+    }
+  ],
+  "requiredFields": [
+    "modelCode",
+    "modelVersion",
+    "runtimeConfigKey",
+    "marketScope",
+    "signalDate",
+    "assetCode",
+    "assetName",
+    "entryCheckDate",
+    "entryDate",
+    "exitDate",
+    "returnPct",
+    "costPct",
+    "exitReason",
+    "cacheGeneratedAt"
+  ]
+}

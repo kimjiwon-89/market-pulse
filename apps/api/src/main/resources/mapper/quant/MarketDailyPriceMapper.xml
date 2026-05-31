@@ -112,6 +112,173 @@
         LIMIT #{topN}
     </select>
 
+    <select id="findStockRankings" resultType="com.marketpulse.domain.market.dto.MarketStockRankingDto">
+        WITH ranked AS (
+            SELECT
+                ROW_NUMBER() OVER (
+                    ORDER BY
+                    <choose>
+                        <when test="sort == 'CHANGE_RATE_DESC'">
+                            CASE
+                                WHEN prev.close_price IS NULL OR prev.close_price = 0 THEN 0
+                                ELSE ((p.close_price - prev.close_price) / prev.close_price)
+                            END DESC,
+                            (COALESCE(p.volume, 0)::numeric * COALESCE(p.close_price, 0)) DESC,
+                            p.asset_code
+                        </when>
+                        <when test="sort == 'CHANGE_RATE_ASC'">
+                            CASE
+                                WHEN prev.close_price IS NULL OR prev.close_price = 0 THEN 0
+                                ELSE ((p.close_price - prev.close_price) / prev.close_price)
+                            END ASC,
+                            (COALESCE(p.volume, 0)::numeric * COALESCE(p.close_price, 0)) DESC,
+                            p.asset_code
+                        </when>
+                        <when test="sort == 'TRADE_AMOUNT'">
+                            (COALESCE(p.volume, 0)::numeric * COALESCE(p.close_price, 0)) DESC,
+                            COALESCE(p.volume, 0) DESC,
+                            p.asset_code
+                        </when>
+                        <otherwise>
+                            COALESCE(p.volume, 0) DESC,
+                            (COALESCE(p.volume, 0)::numeric * COALESCE(p.close_price, 0)) DESC,
+                            p.asset_code
+                        </otherwise>
+                    </choose>
+                ) AS rank,
+                p.asset_code AS code,
+                p.asset_name AS name,
+                COALESCE(sm.market, p.sector)::varchar AS market,
+                COALESCE(sm.sector, p.sector)::varchar AS sector,
+                p.close_price AS closePrice,
+                COALESCE(p.volume, 0) AS volume,
+                (COALESCE(p.volume, 0)::numeric * COALESCE(p.close_price, 0)) AS tradeAmount,
+                CASE
+                    WHEN prev.close_price IS NULL OR prev.close_price = 0 THEN 0
+                    ELSE ROUND(((p.close_price - prev.close_price) / prev.close_price) * 100, 2)
+                END AS changeRate,
+                p.trade_date AS tradeDate
+            FROM market_daily_price p
+            LEFT JOIN stock_master sm
+              ON sm.code = p.asset_code
+            LEFT JOIN LATERAL (
+                SELECT close_price
+                FROM market_daily_price
+                WHERE asset_type = p.asset_type
+                  AND asset_code = p.asset_code
+                  AND trade_date &lt; p.trade_date
+                  AND close_price IS NOT NULL
+                ORDER BY trade_date DESC
+                LIMIT 1
+            ) prev ON TRUE
+            WHERE p.asset_type = 'STOCK'
+              AND p.trade_date = #{tradeDate}
+              AND p.close_price IS NOT NULL
+              AND (
+                  #{sort} NOT IN ('CHANGE_RATE_DESC', 'CHANGE_RATE_ASC')
+                  OR (
+                      COALESCE(p.volume, 0) &gt; 0
+                      AND prev.close_price IS NOT NULL
+                      AND prev.close_price &gt; 0
+                      AND ABS(((p.close_price - prev.close_price) / prev.close_price) * 100) &lt;= 30
+                      AND (
+                          (#{sort} = 'CHANGE_RATE_DESC' AND p.close_price &gt; prev.close_price)
+                          OR (#{sort} = 'CHANGE_RATE_ASC' AND p.close_price &lt; prev.close_price)
+                      )
+                  )
+              )
+        )
+        SELECT rank, code, name, market, sector, closePrice, volume, tradeAmount, changeRate, tradeDate
+        FROM ranked
+        WHERE rank &lt;= #{limit}
+        ORDER BY rank
+    </select>
+
+    <select id="findLatestStockTradeDateOnOrBefore" resultType="java.time.LocalDate">
+        SELECT MAX(trade_date)
+        FROM market_daily_price
+        WHERE asset_type = 'STOCK'
+          AND trade_date &lt;= #{tradeDate}
+          AND close_price IS NOT NULL
+    </select>
+
+    <select id="searchLatestStocks" resultType="com.marketpulse.domain.stock.vo.StockMasterVo">
+        WITH stocks AS (
+            SELECT DISTINCT ON (p.asset_code)
+                   p.asset_code AS code,
+                   p.asset_name AS name,
+                   p.sector AS market,
+                   NULL::varchar AS sector
+            FROM market_daily_price p
+            WHERE p.asset_type = 'STOCK'
+              AND p.asset_name IS NOT NULL
+              AND (
+                  p.asset_name ILIKE CONCAT('%', #{q}, '%')
+                  OR p.asset_code ILIKE CONCAT('%', #{q}, '%')
+              )
+            ORDER BY p.asset_code, p.trade_date DESC
+        )
+        SELECT code, name, market, sector
+        FROM stocks
+        ORDER BY
+            CASE WHEN code = #{q} THEN 0 ELSE 1 END,
+            name
+        LIMIT #{limit}
+    </select>
+
+    <select id="findLatestStockDetail" resultType="com.marketpulse.domain.market.dto.MarketStockRankingDto">
+        WITH latest AS (
+            SELECT DISTINCT ON (p.asset_code)
+                   p.asset_code AS code,
+                   p.asset_name AS name,
+                   p.sector AS market,
+                   NULL::varchar AS sector,
+                   p.close_price AS close_price,
+                   COALESCE(p.volume, 0) AS volume,
+                   (COALESCE(p.volume, 0)::numeric * COALESCE(p.close_price, 0)) AS trade_amount,
+                   p.trade_date AS trade_date,
+                   p.open_price AS open_price,
+                   p.high_price AS high_price,
+                   p.low_price AS low_price,
+                   p.market_cap AS market_cap
+            FROM market_daily_price p
+            WHERE p.asset_type = 'STOCK'
+              AND p.asset_code = #{code}
+              AND p.close_price IS NOT NULL
+            ORDER BY p.asset_code, p.trade_date DESC
+        ),
+        prev AS (
+            SELECT p.close_price
+            FROM market_daily_price p
+            JOIN latest l ON TRUE
+            WHERE p.asset_type = 'STOCK'
+              AND p.asset_code = #{code}
+              AND p.trade_date &lt; l.trade_date
+              AND p.close_price IS NOT NULL
+            ORDER BY p.trade_date DESC
+            LIMIT 1
+        )
+        SELECT 1 AS rank,
+               l.code,
+               l.name,
+               l.market,
+               l.sector,
+               l.close_price AS closePrice,
+               l.volume,
+               l.trade_amount AS tradeAmount,
+               CASE
+                   WHEN prev.close_price IS NULL OR prev.close_price = 0 THEN 0
+                   ELSE ROUND(((l.close_price - prev.close_price) / prev.close_price) * 100, 2)
+               END AS changeRate,
+               l.trade_date AS tradeDate,
+               l.open_price AS openPrice,
+               l.high_price AS highPrice,
+               l.low_price AS lowPrice,
+               l.market_cap AS marketCap
+        FROM latest l
+        LEFT JOIN prev ON TRUE
+    </select>
+
     <select id="findFirstByTypeAndDateRange" resultType="MarketDailyPriceVo">
         SELECT *
         FROM market_daily_price
@@ -119,6 +286,141 @@
           AND trade_date BETWEEN #{fromDate} AND #{toDate}
         ORDER BY trade_date, market_cap DESC NULLS LAST, asset_code
         LIMIT 1
+    </select>
+
+    <select id="findLatestIndexTradeDate" resultType="java.time.LocalDate">
+        SELECT MAX(trade_date)
+        FROM market_daily_price
+        WHERE asset_code = 'KOSPI'
+          AND asset_type = 'INDEX'
+          AND close_price > 0
+          AND EXISTS (
+              SELECT 1
+              FROM market_daily_price kq
+              WHERE kq.asset_code = 'KOSDAQ'
+                AND kq.asset_type = 'INDEX'
+                AND kq.trade_date = market_daily_price.trade_date
+                AND kq.close_price > 0
+          )
+    </select>
+
+    <select id="findMarketRegimeFeatures" resultType="com.marketpulse.domain.quant.live.service.MarketRegimeFeatureRow">
+        WITH raw_index AS (
+            SELECT trade_date,
+                   asset_code,
+                   close_price,
+                   (close_price / NULLIF(LAG(close_price) OVER (PARTITION BY asset_code ORDER BY trade_date), 0) - 1) AS daily_ret
+            FROM market_daily_price
+            WHERE asset_type = 'INDEX'
+              AND asset_code IN ('KOSPI', 'KOSDAQ')
+              AND trade_date BETWEEN #{fromDate} AND #{targetDate}
+              AND close_price > 0
+        ),
+        index_ma AS (
+            SELECT trade_date,
+                   asset_code,
+                   close_price,
+                   AVG(close_price) OVER w20 AS ma20,
+                   AVG(close_price) OVER w60 AS ma60,
+                   STDDEV(daily_ret) OVER w20 AS vol20
+            FROM raw_index
+            WINDOW
+                w20 AS (PARTITION BY asset_code ORDER BY trade_date ROWS BETWEEN 19 PRECEDING AND CURRENT ROW),
+                w60 AS (PARTITION BY asset_code ORDER BY trade_date ROWS BETWEEN 59 PRECEDING AND CURRENT ROW)
+        ),
+        index_features AS (
+            SELECT trade_date,
+                   asset_code,
+                   ma20,
+                   ma60,
+                   vol20,
+                   CASE
+                       WHEN LAG(ma20, 5) OVER (PARTITION BY asset_code ORDER BY trade_date) > 0
+                       THEN (ma20 - LAG(ma20, 5) OVER (PARTITION BY asset_code ORDER BY trade_date))
+                            / LAG(ma20, 5) OVER (PARTITION BY asset_code ORDER BY trade_date)
+                       ELSE 0
+                   END AS ma20_slope5
+            FROM index_ma
+        ),
+        liquid_universe AS (
+            SELECT asset_code
+            FROM market_daily_price
+            WHERE asset_type = 'STOCK'
+              AND trade_date = #{targetDate}
+              AND close_price > 0
+              AND volume > 0
+            ORDER BY volume * close_price DESC
+            LIMIT #{breadthLimit}
+        ),
+        stock_prices AS (
+            SELECT asset_code,
+                   trade_date,
+                   close_price,
+                   volume * close_price AS trade_amount
+            FROM market_daily_price
+            WHERE asset_type = 'STOCK'
+              AND trade_date BETWEEN #{fromDate} AND #{targetDate}
+              AND close_price > 0
+              AND asset_code IN (SELECT asset_code FROM liquid_universe)
+        ),
+        stock_ma AS (
+            SELECT asset_code,
+                   trade_date,
+                   close_price,
+                   trade_amount,
+                   AVG(close_price) OVER (
+                       PARTITION BY asset_code ORDER BY trade_date ROWS BETWEEN 19 PRECEDING AND CURRENT ROW
+                   ) AS ma20,
+                   AVG(close_price) OVER (
+                       PARTITION BY asset_code ORDER BY trade_date ROWS BETWEEN 59 PRECEDING AND CURRENT ROW
+                   ) AS ma60,
+                   LAG(close_price, 5) OVER (
+                       PARTITION BY asset_code ORDER BY trade_date
+                   ) AS close_5d_ago
+            FROM stock_prices
+        ),
+        breadth AS (
+            SELECT AVG(CASE WHEN close_price > ma20 THEN 1.0 ELSE 0.0 END) AS breadth_ma20,
+                   AVG(CASE WHEN close_price > ma60 THEN 1.0 ELSE 0.0 END) AS breadth_ma60,
+                   AVG(CASE WHEN close_5d_ago IS NOT NULL
+                            THEN CASE WHEN close_price > close_5d_ago THEN 1.0 ELSE 0.0 END
+                            ELSE NULL END) AS advance_ratio_5d
+            FROM stock_ma
+            WHERE trade_date = #{targetDate}
+              AND ma20 IS NOT NULL
+        ),
+        liquidity_daily AS (
+            SELECT trade_date,
+                   SUM(trade_amount) AS total_amount
+            FROM stock_ma
+            GROUP BY trade_date
+        ),
+        liquidity AS (
+            SELECT trade_date,
+                   total_amount,
+                   AVG(total_amount) OVER (ORDER BY trade_date ROWS BETWEEN 19 PRECEDING AND CURRENT ROW) AS amount_ma20
+            FROM liquidity_daily
+        )
+        SELECT #{targetDate}::date AS cache_date,
+               MAX(CASE WHEN i.asset_code = 'KOSPI' THEN i.ma20 END) AS kospi_ma20,
+               MAX(CASE WHEN i.asset_code = 'KOSPI' THEN i.ma60 END) AS kospi_ma60,
+               MAX(CASE WHEN i.asset_code = 'KOSPI' THEN i.ma20_slope5 END) AS kospi_ma20_slope5d,
+               MAX(CASE WHEN i.asset_code = 'KOSPI' THEN i.vol20 END) AS kospi_vol20,
+               MAX(CASE WHEN i.asset_code = 'KOSDAQ' THEN i.ma20 END) AS kosdaq_ma20,
+               MAX(CASE WHEN i.asset_code = 'KOSDAQ' THEN i.ma60 END) AS kosdaq_ma60,
+               MAX(CASE WHEN i.asset_code = 'KOSDAQ' THEN i.ma20_slope5 END) AS kosdaq_ma20_slope5d,
+               MAX(CASE WHEN i.asset_code = 'KOSDAQ' THEN i.vol20 END) AS kosdaq_vol20,
+               COALESCE(MAX(b.breadth_ma20), 0.50) AS breadth_ma20,
+               COALESCE(MAX(b.breadth_ma60), 0.50) AS breadth_ma60,
+               COALESCE(MAX(b.advance_ratio_5d), 0.50) AS advance_ratio_5d,
+               COALESCE(MAX(CASE
+                   WHEN l.amount_ma20 > 0 THEN l.total_amount / l.amount_ma20 - 1
+                   ELSE 0
+               END), 0) AS liquidity_trend
+        FROM index_features i
+        CROSS JOIN breadth b
+        LEFT JOIN liquidity l ON l.trade_date = #{targetDate}
+        WHERE i.trade_date = #{targetDate}
     </select>
 
     <select id="findMonthlyMomentumPicks" resultType="MonthlyPickVo">
