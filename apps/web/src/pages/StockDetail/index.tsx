@@ -63,6 +63,7 @@ const CHART_DRAG_SENSITIVITY = 1.8;
 const CHART_PAN_WHEEL_THRESHOLD = 34;
 const CHART_ZOOM_WHEEL_THRESHOLD = 10;
 const CHART_PINCH_THRESHOLD = 0.12;
+const STOCK_DETAIL_QUANT_MODEL_CODES = ["KOSPI_BULL", "KOSDAQ_BULL", "KOSPI_WATCH", "KOSDAQ_WATCH"];
 
 const EMPTY_INVESTOR: StockInvestorItem = {
   foreignBuy: 0,
@@ -162,17 +163,21 @@ export function StockDetail() {
       getStockOrderbook(effectiveCode).catch(() => null),
       getStockDisclosures(effectiveCode).catch(() => []),
       getStockReports(effectiveCode).catch(() => []),
-      getQuantModelDetail("BULL_V4").catch(() => ({ candidates: [], trades: [] })),
-    ]).then(([chartItems, investorItem, minuteItems, orderbookItem, disclosureItems, reportItems, quantDetail]) => {
+      Promise.all(
+        STOCK_DETAIL_QUANT_MODEL_CODES.map((model) => getQuantModelDetail(model).catch(() => ({ candidates: [], trades: [] }))),
+      ),
+    ]).then(([chartItems, investorItem, minuteItems, orderbookItem, disclosureItems, reportItems, quantDetails]) => {
       if (canceled) return;
+      const candidates = quantDetails.flatMap((item) => item.candidates);
+      const trades = quantDetails.flatMap((item) => item.trades);
       setChart(chartItems);
       setInvestor(investorItem);
       setMinutes(minuteItems);
       setOrderbook(orderbookItem);
       setDisclosures(disclosureItems);
       setReports(reportItems);
-      setQuantCandidates(quantDetail.candidates.filter((item) => item.assetCode === effectiveCode));
-      setQuantTrades(quantDetail.trades.filter((item) => item.assetCode === effectiveCode));
+      setQuantCandidates(candidates.filter((item) => item.assetCode === effectiveCode));
+      setQuantTrades(trades.filter((item) => item.assetCode === effectiveCode));
     });
 
     return () => {
@@ -241,11 +246,11 @@ export function StockDetail() {
         <Card>
           <Inline $justify="space-between" $wrap>
             <SectionTitle>퀀트 판단</SectionTitle>
-            <Chip>Bull v4</Chip>
+            <Chip>공개 모델</Chip>
           </Inline>
           {hasQuantSignal ? (
             <Stack $gap="12px">
-              <SubText>이 종목은 Bull v4 후보/거래 기록에 포함되어 있습니다.</SubText>
+              <SubText>이 종목은 공개 퀀트 모델 후보/거래 기록에 포함되어 있습니다.</SubText>
               <ChipRow>
                 <Chip>{quantCandidates.length}개 후보</Chip>
                 <Chip>{quantTrades.length}개 거래</Chip>
