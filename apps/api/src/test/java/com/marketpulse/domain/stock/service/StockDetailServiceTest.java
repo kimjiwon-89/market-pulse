@@ -1,8 +1,10 @@
 package com.marketpulse.domain.stock.service;
 
 import com.marketpulse.domain.quant.mapper.MarketDailyPriceMapper;
+import com.marketpulse.domain.investor.dto.InvestorDailyItem;
 import com.marketpulse.domain.market.dto.MarketStockRankingDto;
 import com.marketpulse.domain.stock.dto.StockDetailDto;
+import com.marketpulse.domain.stock.dto.StockInvestorDto;
 import com.marketpulse.domain.stock.dto.StockMinuteCandleDto;
 import com.marketpulse.domain.stock.dto.StockOrderbookDto;
 import com.marketpulse.domain.stock.vo.KisMinutePriceResponse;
@@ -60,6 +62,37 @@ class StockDetailServiceTest {
         assertThat(detail.getMarket()).isEqualTo("KOSPI");
         assertThat(detail.getSector()).isEqualTo("유통");
         assertThat(detail.getCurrentPrice()).isEqualTo(13250);
+    }
+
+    @Test
+    void getInvestorConvertsKisMillionWonAmountsToWon() {
+        KisResponse<List<InvestorDailyItem>> response = new KisResponse<>();
+        response.setRt_cd("0");
+        InvestorDailyItem latest = new InvestorDailyItem();
+        latest.setForeignBuyAmount("4536");
+        latest.setForeignSellAmount("5386");
+        latest.setForeignNetBuyAmount("-850");
+        latest.setInstitutionBuyAmount("1034");
+        latest.setInstitutionSellAmount("473");
+        latest.setInstitutionNetBuyAmount("561");
+        latest.setPersonalBuyAmount("43771");
+        latest.setPersonalSellAmount("43769");
+        latest.setPersonalNetBuyAmount("2");
+        response.setOutput(List.of(latest));
+        when(externalApiClient.callGet(
+                eq("/uapi/domestic-stock/v1/quotations/inquire-investor"),
+                eq("FHKST01010900"),
+                anyMap(),
+                any(ParameterizedTypeReference.class)
+        )).thenReturn(response);
+
+        StockInvestorDto investor = service.getInvestor("001740");
+
+        assertThat(investor.getForeignBuy()).isEqualTo(4_536_000_000L);
+        assertThat(investor.getForeignSell()).isEqualTo(5_386_000_000L);
+        assertThat(investor.getForeignNet()).isEqualTo(-850_000_000L);
+        assertThat(investor.getInstitutionNet()).isEqualTo(561_000_000L);
+        assertThat(investor.getIndividualNet()).isEqualTo(2_000_000L);
     }
 
     @Test

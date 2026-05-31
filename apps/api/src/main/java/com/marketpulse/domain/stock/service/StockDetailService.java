@@ -240,15 +240,15 @@ public class StockDetailService {
 
             InvestorDailyItem latest = items.get(0);
             return StockInvestorDto.builder()
-                    .foreignBuy(parseLong(latest.getForeignBuyAmount()))
-                    .foreignSell(parseLong(latest.getForeignSellAmount()))
-                    .foreignNet(parseLong(latest.getForeignNetBuyAmount()))
-                    .institutionBuy(parseLong(latest.getInstitutionBuyAmount()))
-                    .institutionSell(parseLong(latest.getInstitutionSellAmount()))
-                    .institutionNet(parseLong(latest.getInstitutionNetBuyAmount()))
-                    .individualBuy(parseLong(latest.getPersonalBuyAmount()))
-                    .individualSell(parseLong(latest.getPersonalSellAmount()))
-                    .individualNet(parseLong(latest.getPersonalNetBuyAmount()))
+                    .foreignBuy(parseKisAmountMillion(latest.getForeignBuyAmount()))
+                    .foreignSell(parseKisAmountMillion(latest.getForeignSellAmount()))
+                    .foreignNet(parseKisAmountMillion(latest.getForeignNetBuyAmount()))
+                    .institutionBuy(parseKisAmountMillion(latest.getInstitutionBuyAmount()))
+                    .institutionSell(parseKisAmountMillion(latest.getInstitutionSellAmount()))
+                    .institutionNet(parseKisAmountMillion(latest.getInstitutionNetBuyAmount()))
+                    .individualBuy(parseKisAmountMillion(latest.getPersonalBuyAmount()))
+                    .individualSell(parseKisAmountMillion(latest.getPersonalSellAmount()))
+                    .individualNet(parseKisAmountMillion(latest.getPersonalNetBuyAmount()))
                     .build();
         } catch (Exception e) {
             log.error("KIS investor API failed for code={}: {}", code, e.getMessage());
@@ -355,6 +355,10 @@ public class StockDetailService {
         if (s == null || s.isBlank()) return 0L;
         try { return Long.parseLong(s.trim().replace(",", "")); }
         catch (NumberFormatException e) { return 0L; }
+    }
+
+    private long parseKisAmountMillion(String s) {
+        return parseLong(s) * 1_000_000L;
     }
 
     private double parseDouble(String s) {
