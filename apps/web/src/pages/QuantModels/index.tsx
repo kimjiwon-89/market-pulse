@@ -937,7 +937,7 @@ export function QuantModels() {
             <ChipRow>
               <Chip $active>{model.category}</Chip>
               {model.focus
-                .filter((item) => !item.toLowerCase().includes("bull v4"))
+                .filter((item) => !String(item ?? "").toLowerCase().includes("bull v4"))
                 .map((item) => <Chip key={item}>{item}</Chip>)}
             </ChipRow>
             <MutedText>오늘 종목 {model.todayCount}개 · {model.marketMode}</MutedText>
