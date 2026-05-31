@@ -225,6 +225,12 @@ function mapModel(dto: LiveModelSummaryDto): QuantModelSummary {
   const totalProfit = dto.totalProfit ?? 0;
   const totalReturnPct = dto.totalReturnPct ?? (seedMoney > 0 ? (totalProfit / seedMoney) * 100 : 0);
 
+  const focus = [
+    category === "기타" ? "관찰 모델" : category,
+    "검증 완료",
+    "위험 체크포인트",
+  ];
+
   return {
     code,
     modelVersion: dto.modelVersion,
@@ -238,7 +244,7 @@ function mapModel(dto: LiveModelSummaryDto): QuantModelSummary {
     marketMode,
     status,
     signalStrength,
-    focus: ["상승장", "리플레이 검증", "위험 체크포인트"],
+    focus,
     todayCount: dto.rawCandidateCountToday ?? dto.actualEntryCountToday ?? dto.openPositionCount ?? 0,
     seedMoney,
     totalReturnPct,

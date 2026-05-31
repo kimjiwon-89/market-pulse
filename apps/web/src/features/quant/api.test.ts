@@ -175,6 +175,7 @@ describe("getQuantHomeSummary", () => {
     const summary = await getQuantHomeSummary();
 
     expect(summary.models.map((model) => model.code)).toEqual(["KOSPI_BULL"]);
+    expect(summary.models[0].focus.join(" ")).not.toContain("Bull v4");
     expect(summary.decisions).toHaveLength(1);
     expect(summary.decisions[0]).toMatchObject({
       assetCode: "005930",

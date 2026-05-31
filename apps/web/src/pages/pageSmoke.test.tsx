@@ -379,6 +379,29 @@ describe("page smoke rendering", () => {
     expect(screen.getByText("종목 메모는 로그인 후 사용할 수 있습니다.")).toBeInTheDocument();
   });
 
+  it("keeps stock detail visible when API omits the stock name", async () => {
+    getStockDetailMock.mockResolvedValueOnce({
+      code: "005930",
+      name: null as unknown as string,
+      market: "KOSPI",
+      sector: null as unknown as string,
+      currentPrice: 13250,
+      changeRate: 30,
+      volume: 1000000,
+      tradingValue: 13250000000,
+      marketCap: 100000000000,
+      openPrice: 10200,
+      highPrice: 13250,
+      lowPrice: 10100,
+    });
+
+    renderAt("/stock/005930", <StockDetail />, "/stock/:code");
+
+    expect(await screen.findByRole("heading", { name: "삼성전자" })).toBeInTheDocument();
+    expect(screen.getByText("005930 · KOSPI · 반도체")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "요약" })).toBeInTheDocument();
+  });
+
   it("renders logged-out personal page gates", () => {
     renderAt("/memo", <MemoList />);
     expect(screen.getByText("메모는 로그인 후 사용할 수 있습니다")).toBeInTheDocument();
