@@ -7,7 +7,7 @@ Production deploy runs when a pull request into `main` is closed as merged.
 1. GitHub Actions checks out the repo.
 2. API tests run with Java 17.
 3. Web dependencies install, then web tests and production build run.
-4. API image is built from `apps/api`.
+4. API image is built from the repository root with `apps/api/Dockerfile`, so accepted quant package artifacts under `domains/quant-serving/packages/` are included in the API image.
 5. Web image is built from `apps/web`.
 6. Images are pushed to Docker Hub.
 7. `infra/docker-compose.yml` is uploaded to EC2 as `/app/docker-compose.yml`.
@@ -51,6 +51,7 @@ KIS_APP_KEY=
 KIS_APP_SECRET=
 KRX_AUTH_KEY=
 OPENDART_API_KEY=
+QUANT_MODEL_PACKAGE_ROOT=/app/domains/quant-serving/packages
 AWS_ACCESS_KEY=
 AWS_SECRET_KEY=
 AWS_S3_REGION=ap-northeast-2
