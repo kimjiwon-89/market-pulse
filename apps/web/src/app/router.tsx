@@ -1,4 +1,4 @@
-import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { createBrowserRouter, RouterProvider, useRouteError } from "react-router-dom";
 import { DefaultLayout } from "@/layout/DefaultLayout";
 import { Dashboard } from "@/pages/Dashboard";
 import { IndexDetail } from "@/pages/IndexDetail";
@@ -18,6 +18,7 @@ import { Services } from "@/pages/Services";
 import { TarotPage } from "@/pages/Services/TarotPage";
 import { MyPage } from "@/pages/MyPage";
 import { getRole } from "@/services/apiClient";
+import { Card, PageHeaderCard, PageHeaderMeta, PageShell, PageTitle, SubText, TextLink } from "@/components/ui/Page";
 
 function AdminRoute() {
   return getRole() === "ADMIN" ? <Admin /> : (
@@ -28,11 +29,32 @@ function AdminRoute() {
   );
 }
 
+function RouteErrorFallback() {
+  const error = useRouteError();
+  const message = error instanceof Error ? error.message : "화면을 불러오는 중 문제가 발생했습니다.";
+
+  return (
+    <PageShell $width="760px">
+      <PageHeaderCard>
+        <PageTitle>화면을 다시 불러와주세요</PageTitle>
+        <PageHeaderMeta>
+          <TextLink to="/">홈으로</TextLink>
+          <TextLink to="/market">시장 보기</TextLink>
+        </PageHeaderMeta>
+      </PageHeaderCard>
+      <Card $soft>
+        <SubText>{message}</SubText>
+      </Card>
+    </PageShell>
+  );
+}
+
 const router = createBrowserRouter([
   { path: "/login", element: <Login /> },
   {
     path: "/",
     element: <DefaultLayout />,
+    errorElement: <RouteErrorFallback />,
     children: [
       { index: true, element: <QuantHome /> },
       { path: "market", element: <Dashboard /> },
