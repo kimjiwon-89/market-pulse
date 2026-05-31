@@ -38,7 +38,7 @@ export function QuantDecisionSection({ decisions }: QuantDecisionSectionProps) {
       </SectionHead>
       {decisions.length === 0 ? (
         <DecisionEmptyState>
-          <BodyCopy>오늘 날짜로 새로 발생한 추천 후보가 없습니다. 과거 검증 후보는 각 모델 상세에서 확인해주세요.</BodyCopy>
+          <BodyCopy>표시할 추천 후보가 없습니다. 과거 검증 후보는 각 모델 상세에서 확인해주세요.</BodyCopy>
         </DecisionEmptyState>
       ) : (
         <>

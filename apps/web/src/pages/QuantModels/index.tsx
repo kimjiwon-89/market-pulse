@@ -425,7 +425,7 @@ export function QuantModels() {
           <ModelHeader>
             <div>
               <TextLink to={`/quant/${selected.code}`}>모델 상세로</TextLink>
-              <PageTitle>{formatMonthTitle(monthKey)} Bull v4 월 요약</PageTitle>
+              <PageTitle>{formatMonthTitle(monthKey)} 모델 월 요약</PageTitle>
             </div>
             <ModelMeta>
               <span>{selected.name}</span>
@@ -476,7 +476,7 @@ export function QuantModels() {
             <CardHeader>
               <div>
                 <SectionTitle>거래 내용</SectionTitle>
-                <SubText>이 월에 기록된 Bull v4 진입과 청산입니다.</SubText>
+                <SubText>이 월에 기록된 모델 진입과 청산입니다.</SubText>
               </div>
               <Badge $tone="flat">{monthlyTrades.length}건</Badge>
             </CardHeader>
@@ -537,7 +537,7 @@ export function QuantModels() {
         </AdSlot>
 
         <Card>
-          <TabList role="tablist" aria-label="Bull v4 상세 보기">
+          <TabList role="tablist" aria-label="모델 상세 보기">
             <TabButton role="tab" aria-selected={activeTab === "overview"} $active={activeTab === "overview"} onClick={() => selectTab("overview")}>
               요약
             </TabButton>
@@ -604,7 +604,7 @@ export function QuantModels() {
                   <RuleSection>
                     <SectionTitle>손절 / 익절 규칙</SectionTitle>
                     <RuleList>
-                      <li>청산은 Bull v4 체크포인트/exit rule에 의해 닫힌 거래만 반영합니다.</li>
+                      <li>청산은 모델 체크포인트/exit rule에 의해 닫힌 거래만 반영합니다.</li>
                       <li>손절 기준은 리플레이 exit plan 기준 -18% 구간을 사용합니다.</li>
                       <li>표시 수익률은 `entry_price`부터 `exit_price`까지의 완료 거래 기준입니다.</li>
                     </RuleList>
@@ -944,7 +944,7 @@ export function QuantModels() {
         {models.length === 0 && !error ? (
           <Card>
             <SectionTitle>불러오는 중</SectionTitle>
-            <SubText>Bull v4 모델 상태를 확인하고 있습니다.</SubText>
+            <SubText>모델 상태를 확인하고 있습니다.</SubText>
           </Card>
         ) : null}
         {models.length > 0 && filteredModels.length === 0 ? (

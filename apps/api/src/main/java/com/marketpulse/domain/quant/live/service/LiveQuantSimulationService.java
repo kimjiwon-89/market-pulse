@@ -22,6 +22,8 @@ import java.util.Set;
 
 @Service
 public class LiveQuantSimulationService {
+    private static final Set<String> HIDDEN_MODEL_CODES = Set.of("BULL_V4");
+
     private final LiveQuantRuntimeRegistry registry;
     private final QuantModelPackageService packageService;
     private final LiveQuantPaperTradingService paperTradingService;
@@ -44,7 +46,9 @@ public class LiveQuantSimulationService {
     }
 
     public List<LiveQuantModelSummaryDto> getVisibleModels() {
-        List<LiveQuantModelSummaryDto> runtimeModels = registry.visibleSummaries();
+        List<LiveQuantModelSummaryDto> runtimeModels = registry.visibleSummaries().stream()
+                .filter(summary -> !HIDDEN_MODEL_CODES.contains(summary.modelCode()))
+                .toList();
         if (packageService == null) {
             return runtimeModels;
         }
@@ -175,6 +179,7 @@ public class LiveQuantSimulationService {
             }
         }
         List<LiveQuantReportSummaryDto> runtimeReports = registry.visibleSummaries().stream()
+                .filter(summary -> !HIDDEN_MODEL_CODES.contains(summary.modelCode()))
                 .flatMap(summary -> registry.require(summary.modelCode()).reports(period).stream())
                 .toList();
         if (packageService == null) {

@@ -577,7 +577,7 @@ describe("page smoke rendering", () => {
   it("renders Bull v4 monthly summary page from a chart month", async () => {
     renderAt("/quant/BULL_V4/month/2026-05", <QuantModels />, "/quant/:modelCode/month/:monthKey");
 
-    expect(await screen.findByRole("heading", { name: "2026년 5월 Bull v4 월 요약" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "2026년 5월 모델 월 요약" })).toBeInTheDocument();
     expect(screen.getByText("모델 상세로")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "월 수익률" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "거래 내용" })).toBeInTheDocument();
