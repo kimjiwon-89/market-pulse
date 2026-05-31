@@ -22,6 +22,16 @@ class QuantModelPackageServiceTest {
 
     @Test
     void publicVisibleSummariesKeepPackageCategoryForScreenFilters() {
+        QuantModelPackageRegistryVo legacyBull = new QuantModelPackageRegistryVo();
+        legacyBull.setModelCode("BULL_V4");
+        legacyBull.setModelName("Bull v4 모델");
+        legacyBull.setModelVersion("5.0.1");
+        legacyBull.setCategory("상승장");
+        legacyBull.setPackagePath("domains/quant-serving/packages/BULL_V4");
+        legacyBull.setPublicVisible(true);
+        legacyBull.setRuntimeReady(false);
+        legacyBull.setSeedMoney(new BigDecimal("100000000"));
+
         QuantModelPackageRegistryVo watchPackage = new QuantModelPackageRegistryVo();
         watchPackage.setModelCode("KOSPI_WATCH");
         watchPackage.setModelName("KOSPI Watch");
@@ -34,7 +44,7 @@ class QuantModelPackageServiceTest {
 
         QuantModelPackageService service = new QuantModelPackageService(
                 new QuantModelPackageScanner(new com.fasterxml.jackson.databind.ObjectMapper()),
-                new FakePackageRegistryMapper(List.of(watchPackage)),
+                new FakePackageRegistryMapper(List.of(legacyBull, watchPackage)),
                 "unused"
         );
 
