@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "runtimeConfigKey": "kospi-watch-v0.1.0",
+  "modelCode": "kospi-watch",
+  "modelVersion": "0.1.0",
+  "marketScope": "KOSPI",
+  "validationDate": "2026-05-30",
+  "sourceReport": "domains/quant/legacy-quant-model-lab/.Codex/models/market-supervisor/research/reports/2026-05-27_market-regime-model.md",
+  "historicalRegimeSnapshot": {
+    "periodStart": "2012-03-28",
+    "periodEnd": "2026-05-26",
+    "totalDates": 3477,
+    "combinedRegimeDistributionPct": {
+      "BULL": 38.1,
+      "SIDEWAYS": 38.0,
+      "BEAR": 23.7,
+      "CRASH": 0.2
+    },
+    "combinedRegimeDays": {
+      "BULL": 1325,
+      "SIDEWAYS": 1322,
+      "BEAR": 824,
+      "CRASH": 6
+    }
+  },
+  "unitCoverage": {
+    "classificationCases": ["BULL", "SIDEWAYS", "BEAR", "CRASH"],
+    "realtimeCachedFeatureFlow": true,
+    "perIndexOutputFields": ["kospi_regime", "kosdaq_regime", "combined_raw"]
+  },
+  "approvalState": {
+    "paperShadowOnly": true,
+    "publicExposureApproved": false,
+    "liveOrdersApproved": false,
+    "productionRuntimeExists": false
+  },
+  "knownGaps": [
+    "KOSPI watch is derived from the shared market-supervisor prototype, not an independent production runtime.",
+    "Live KIS index provider and disconnect fallback are not implemented in this lab package.",
+    "Forward paper-shadow evidence is required before public exposure."
+  ]
+}

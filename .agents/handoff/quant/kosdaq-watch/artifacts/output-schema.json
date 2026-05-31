@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "runtimeConfigKey": "kosdaq-watch-v0.1.0",
+  "marketScope": "KOSDAQ",
+  "outputs": [
+    {"name": "trade_date", "type": "date", "required": true},
+    {"name": "market_scope", "type": "string", "required": true, "allowedValues": ["KOSDAQ"]},
+    {"name": "regime", "type": "string", "required": true, "allowedValues": ["BULL", "SIDEWAYS", "BEAR", "CRASH"]},
+    {"name": "confidence", "type": "number", "required": true},
+    {"name": "risk_budget", "type": "number", "required": true},
+    {"name": "allowed_strategy", "type": "string", "required": true, "allowedValues": ["W4_BREAKOUT", "W4_RESTRICT", "W4_RECOVER", "CASH"]},
+    {"name": "bull_score", "type": "number", "required": true},
+    {"name": "bear_score", "type": "number", "required": true},
+    {"name": "stress_score", "type": "number", "required": true},
+    {"name": "kosdaq_regime", "type": "string", "required": true},
+    {"name": "combined_raw", "type": "string", "required": true},
+    {"name": "cache_date", "type": "date", "required": false},
+    {"name": "data_freshness_status", "type": "string", "required": false}
+  ],
+  "safety": {
+    "mayPlaceOrders": false,
+    "maySelectStocks": false,
+    "publicExposureRequiresSeparateApproval": true,
+    "staleDataMustHideUserFacingOutput": true
+  }
+}

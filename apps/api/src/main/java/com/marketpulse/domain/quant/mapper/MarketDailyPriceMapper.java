@@ -50,6 +50,10 @@ public interface MarketDailyPriceMapper {
             @Param("limit") int limit
     );
 
+    LocalDate findLatestStockTradeDateOnOrBefore(
+            @Param("tradeDate") LocalDate tradeDate
+    );
+
     List<StockMasterVo> searchLatestStocks(
             @Param("q") String q,
             @Param("limit") int limit

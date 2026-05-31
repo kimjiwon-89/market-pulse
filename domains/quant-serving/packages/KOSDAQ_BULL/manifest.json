@@ -3,7 +3,7 @@
   "modelName": "KOSDAQ Bull v1",
   "modelVersion": "1.0.0",
   "category": "상승장",
-  "description": "KOSDAQ 전용 상승장 후보 패키지입니다.",
+  "description": "KOSDAQ 전용 상승장 paper-runtime 후보 패키지입니다.",
   "seedMoney": 100000000,
-  "expectedMonthlyReturnPct": 15.0
+  "expectedMonthlyReturnPct": 4.78
 }

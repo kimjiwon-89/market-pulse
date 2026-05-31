@@ -98,6 +98,7 @@ public class BullV4Runtime implements LiveQuantModelRuntime {
                 .map(fact -> new LiveQuantCandidateDto(
                         fact.assetCode(),
                         fact.assetName(),
+                        fact.entryDate().toString(),
                         "HISTORICAL_REPLAY",
                         "REPLAY_ENTRY",
                         "Bull v4 historical replay entry from market_daily_price.",
@@ -323,6 +324,7 @@ public class BullV4Runtime implements LiveQuantModelRuntime {
                 BULL_MODEL_CODE.equals(code) ? BULL_CONFIG.modelVersion() : null,
                 BULL_MODEL_CODE.equals(code) ? BULL_CONFIG.configKey() : null,
                 name,
+                "상승장",
                 status,
                 MODEL_SEED,
                 totalReturnPct,

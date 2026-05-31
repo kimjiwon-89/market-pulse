@@ -38,7 +38,7 @@ describe("QuantDecisionSection", () => {
   it("shows a padded empty state instead of an empty table when candidates are unavailable", () => {
     renderSection([]);
 
-    expect(screen.getByText("현재 Bull v4 후보 종목이 없습니다.")).toBeInTheDocument();
+    expect(screen.getByText("오늘 날짜로 새로 발생한 추천 후보가 없습니다. 과거 검증 후보는 각 모델 상세에서 확인해주세요.")).toBeInTheDocument();
     expect(screen.queryByRole("columnheader", { name: "종목" })).not.toBeInTheDocument();
   });
 
@@ -47,7 +47,8 @@ describe("QuantDecisionSection", () => {
 
     expect(screen.getByRole("columnheader", { name: "종목" })).toBeInTheDocument();
     expect(screen.getAllByText("삼성전자").length).toBeGreaterThan(0);
-    expect(screen.queryByText("현재 Bull v4 후보 종목이 없습니다.")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: /삼성전자/ })[0]).toHaveAttribute("href", "/stock/005930");
+    expect(screen.queryByText("오늘 날짜로 새로 발생한 추천 후보가 없습니다. 과거 검증 후보는 각 모델 상세에서 확인해주세요.")).not.toBeInTheDocument();
   });
 
   it("opens the all-model candidate list from the full list button", async () => {

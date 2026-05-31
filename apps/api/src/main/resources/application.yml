@@ -38,6 +38,9 @@ opendart:
 market-pulse:
   quant:
     package-root: ${QUANT_MODEL_PACKAGE_ROOT:../../domains/quant-serving/packages}
+    live-paper:
+      scheduler:
+        enabled: ${QUANT_LIVE_PAPER_SCHEDULER_ENABLED:false}
 
 app:
   cors:

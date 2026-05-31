@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "modelCode": "kospi-bull-r20-shadow",
+  "modelVersion": "0.1.0",
+  "runtimeConfigKey": "kospi-bull-r20-shadow-v0.1.0",
+  "marketScope": "KOSPI",
+  "grain": "asset_signal_date",
+  "primaryKeys": ["signalDate", "assetCode"],
+  "sources": [
+    {
+      "name": "market_daily_price",
+      "requiredAssetTypes": ["STOCK", "INDEX"],
+      "requiredIndexes": ["KOSPI", "KOSDAQ"],
+      "stockUniverse": "KOSPI"
+    }
+  ],
+  "features": [
+    {"name": "marketScope", "type": "string", "nullable": false, "allowedValues": ["KOSPI"]},
+    {"name": "range20", "type": "number", "nullable": false},
+    {"name": "ret60", "type": "number", "nullable": false},
+    {"name": "ma60Dist", "type": "number", "nullable": false},
+    {"name": "ma20Slope5", "type": "number", "nullable": false},
+    {"name": "ma60Slope5", "type": "number", "nullable": false},
+    {"name": "entryNextBody", "type": "number", "nullable": false},
+    {"name": "entryMa20Dist", "type": "number", "nullable": false},
+    {"name": "candleLoc", "type": "number", "nullable": false},
+    {"name": "upperShadow", "type": "number", "nullable": false},
+    {"name": "bodyRet", "type": "number", "nullable": false},
+    {"name": "volExp", "type": "number", "nullable": false},
+    {"name": "tradeAmount", "type": "number", "nullable": false},
+    {"name": "kospiAboveMa20", "type": "boolean", "nullable": false},
+    {"name": "kosdaqAboveMa20", "type": "boolean", "nullable": false}
+  ],
+  "timingPolicy": {
+    "signalDate": "Candidate date derived from historical KOSPI stock features.",
+    "entryCheckDate": "Fifth tradable day after signal date.",
+    "executionDate": "First tradable day after entry check date.",
+    "returnPeriod": "Execution date to virtual exit date."
+  }
+}

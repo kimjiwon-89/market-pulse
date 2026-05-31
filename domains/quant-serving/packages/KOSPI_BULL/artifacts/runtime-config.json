@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "runtimeConfigKey": "kospi-bull-r20-shadow-v0.1.0",
+  "modelCode": "kospi-bull-r20-shadow",
+  "modelVersion": "0.1.0",
+  "family": "KOSPI_BULL",
+  "enabled": false,
+  "publicExposure": false,
+  "paperOnly": true,
+  "shadowOnly": true,
+  "liveOrdersEnabled": false,
+  "marketScope": "KOSPI",
+  "universe": {
+    "assetType": "STOCK",
+    "includeExchange": "KOSPI",
+    "exchangeMapRule": "sector == KOSPI maps to KOSPI; all other STOCK rows map to KOSDAQ",
+    "requiredIndexes": ["KOSPI", "KOSDAQ"]
+  },
+  "portfolio": {
+    "seedCapitalKrw": 1000000000,
+    "positionCashKrw": 100000000,
+    "maxPositions": 10,
+    "maxBuysPerSignalDay": 5,
+    "liquidityCapPctOfSignalDayTradeAmount": 3.0
+  },
+  "signalFilter": {
+    "range20Min": 0.15,
+    "range20Max": 0.4,
+    "ret60Min": 0.2,
+    "ret60Max": 1.05,
+    "ma60DistMin": 0.05,
+    "volExpMax": 3.0,
+    "candleLocMin": 0.45,
+    "upperShadowMax": 0.12,
+    "tradeAmountMinKrw": 500000000,
+    "scoreFormula": "range20 + ret60 + ma60Dist",
+    "topN": 80
+  },
+  "entry": {
+    "signalCadenceTradingDays": 5,
+    "entryDelayTradingDays": 5,
+    "entryLocMin": 0.55,
+    "entryMa20DistMin": 0.02,
+    "entryNextBodyMin": 0.02,
+    "entryDrawdownMin": -0.05,
+    "entryUpperShadowMax": 0.12,
+    "entryBodyRetMin": 0.0
+  },
+  "portfolioGuards": {
+    "singleOpenPositionPerAsset": true,
+    "rollingEntryGuardCalendarDays": 15,
+    "rollingEntryCap": 4
+  },
+  "regimeGate": {
+    "type": "both_indexes_above_ma20",
+    "kospiRequired": true,
+    "kosdaqRequired": true
+  },
+  "exit": {
+    "earlyFailClosePct": -0.06,
+    "earlyFailDays": 3,
+    "stopLossPct": -0.12,
+    "trailTriggerPct": 0.2,
+    "trailGivebackPct": 0.3,
+    "profitFloorAfterPeakPct": 0.12,
+    "baseMaxHoldTradingDays": 30,
+    "conditionalExtension": {
+      "enabled": true,
+      "condition": {
+        "signalTradeAmountMinKrw": 100000000000,
+        "signalRet60Max": 0.3
+      },
+      "returnPctAtBaseMaxHoldMin": 0.15,
+      "requiresCloseAboveMa20": true,
+      "extendedMaxHoldTradingDays": 120
+    },
+    "netTradingCostPct": 0.003
+  },
+  "shadowRuntime": {
+    "recordSignals": true,
+    "recordSkippedCandidates": true,
+    "recordVirtualEntries": true,
+    "recordVirtualExits": true,
+    "recordDailyMarkToMarket": true,
+    "recommendedFactTable": "quant_kospi_bull_shadow_fact",
+    "serveFromCacheOnly": true,
+    "adminOnly": true
+  },
+  "dataReadiness": {
+    "requireStockRows": true,
+    "requireIndexRows": true,
+    "hideWhenCacheEmpty": true,
+    "hideWhenDataDelayed": true
+  }
+}

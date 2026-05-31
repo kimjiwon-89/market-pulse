@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "runtimeConfigKey": "kosdaq-watch-v0.1.0",
+  "featureSet": "market-supervisor-realtime-regime",
+  "marketScope": "KOSDAQ",
+  "requiredFeatures": [
+    {"name": "trade_date", "type": "date", "source": "market_daily_price or live snapshot clock"},
+    {"name": "live_kospi", "type": "number", "source": "live index quote"},
+    {"name": "live_kosdaq", "type": "number", "source": "live index quote"},
+    {"name": "kospi_ma20", "type": "number", "source": "cached index rolling feature"},
+    {"name": "kospi_ma60", "type": "number", "source": "cached index rolling feature"},
+    {"name": "kospi_ma20_slope_5d", "type": "number", "source": "cached index rolling feature"},
+    {"name": "kospi_vol20", "type": "number", "source": "cached index rolling feature"},
+    {"name": "kosdaq_ma20", "type": "number", "source": "cached index rolling feature"},
+    {"name": "kosdaq_ma60", "type": "number", "source": "cached index rolling feature"},
+    {"name": "kosdaq_ma20_slope_5d", "type": "number", "source": "cached index rolling feature"},
+    {"name": "kosdaq_vol20", "type": "number", "source": "cached index rolling feature"},
+    {"name": "breadth_ma20", "type": "number", "source": "cached stock breadth"},
+    {"name": "breadth_ma60", "type": "number", "source": "cached stock breadth"},
+    {"name": "advance_ratio_5d", "type": "number", "source": "cached stock breadth"},
+    {"name": "liquidity_trend", "type": "number", "source": "cached market liquidity"}
+  ],
+  "constraints": {
+    "priceFeaturesMustBePositive": true,
+    "ratioFeaturesMin": 0.0,
+    "ratioFeaturesMax": 1.0,
+    "noLookahead": true,
+    "livePriceMayUpdateIntraday": true,
+    "slowFeaturesUseLatestClosedMarketData": true
+  }
+}

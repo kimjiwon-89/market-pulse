@@ -2,6 +2,7 @@ package com.marketpulse.domain.quant.live.controller;
 
 import com.marketpulse.domain.quant.live.dto.*;
 import com.marketpulse.domain.quant.live.service.BullV4ReplayPrecomputeService;
+import com.marketpulse.domain.quant.live.service.LiveQuantPaperTradingService;
 import com.marketpulse.domain.quant.live.service.LiveQuantSimulationService;
 import com.marketpulse.domain.quant.live.service.MarketRegimeMonitorService;
 import com.marketpulse.domain.quant.live.service.MarketRegimeSnapshot;
@@ -116,5 +117,10 @@ public class LiveQuantController {
     @PostMapping("/market-regime/refresh")
     public ApiResponse<MarketRegimeSnapshot> refreshMarketRegime() {
         return ApiResponse.success(marketRegimeMonitorService.refreshLatest());
+    }
+
+    @PostMapping("/paper-trading/run")
+    public ApiResponse<LiveQuantPaperTradingService.RunResult> runPaperTradingOnce() {
+        return ApiResponse.success(service.runPaperTradingOnce());
     }
 }

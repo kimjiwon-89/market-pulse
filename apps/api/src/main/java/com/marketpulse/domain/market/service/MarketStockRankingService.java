@@ -21,7 +21,11 @@ public class MarketStockRankingService {
     private final MarketDailyPriceMapper marketDailyPriceMapper;
 
     public List<MarketStockRankingDto> getRankings(String date, String sort, Integer limit) {
-        LocalDate tradeDate = resolveDate(date);
+        LocalDate requestedDate = resolveDate(date);
+        LocalDate tradeDate = marketDailyPriceMapper.findLatestStockTradeDateOnOrBefore(requestedDate);
+        if (tradeDate == null) {
+            tradeDate = requestedDate;
+        }
         String rankingSort = resolveSort(sort);
         int rankingLimit = resolveLimit(limit);
         return marketDailyPriceMapper.findStockRankings(tradeDate, rankingSort, rankingLimit);
@@ -44,8 +48,11 @@ public class MarketStockRankingService {
             return "VOLUME";
         }
         String normalized = sort.trim().toUpperCase(Locale.ROOT);
-        if (!"VOLUME".equals(normalized) && !"TRADE_AMOUNT".equals(normalized)) {
-            throw new IllegalArgumentException("sort는 VOLUME 또는 TRADE_AMOUNT만 가능합니다.");
+        if (!"VOLUME".equals(normalized)
+                && !"TRADE_AMOUNT".equals(normalized)
+                && !"CHANGE_RATE_DESC".equals(normalized)
+                && !"CHANGE_RATE_ASC".equals(normalized)) {
+            throw new IllegalArgumentException("sort는 VOLUME, TRADE_AMOUNT, CHANGE_RATE_DESC, CHANGE_RATE_ASC만 가능합니다.");
         }
         return normalized;
     }

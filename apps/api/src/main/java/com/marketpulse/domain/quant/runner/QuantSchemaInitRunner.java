@@ -288,5 +288,67 @@ public class QuantSchemaInitRunner implements CommandLineRunner {
                 """);
         jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_qbull_v4_replay_config_exit ON quant_bull_v4_replay_fact(config_key, exit_date)");
         jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_qbull_v4_replay_config_entry ON quant_bull_v4_replay_fact(config_key, entry_date)");
+
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS quant_live_paper_candidate (
+                    id                  BIGSERIAL    PRIMARY KEY,
+                    model_code          VARCHAR(50)  NOT NULL,
+                    signal_date         DATE         NOT NULL,
+                    market_date         DATE         NOT NULL,
+                    asset_code          VARCHAR(20)  NOT NULL,
+                    asset_name          VARCHAR(100),
+                    decision            VARCHAR(10)  NOT NULL,
+                    reason              TEXT,
+                    signal_price        NUMERIC(18,4),
+                    expected_return_pct NUMERIC(12,6),
+                    source              VARCHAR(60)  NOT NULL,
+                    created_at          TIMESTAMP    DEFAULT NOW(),
+                    updated_at          TIMESTAMP    DEFAULT NOW(),
+                    CONSTRAINT uq_quant_live_paper_candidate UNIQUE (model_code, signal_date, asset_code)
+                )
+                """);
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_qlpc_model_date ON quant_live_paper_candidate(model_code, signal_date DESC)");
+
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS quant_live_paper_position (
+                    id          BIGSERIAL    PRIMARY KEY,
+                    model_code  VARCHAR(50)  NOT NULL,
+                    asset_code  VARCHAR(20)  NOT NULL,
+                    asset_name  VARCHAR(100),
+                    entry_time  TIMESTAMP    NOT NULL,
+                    entry_price NUMERIC(18,4) NOT NULL,
+                    quantity    BIGINT       NOT NULL,
+                    status      VARCHAR(10)  NOT NULL DEFAULT 'OPEN',
+                    created_at  TIMESTAMP    DEFAULT NOW(),
+                    updated_at  TIMESTAMP    DEFAULT NOW()
+                )
+                """);
+        jdbcTemplate.execute("""
+                CREATE UNIQUE INDEX IF NOT EXISTS uq_qlpp_open_position
+                    ON quant_live_paper_position(model_code, asset_code)
+                    WHERE status = 'OPEN'
+                """);
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_qlpp_model_status ON quant_live_paper_position(model_code, status, entry_time DESC)");
+
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS quant_live_paper_trade (
+                    id                  BIGSERIAL    PRIMARY KEY,
+                    model_code          VARCHAR(50)  NOT NULL,
+                    position_id         BIGINT,
+                    asset_code          VARCHAR(20)  NOT NULL,
+                    asset_name          VARCHAR(100),
+                    side                VARCHAR(10)  NOT NULL,
+                    fill_time           TIMESTAMP    NOT NULL,
+                    signal_price        NUMERIC(18,4),
+                    fill_price          NUMERIC(18,4) NOT NULL,
+                    quantity            BIGINT       NOT NULL,
+                    amount              BIGINT       NOT NULL,
+                    realized_return_pct NUMERIC(12,6),
+                    reason              TEXT,
+                    source              VARCHAR(60)  NOT NULL,
+                    created_at          TIMESTAMP    DEFAULT NOW()
+                )
+                """);
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_qlpt_model_time ON quant_live_paper_trade(model_code, fill_time DESC)");
     }
 }

@@ -67,4 +67,13 @@ PATCH /api/admin/quant/packages/{modelCode}/visibility
 
 User-facing `/api/quant/live/models` includes runtime models plus package models only when `public_visible=true`.
 
-Dropping a package never deploys it, runs it, or exposes it by itself. Admin approval controls list exposure; runtime activation still requires a `LiveQuantModelRuntime`.
+Current visible package shells seeded on `2026-05-31`:
+
+| Model code | Display name | Package/config reference | Seed money | Status | Runtime ready |
+|---|---|---|---:|---|---|
+| `KOSPI_BULL` | `KOSPI Bull v1` | `domains/quant-serving/packages/KOSPI_BULL` | `100000000` | `APPROVED` package shell | `false` |
+| `KOSDAQ_BULL` | `KOSDAQ Bull v1` | `kosdaq-bull-v1.0.0` | `100000000` | `APPROVED` package shell | `false` |
+| `KOSPI_WATCH` | `KOSPI Watch` | `kospi-watch-v0.1.0` | `100000000` | `APPROVED` package shell | `false` |
+| `KOSDAQ_WATCH` | `KOSDAQ Watch` | `kosdaq-watch-v0.1.0` | `100000000` | `APPROVED` package shell | `false` |
+
+Dropping a package never deploys it, runs it, or exposes it by itself. Registry approval controls list exposure only; runtime activation still requires a `LiveQuantModelRuntime`.

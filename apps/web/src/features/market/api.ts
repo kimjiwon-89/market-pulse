@@ -1,6 +1,6 @@
 import { apiClient } from "@/services/apiClient";
 
-export type MarketStockRankingSort = "VOLUME" | "TRADE_AMOUNT";
+export type MarketStockRankingSort = "VOLUME" | "TRADE_AMOUNT" | "CHANGE_RATE_DESC" | "CHANGE_RATE_ASC";
 export type InvestorType = "FOREIGN" | "INSTITUTION" | "ALL";
 export type InvestorTradeType = "BUY" | "SELL";
 

@@ -19,6 +19,7 @@ import {
   SubText,
   TableCard,
   TableScroll,
+  TextLink,
 } from "@/components/ui/Page";
 
 function tone(code: QuantDecision["decisionCode"]) {
@@ -61,7 +62,7 @@ export function QuantToday() {
       <PageHeaderCard>
         <div>
           <PageTitle>오늘 추천 후보 전체</PageTitle>
-          <SubText>운영 중인 모든 모델이 오늘 추천한 후보를 한곳에서 봅니다.</SubText>
+          <SubText>운영 중인 모든 모델이 오늘 날짜로 새로 낸 후보만 한곳에서 봅니다.</SubText>
         </div>
         <PageHeaderMeta>
           <MutedText><Mono>기준 {asOf ?? "-"}</Mono></MutedText>
@@ -96,7 +97,9 @@ export function QuantToday() {
                     <Inline>
                       <StockInitialBadge text={item.badgeText} tone={item.badgeTone} />
                       <Stack $gap="3px">
-                        <strong>{item.assetName}</strong>
+                        <TextLink to={`/stock/${item.assetCode}`}>
+                          <strong>{item.assetName}</strong>
+                        </TextLink>
                         <MutedText><Mono>{[item.assetCode, item.market].filter(Boolean).join(" · ")}</Mono></MutedText>
                       </Stack>
                     </Inline>
@@ -112,7 +115,7 @@ export function QuantToday() {
               ))}
               {decisions.length === 0 ? (
                 <tr>
-                  <td colSpan={6}>현재 표시할 추천 후보가 없습니다.</td>
+                  <td colSpan={6}>오늘 날짜로 새로 발생한 추천 후보가 없습니다.</td>
                 </tr>
               ) : null}
             </tbody>
@@ -122,7 +125,7 @@ export function QuantToday() {
 
       <Card $soft>
         <SectionTitle>읽는 법</SectionTitle>
-        <SubText>여러 모델이 같은 종목을 추천할 수 있습니다. 후보는 매수 지시가 아니라 살펴볼 종목 목록이며, 자동 매매나 수익 보장을 의미하지 않습니다.</SubText>
+        <SubText>여러 모델이 같은 종목을 추천할 수 있습니다. 후보는 매수 지시가 아니라 오늘 살펴볼 종목 목록이며, 자동 매매나 수익 보장을 의미하지 않습니다.</SubText>
       </Card>
     </PageShell>
   );

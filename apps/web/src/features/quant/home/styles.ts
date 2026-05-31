@@ -1,4 +1,5 @@
 import styled, { css } from "styled-components";
+import { Link } from "react-router-dom";
 
 export const HomeShell = styled.div`
   width: 100%;
@@ -48,6 +49,11 @@ export const HomeTopGrid = styled.div`
 `;
 
 export const Card = styled.section<{ $soft?: boolean; $flush?: boolean }>`
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   padding: ${({ $flush }) => ($flush ? "0" : "20px")};
   border: 1px solid ${({ $soft, theme }) => ($soft ? theme.color.softBorder : theme.color.border)};
   border-radius: ${({ theme }) => theme.radius.card};
@@ -70,6 +76,10 @@ export const HeroSplit = styled.div`
 
 export const HeroSectionStack = styled.div`
   display: flex;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   flex-direction: column;
   gap: ${({ theme }) => theme.spacing.sectionGap};
   padding: 20px;
@@ -77,7 +87,10 @@ export const HeroSectionStack = styled.div`
 
 export const HeroPanel = styled.div<{ $market?: boolean }>`
   display: flex;
+  box-sizing: border-box;
+  width: 100%;
   min-width: 0;
+  max-width: 100%;
   flex-direction: column;
   gap: 14px;
 
@@ -157,18 +170,23 @@ export const MarketTitle = styled.h2`
 
 const railStyles = css`
   display: grid;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
 
   @media (max-width: ${({ theme }) => theme.breakpoint.tablet}) {
     display: flex;
     gap: 12px;
-    margin-inline: -2px;
     overflow-x: auto;
-    padding: 0 2px 4px;
-    scroll-padding-inline: 2px;
+    overflow-y: hidden;
+    padding: 0 0 4px;
+    scroll-padding-inline: 0;
     scroll-snap-type: x proximity;
     scrollbar-width: none;
+    overscroll-behavior-x: contain;
 
     &::-webkit-scrollbar {
       display: none;
@@ -194,8 +212,8 @@ export const MetricCard = styled.div`
   background: ${({ theme }) => theme.color.panel};
 
   @media (max-width: ${({ theme }) => theme.breakpoint.tablet}) {
-    flex: 0 0 38%;
-    max-width: 168px;
+    flex: 0 0 min(168px, 42vw);
+    max-width: none;
     height: auto;
     min-height: 100px;
     padding: 12px;
@@ -283,8 +301,35 @@ export const MarketStatusCard = styled.div`
   background: ${({ theme }) => theme.color.panel};
 
   @media (max-width: ${({ theme }) => theme.breakpoint.tablet}) {
-    flex: 0 0 38%;
-    max-width: 168px;
+    flex: 0 0 min(168px, 42vw);
+    max-width: none;
+    height: auto;
+    min-height: 100px;
+    padding: 12px;
+    overflow: visible;
+    scroll-snap-align: start;
+  }
+`;
+
+export const MarketStatusLink = styled(Link)`
+  display: block;
+  height: 112px;
+  min-height: 112px;
+  overflow: hidden;
+  padding: 12px;
+  border: 1px solid ${({ theme }) => theme.color.border};
+  border-radius: ${({ theme }) => theme.radius.card};
+  background: ${({ theme }) => theme.color.panel};
+  color: inherit;
+  text-decoration: none;
+
+  &:hover {
+    border-color: ${({ theme }) => theme.color.accent};
+  }
+
+  @media (max-width: ${({ theme }) => theme.breakpoint.tablet}) {
+    flex: 0 0 min(168px, 42vw);
+    max-width: none;
     height: auto;
     min-height: 100px;
     padding: 12px;
@@ -445,6 +490,18 @@ export const DesktopStockName = styled.div`
   gap: 6px;
   color: ${({ theme }) => theme.color.text};
   font-weight: 700;
+`;
+
+export const DecisionStockLink = styled(Link)`
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: inherit;
+  text-decoration: none;
+
+  &:hover ${DesktopStockName} {
+    color: ${({ theme }) => theme.color.accent};
+  }
 `;
 
 export const MonoSub = styled.div`
@@ -675,6 +732,24 @@ export const MobileNameLine = styled.div`
   line-height: 1.15;
   text-overflow: ellipsis;
   white-space: nowrap;
+`;
+
+export const MobileDecisionStockLink = styled(Link)`
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: ${({ theme }) => theme.color.text};
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.15;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &:hover {
+    color: ${({ theme }) => theme.color.accent};
+  }
 `;
 
 export const MobileModelLine = styled.div`

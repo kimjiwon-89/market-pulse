@@ -12,6 +12,7 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       SPRING_DATA_REDIS_HOST: redis
       APP_SCHEDULER_ENABLED: ${APP_SCHEDULER_ENABLED:-false}
+      QUANT_LIVE_PAPER_SCHEDULER_ENABLED: ${QUANT_LIVE_PAPER_SCHEDULER_ENABLED:-true}
       APP_JWT_SECRET: ${JWT_SECRET}
       APP_AUTH_USERNAME: ${ADMIN_USERNAME}
       APP_AUTH_PASSWORD: ${ADMIN_PASSWORD}
@@ -26,6 +27,21 @@ services:
     depends_on:
       - redis
     restart: unless-stopped
+
+  migrator:
+    image: postgres:16-alpine
+    environment:
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME:-marketPulse}
+      DB_USERNAME: ${DB_USERNAME}
+      PGPASSWORD: ${DB_PASSWORD}
+    volumes:
+      - /app/migrations:/migrations:ro
+      - /app/apply-migrations.sh:/app/apply-migrations.sh:ro
+    entrypoint: ["sh", "/app/apply-migrations.sh"]
+    profiles:
+      - deploy
 
   web:
     image: ${DOCKER_USERNAME}/market-pulse-web:latest

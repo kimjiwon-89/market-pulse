@@ -118,6 +118,22 @@
                 ROW_NUMBER() OVER (
                     ORDER BY
                     <choose>
+                        <when test="sort == 'CHANGE_RATE_DESC'">
+                            CASE
+                                WHEN prev.close_price IS NULL OR prev.close_price = 0 THEN 0
+                                ELSE ((p.close_price - prev.close_price) / prev.close_price)
+                            END DESC,
+                            (COALESCE(p.volume, 0)::numeric * COALESCE(p.close_price, 0)) DESC,
+                            p.asset_code
+                        </when>
+                        <when test="sort == 'CHANGE_RATE_ASC'">
+                            CASE
+                                WHEN prev.close_price IS NULL OR prev.close_price = 0 THEN 0
+                                ELSE ((p.close_price - prev.close_price) / prev.close_price)
+                            END ASC,
+                            (COALESCE(p.volume, 0)::numeric * COALESCE(p.close_price, 0)) DESC,
+                            p.asset_code
+                        </when>
                         <when test="sort == 'TRADE_AMOUNT'">
                             (COALESCE(p.volume, 0)::numeric * COALESCE(p.close_price, 0)) DESC,
                             COALESCE(p.volume, 0) DESC,
@@ -132,8 +148,8 @@
                 ) AS rank,
                 p.asset_code AS code,
                 p.asset_name AS name,
-                NULL::varchar AS market,
-                p.sector AS sector,
+                COALESCE(sm.market, p.sector)::varchar AS market,
+                COALESCE(sm.sector, p.sector)::varchar AS sector,
                 p.close_price AS closePrice,
                 COALESCE(p.volume, 0) AS volume,
                 (COALESCE(p.volume, 0)::numeric * COALESCE(p.close_price, 0)) AS tradeAmount,
@@ -143,6 +159,8 @@
                 END AS changeRate,
                 p.trade_date AS tradeDate
             FROM market_daily_price p
+            LEFT JOIN stock_master sm
+              ON sm.code = p.asset_code
             LEFT JOIN LATERAL (
                 SELECT close_price
                 FROM market_daily_price
@@ -156,11 +174,32 @@
             WHERE p.asset_type = 'STOCK'
               AND p.trade_date = #{tradeDate}
               AND p.close_price IS NOT NULL
+              AND (
+                  #{sort} NOT IN ('CHANGE_RATE_DESC', 'CHANGE_RATE_ASC')
+                  OR (
+                      COALESCE(p.volume, 0) &gt; 0
+                      AND prev.close_price IS NOT NULL
+                      AND prev.close_price &gt; 0
+                      AND ABS(((p.close_price - prev.close_price) / prev.close_price) * 100) &lt;= 30
+                      AND (
+                          (#{sort} = 'CHANGE_RATE_DESC' AND p.close_price &gt; prev.close_price)
+                          OR (#{sort} = 'CHANGE_RATE_ASC' AND p.close_price &lt; prev.close_price)
+                      )
+                  )
+              )
         )
         SELECT rank, code, name, market, sector, closePrice, volume, tradeAmount, changeRate, tradeDate
         FROM ranked
         WHERE rank &lt;= #{limit}
         ORDER BY rank
+    </select>
+
+    <select id="findLatestStockTradeDateOnOrBefore" resultType="java.time.LocalDate">
+        SELECT MAX(trade_date)
+        FROM market_daily_price
+        WHERE asset_type = 'STOCK'
+          AND trade_date &lt;= #{tradeDate}
+          AND close_price IS NOT NULL
     </select>
 
     <select id="searchLatestStocks" resultType="com.marketpulse.domain.stock.vo.StockMasterVo">

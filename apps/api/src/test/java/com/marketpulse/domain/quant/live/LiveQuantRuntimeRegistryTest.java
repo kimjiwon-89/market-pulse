@@ -50,6 +50,7 @@ class LiveQuantRuntimeRegistryTest {
                 "1.0.0",
                 modelCode + "_CONFIG",
                 modelCode + " model",
+                "상승장",
                 "ACTIVE",
                 new BigDecimal("1000000000"),
                 BigDecimal.ZERO,

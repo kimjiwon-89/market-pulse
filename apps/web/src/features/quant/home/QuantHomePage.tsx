@@ -3,7 +3,6 @@ import { getQuantHomeSummary } from "@/features/quant/api";
 import type { QuantHomeSummary } from "@/features/quant/types";
 import { QuantDecisionSection } from "./QuantDecisionSection";
 import { QuantHeroSection } from "./QuantHeroSection";
-import { QuantSignalSection } from "./QuantSignalSection";
 import { QuantAdCard, QuantNewsCard } from "./QuantUtilityRail";
 import { BodyCopy, Card, HomeContentGrid, HomeShell, HomeTopGrid, MobileOnly, Stack } from "./styles";
 
@@ -57,7 +56,6 @@ export function QuantHomePage() {
         <MobileOnly>
           <QuantAdCard slot="mobile_inline_top" />
         </MobileOnly>
-        <QuantSignalSection decisions={summary.decisions} />
         <HomeContentGrid>
           <QuantDecisionSection decisions={summary.decisions} />
           <QuantNewsCard news={summary.news} />

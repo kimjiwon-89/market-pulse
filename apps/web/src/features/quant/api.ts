@@ -1,4 +1,5 @@
 import { apiClient } from "@/services/apiClient";
+import { getLastFridayBasicDate, getMarketStockRankings } from "@/features/market/api";
 import { mockNews } from "@/features/mock/marketMockData";
 import type {
   QuantDecision,
@@ -44,6 +45,7 @@ interface ApiResponse<T> {
 interface LiveModelSummaryDto {
   modelCode: string;
   modelVersion?: string;
+  configKey?: string;
   modelName?: string;
   status?: string;
   seedMoney?: number;
@@ -61,6 +63,7 @@ interface LiveModelSummaryDto {
 interface LiveCandidateDto {
   assetCode: string;
   assetName: string;
+  signalDate?: string;
   candidateType?: string;
   decision?: string;
   reason?: string;
@@ -100,6 +103,8 @@ interface LiveTradeDto {
   assetName: string;
   side: string;
   fillTime?: string;
+  signalPrice?: number;
+  observedPrice?: number;
   fillPrice?: number;
   realizedReturnPct?: number;
   modelReason?: string;
@@ -178,6 +183,23 @@ function formatPct(value?: number) {
   return `${value >= 0 ? "+" : ""}${value.toFixed(2)}%`;
 }
 
+function shortDate(value?: string) {
+  if (!value) return "";
+  const parts = value.split("-");
+  return parts.length === 3 ? `${parts[1]}/${parts[2]}` : value;
+}
+
+function todayIsoKst() {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
 function parseNumber(value?: string | number) {
   if (value === undefined || value === null) return undefined;
   const parsed = Number(String(value).replace(/,/g, ""));
@@ -203,6 +225,8 @@ function mapModel(dto: LiveModelSummaryDto): QuantModelSummary {
 
   return {
     code,
+    modelVersion: dto.modelVersion,
+    configKey: dto.configKey,
     name,
     plainName: code === BULL_MODEL_CODE ? "상승장 리플레이 기반 종목 신호" : `${name} 후보 신호`,
     description: code === BULL_MODEL_CODE
@@ -229,6 +253,7 @@ function mapDecision(dto: LiveCandidateDto, model: QuantModelSummary = mapModel(
   return {
     assetCode: dto.assetCode,
     assetName: dto.assetName,
+    signalDate: dto.signalDate,
     badgeText: dto.assetName.slice(0, 1),
     badgeTone: toneFromCode(dto.assetCode),
     modelNames: [model.name],
@@ -244,14 +269,15 @@ function mapDecision(dto: LiveCandidateDto, model: QuantModelSummary = mapModel(
 }
 
 function mapReport(dto: LiveReportSummaryDto): QuantReportSummary {
+  const modelName = dto.modelCode === BULL_MODEL_CODE ? BULL_MODEL_NAME : dto.modelCode;
   return {
     id: String(dto.reportId),
     title: dto.title || `${BULL_MODEL_NAME} 리포트`,
-    modelCode: BULL_MODEL_CODE,
-    modelName: BULL_MODEL_NAME,
-    publishedAt: formatDateTime(dto.generatedAt) ?? dto.reportDate ?? "-",
+    modelCode: dto.modelCode ?? BULL_MODEL_CODE,
+    modelName,
+    publishedAt: dto.reportDate ?? formatDateTime(dto.generatedAt) ?? "-",
     summary: `수익률 ${formatPct(dto.totalReturnPct)} · 진입 ${dto.entryCount ?? 0}건 · 청산 ${dto.exitCount ?? 0}건`,
-    keywords: [`경고 ${dto.warningCount ?? 0}건`, dto.period ?? "리포트", "Bull v4"],
+    keywords: [`경고 ${dto.warningCount ?? 0}건`, dto.period ?? "리포트", modelName],
   };
 }
 
@@ -286,7 +312,7 @@ function mapModelDetail(dto: LiveModelDetailDto): QuantModelDetail {
     candidates: (dto.candidates ?? []).map((item) => ({
       assetCode: item.assetCode,
       assetName: item.assetName,
-      date: "",
+      date: item.signalDate ?? "",
       label: item.decision || item.candidateType || "후보",
       reason: item.reason || "Bull v4 조건을 통과한 후보입니다.",
       price: item.signalPrice,
@@ -298,6 +324,8 @@ function mapModelDetail(dto: LiveModelDetailDto): QuantModelDetail {
       assetName: item.assetName,
       side: item.side,
       fillTime: item.fillTime ?? "",
+      entryPrice: item.signalPrice,
+      exitPrice: item.observedPrice ?? item.fillPrice,
       fillPrice: item.fillPrice,
       realizedReturnPct: item.realizedReturnPct,
       reason: item.modelReason || "Bull v4 replay trade",
@@ -425,6 +453,35 @@ function buildHotStocks(): QuantHotStockItem[] {
   ];
 }
 
+async function getHotStocks(): Promise<QuantHotStockItem[]> {
+  const date = getLastFridayBasicDate();
+  const [upStocks, downStocks] = await Promise.all([
+    getMarketStockRankings({ date, sort: "CHANGE_RATE_DESC", limit: 2 }).catch(() => []),
+    getMarketStockRankings({ date, sort: "CHANGE_RATE_ASC", limit: 2 }).catch(() => []),
+  ]);
+
+  const items: QuantHotStockItem[] = [
+    ...upStocks.map((item, index) => ({
+      id: `up-${index + 1}`,
+      label: `상승률 ${index + 1}위`,
+      assetName: item.name || item.code,
+      assetCode: item.code,
+      changeRate: `${shortDate(item.tradeDate)} · ${formatPct(item.changeRate)}`,
+      direction: "up" as const,
+    })),
+    ...downStocks.map((item, index) => ({
+      id: `down-${index + 1}`,
+      label: `하락률 ${index + 1}위`,
+      assetName: item.name || item.code,
+      assetCode: item.code,
+      changeRate: `${shortDate(item.tradeDate)} · ${formatPct(item.changeRate)}`,
+      direction: "down" as const,
+    })),
+  ];
+
+  return items.length > 0 ? items : buildHotStocks();
+}
+
 function buildKpis(model: QuantModelSummary | undefined, rawModel: LiveModelSummaryDto | undefined, reports: LiveReportSummaryDto[]): QuantKpi[] {
   const latestReport = reports[0];
 
@@ -461,13 +518,14 @@ function buildKpis(model: QuantModelSummary | undefined, rawModel: LiveModelSumm
 }
 
 export async function getQuantHomeSummary(): Promise<QuantHomeSummary> {
-  const [models, reports, news, kospi, kosdaq, regimeSnapshot] = await Promise.all([
+  const [models, reports, news, kospi, kosdaq, regimeSnapshot, hotStocks] = await Promise.all([
     getData<LiveModelSummaryDto[]>("/quant/live/models").catch(() => []),
     getData<LiveReportSummaryDto[]>("/quant/live/reports", { modelCode: BULL_MODEL_CODE }).catch(() => []),
     getData<NewsDto[]>("/news/inquire-daily-news", { limit: 5 }).catch(() => []),
     getData<IndexResponseDto>("/index/inquire-daily-indexchartprice", { indexCode: "0001" }).catch(() => undefined),
     getData<IndexResponseDto>("/index/inquire-daily-indexchartprice", { indexCode: "1001" }).catch(() => undefined),
     getData<MarketRegimeSnapshotDto>("/quant/live/market-regime/latest").catch(() => undefined),
+    getHotStocks(),
   ]);
   const marketRegime = mapMarketRegime(regimeSnapshot);
 
@@ -478,7 +536,8 @@ export async function getQuantHomeSummary(): Promise<QuantHomeSummary> {
     const candidates = await getData<LiveCandidateDto[]>(`/quant/live/models/${model.code}/candidates`).catch(() => []);
     return candidates.map((item) => mapDecision(item, model));
   }));
-  const decisions = allCandidates.flat();
+  const today = todayIsoKst();
+  const decisions = allCandidates.flat().filter((item) => item.signalDate === today);
   const bullModelDto = visibleModelDtos.find((model) => model.modelCode === BULL_MODEL_CODE) ?? fallbackBullModel;
   const bullModel = mapModel(bullModelDto);
 
@@ -495,7 +554,7 @@ export async function getQuantHomeSummary(): Promise<QuantHomeSummary> {
       mapIndex("kosdaq", "KOSDAQ", kosdaq, marketRegime),
     ],
     marketRegime,
-    hotStocks: buildHotStocks(),
+    hotStocks,
     asOf: formatDateTime(marketRegime?.updatedAt) ?? formatDateTime(bullModelDto?.latestReportTime),
   };
 }
@@ -525,6 +584,11 @@ export async function getBullQuantDecisions() {
 
 export async function getBullQuantReports() {
   const reports = await getData<LiveReportSummaryDto[]>("/quant/live/reports", { modelCode: BULL_MODEL_CODE });
+  return reports.map(mapReport);
+}
+
+export async function getQuantReports(modelCode: string) {
+  const reports = await getData<LiveReportSummaryDto[]>("/quant/live/reports", { modelCode });
   return reports.map(mapReport);
 }
 

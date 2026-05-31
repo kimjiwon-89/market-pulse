@@ -9,6 +9,9 @@ Date: 2026-05-28
 5. Remove root duplicated source after processes stop.
 6. Review `.agents/handoff/quant/kosdaq-bull/` and decide whether to implement `kosdaq-bull-v1.0.0` as a paper-only `LiveQuantModelRuntime`.
 7. If accepted, reproduce the KOSDAQ-only replay cache in prod data before enabling any admin or public surface.
+8. Review `.agents/handoff/quant/kospi-bull-r20-shadow/` and decide whether to implement a disabled paper-shadow KOSPI runtime.
+9. Review `.agents/handoff/quant/kospi-watch/` and `.agents/handoff/quant/kosdaq-watch/` against `MarketRegimeMonitorService` before wiring monitor outputs.
+10. Keep the four visible package shells `runtime_ready=false` until each runtime/cache path is production-owned and verified.
 
 ## Stock Detail Next Work
 

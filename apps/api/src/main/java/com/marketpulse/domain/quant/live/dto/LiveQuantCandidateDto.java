@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 public record LiveQuantCandidateDto(
         String assetCode,
         String assetName,
+        String signalDate,
         String candidateType,
         String decision,
         String reason,

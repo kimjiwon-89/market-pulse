@@ -20,13 +20,28 @@ class MarketStockRankingServiceTest {
     @Test
     void getsTopTwentyRankingsByTradeAmountForRequestedFriday() {
         LocalDate friday = LocalDate.of(2026, 5, 29);
+        when(mapper.findLatestStockTradeDateOnOrBefore(friday)).thenReturn(friday);
         when(mapper.findStockRankings(friday, "TRADE_AMOUNT", 20)).thenReturn(List.of(item()));
 
         List<MarketStockRankingDto> rankings = service.getRankings("20260529", "TRADE_AMOUNT", 20);
 
+        verify(mapper).findLatestStockTradeDateOnOrBefore(friday);
         verify(mapper).findStockRankings(friday, "TRADE_AMOUNT", 20);
         assertThat(rankings).hasSize(1);
         assertThat(rankings.get(0).getTradeDate()).isEqualTo(friday);
+    }
+
+    @Test
+    void fallsBackToLatestAvailableStockDateBeforeRequestedDate() {
+        LocalDate requested = LocalDate.of(2026, 5, 29);
+        LocalDate latestAvailable = LocalDate.of(2026, 5, 26);
+        when(mapper.findLatestStockTradeDateOnOrBefore(requested)).thenReturn(latestAvailable);
+        when(mapper.findStockRankings(latestAvailable, "CHANGE_RATE_DESC", 2)).thenReturn(List.of(item()));
+
+        List<MarketStockRankingDto> rankings = service.getRankings("20260529", "CHANGE_RATE_DESC", 2);
+
+        verify(mapper).findStockRankings(latestAvailable, "CHANGE_RATE_DESC", 2);
+        assertThat(rankings).hasSize(1);
     }
 
     @Test

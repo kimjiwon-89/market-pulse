@@ -1,0 +1,9 @@
+{
+  "modelCode": "KOSPI_WATCH",
+  "modelName": "KOSPI Watch",
+  "modelVersion": "0.1.0",
+  "category": "기타",
+  "description": "KOSPI 실시간 regime/watch paper-shadow 모니터 패키지입니다.",
+  "seedMoney": 100000000,
+  "expectedMonthlyReturnPct": 0.0
+}

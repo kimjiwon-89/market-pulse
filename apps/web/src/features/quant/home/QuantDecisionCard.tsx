@@ -3,11 +3,11 @@ import { StockInitialBadge } from "@/features/quant/StockInitialBadge";
 import type { QuantDecision } from "@/features/quant/types";
 import {
   DecisionBadge,
+  MobileDecisionStockLink,
   MobileBadgeSlot,
   MobileDecisionItem,
   MobileFavoriteSlot,
   MobileModelLine,
-  MobileNameLine,
   ModelNameText,
 } from "./styles";
 
@@ -29,9 +29,9 @@ export function QuantDecisionCard({ item }: QuantDecisionCardProps) {
       <MobileBadgeSlot>
         <StockInitialBadge text={item.badgeText} tone={item.badgeTone} size={32} />
       </MobileBadgeSlot>
-      <MobileNameLine>
+      <MobileDecisionStockLink to={`/stock/${item.assetCode}`}>
         {item.assetName} <DecisionCodeBadge code={item.decisionCode} />
-      </MobileNameLine>
+      </MobileDecisionStockLink>
       <MobileModelLine>
         <ModelNameList names={item.modelNames} />
       </MobileModelLine>

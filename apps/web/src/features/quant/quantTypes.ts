@@ -16,6 +16,7 @@ export interface QuantKpi {
 export interface QuantDecision {
   assetCode: string;
   assetName: string;
+  signalDate?: string;
   market?: "KOSPI" | "KOSDAQ" | "ETF";
   badgeText: string;
   badgeTone: StockBadgeTone;
@@ -29,6 +30,8 @@ export interface QuantDecision {
 
 export interface QuantModelSummary {
   code: string;
+  modelVersion?: string;
+  configKey?: string;
   name: string;
   plainName: string;
   description: string;
@@ -77,6 +80,8 @@ export interface QuantTradeHistoryItem {
   assetName: string;
   side: "BUY" | "SELL" | string;
   fillTime: string;
+  entryPrice?: number;
+  exitPrice?: number;
   fillPrice?: number;
   realizedReturnPct?: number;
   reason: string;

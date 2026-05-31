@@ -6,8 +6,8 @@ import {
   BodyCopy,
   DecisionSectionCard,
   DecisionEmptyState,
+  DecisionStockLink,
   DecisionTable,
-  DesktopStockCell,
   DesktopStockName,
   DesktopTableWrap,
   FavoriteCell,
@@ -38,7 +38,7 @@ export function QuantDecisionSection({ decisions }: QuantDecisionSectionProps) {
       </SectionHead>
       {decisions.length === 0 ? (
         <DecisionEmptyState>
-          <BodyCopy>현재 Bull v4 후보 종목이 없습니다.</BodyCopy>
+          <BodyCopy>오늘 날짜로 새로 발생한 추천 후보가 없습니다. 과거 검증 후보는 각 모델 상세에서 확인해주세요.</BodyCopy>
         </DecisionEmptyState>
       ) : (
         <>
@@ -57,7 +57,7 @@ export function QuantDecisionSection({ decisions }: QuantDecisionSectionProps) {
                 {decisions.map((item) => (
                   <tr key={item.assetCode}>
                     <FirstDecisionCell>
-                      <DesktopStockCell>
+                      <DecisionStockLink to={`/stock/${item.assetCode}`}>
                         <StockInitialBadge text={item.badgeText} tone={item.badgeTone} />
                         <div>
                           <DesktopStockName>
@@ -66,7 +66,7 @@ export function QuantDecisionSection({ decisions }: QuantDecisionSectionProps) {
                           </DesktopStockName>
                           <MonoSub>{item.assetCode}</MonoSub>
                         </div>
-                      </DesktopStockCell>
+                      </DecisionStockLink>
                     </FirstDecisionCell>
                     <td>
                       <ModelNameList names={item.modelNames} />

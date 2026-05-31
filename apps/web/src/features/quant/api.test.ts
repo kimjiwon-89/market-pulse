@@ -57,6 +57,24 @@ vi.mock("@/services/apiClient", () => ({
         });
       }
 
+      if (path === "/market/stocks/rankings") {
+        return Promise.resolve({
+          data: {
+            success: true,
+            data: [{
+              rank: 1,
+              code: "005930",
+              name: "삼성전자",
+              closePrice: 86100,
+              volume: 19665151,
+              tradeAmount: 1690000000000,
+              changeRate: 4.24,
+              tradeDate: "2026-05-26",
+            }],
+          },
+        });
+      }
+
       return Promise.reject(new Error(`Unhandled request: ${path}`));
     }),
   },
@@ -98,6 +116,16 @@ describe("getQuantHomeSummary", () => {
       regime: "BEAR",
       delta: "DEFENSIVE_ONLY · 리스크 20%",
       direction: "down",
+    });
+  });
+
+  it("loads hot stocks from market rankings", async () => {
+    const summary = await getQuantHomeSummary();
+
+    expect(summary.hotStocks?.[0]).toMatchObject({
+      assetName: "삼성전자",
+      assetCode: "005930",
+      changeRate: "05/26 · +4.24%",
     });
   });
 });
