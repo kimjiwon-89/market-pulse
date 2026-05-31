@@ -46,6 +46,7 @@ const router = createBrowserRouter([
       { path: "services", element: <Services /> },
       { path: "tarot", element: <TarotPage /> },
       { path: "my", element: <MyPage /> },
+      { path: "my/:section", element: <MyPage /> },
       { path: "quant", element: <QuantModels /> },
       { path: "quant/today", element: <QuantToday /> },
       { path: "quant/:modelCode/month/:monthKey", element: <QuantModels /> },

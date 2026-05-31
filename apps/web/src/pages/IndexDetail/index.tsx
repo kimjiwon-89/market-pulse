@@ -1,10 +1,12 @@
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import styled from "styled-components";
 import { mockIndices, mockStocks } from "@/features/mock/marketMockData";
-import { Badge, Card, ChartBox, DataTable, Mono, PageHeaderCard, PageHeaderMeta, PageShell, PageTitle, SectionTitle, SubText, TableCard, TableScroll, TextLink } from "@/components/ui/Page";
+import { Badge, Card, ChartBox, DataTable, Mono, PageHeaderCard, PageHeaderMeta, PageShell, PageTitle, RowButton, SectionTitle, SubText, TableScroll, TextLink } from "@/components/ui/Page";
 
 export function IndexDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const index = mockIndices.find((item) => item.code === id) ?? mockIndices[0];
 
   return (
@@ -30,23 +32,34 @@ export function IndexDetail() {
           </ResponsiveContainer>
         </ChartBox>
       </Card>
-      <TableCard>
-        <SectionTitle>관련 주요 종목</SectionTitle>
-        <SubText>지수 흐름과 같이 확인할 대표 종목입니다.</SubText>
+      <RelatedStocksCard>
+        <RelatedHeader>
+          <SectionTitle>관련 주요 종목</SectionTitle>
+          <SubText>지수 흐름과 같이 확인할 대표 종목입니다.</SubText>
+        </RelatedHeader>
         <TableScroll>
           <DataTable>
             <tbody>
               {mockStocks.slice(0, 4).map((stock) => (
-                <tr key={stock.code}>
+                <RowButton key={stock.code} onClick={() => navigate(`/stock/${stock.code}`)}>
                   <td>{stock.name}<br /><Mono>{stock.code}</Mono></td>
                   <td>{stock.sector}</td>
                   <td className="num">{stock.changeRate}%</td>
-                </tr>
+                </RowButton>
               ))}
             </tbody>
           </DataTable>
         </TableScroll>
-      </TableCard>
+      </RelatedStocksCard>
     </PageShell>
   );
 }
+
+const RelatedStocksCard = styled(Card)`
+  padding: 0;
+  overflow: hidden;
+`;
+
+const RelatedHeader = styled.div`
+  padding: 18px 20px 10px;
+`;

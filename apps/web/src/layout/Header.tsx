@@ -2,9 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChangeEvent, KeyboardEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import styled from "styled-components";
-import { mockStocks } from "@/features/mock/marketMockData";
+import { searchStocks } from "@/features/stock/api";
+import type { StockSearchItem } from "@/features/stock/api";
 import { clearAuth, getToken, getUsername } from "@/services/apiClient";
-import type { StockMasterItem } from "@/types";
 
 const Shell = styled.header`
   position: sticky;
@@ -230,27 +230,33 @@ export function Header() {
   const isAuthed = !!getToken();
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<StockMasterItem[]>([]);
+  const [results, setResults] = useState<StockSearchItem[]>([]);
   const [open, setOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [activeIdx, setActiveIdx] = useState(-1);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchSeqRef = useRef(0);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  const search = useCallback((q: string) => {
+  const search = useCallback(async (q: string) => {
+    const seq = ++searchSeqRef.current;
     if (!q.trim()) {
       setResults([]);
       setOpen(false);
       return;
     }
-    const lower = q.trim().toLowerCase();
-    const items: StockMasterItem[] = mockStocks
-      .filter((stock) => stock.name.toLowerCase().includes(lower) || stock.code.includes(lower))
-      .slice(0, 10)
-      .map((stock) => ({ code: stock.code, name: stock.name, market: stock.market === "ETF" ? "KOSPI" : stock.market }));
-    setResults(items);
-    setOpen(items.length > 0);
-    setActiveIdx(-1);
+    try {
+      const items = await searchStocks(q.trim(), 10);
+      if (seq !== searchSeqRef.current) return;
+      setResults(items);
+      setOpen(items.length > 0);
+      setActiveIdx(-1);
+    } catch {
+      if (seq !== searchSeqRef.current) return;
+      setResults([]);
+      setOpen(false);
+      setActiveIdx(-1);
+    }
   }, []);
 
   function handleInput(e: ChangeEvent<HTMLInputElement>) {
@@ -260,7 +266,7 @@ export function Header() {
     debounceRef.current = setTimeout(() => search(val), 200);
   }
 
-  function selectItem(item: StockMasterItem) {
+  function selectItem(item: StockSearchItem) {
     setQuery("");
     setResults([]);
     setOpen(false);
@@ -290,7 +296,10 @@ export function Header() {
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
   }, []);
 
   function handleLogout() {
@@ -343,7 +352,7 @@ export function Header() {
               {profileOpen && (
                 <Menu>
                   <MenuButton type="button" onClick={() => { setProfileOpen(false); navigate("/my"); }}>마이페이지</MenuButton>
-                  <MenuButton type="button" onClick={() => { setProfileOpen(false); navigate("/my"); }}>관심 폴더</MenuButton>
+                  <MenuButton type="button" onClick={() => { setProfileOpen(false); navigate("/my/favorites"); }}>관심 종목</MenuButton>
                   <MenuButton type="button" onClick={handleLogout}>로그아웃</MenuButton>
                 </Menu>
               )}

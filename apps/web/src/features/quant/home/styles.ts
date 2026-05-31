@@ -1,4 +1,5 @@
 import styled, { css } from "styled-components";
+import { Link } from "react-router-dom";
 
 export const HomeShell = styled.div`
   width: 100%;
@@ -48,13 +49,18 @@ export const HomeTopGrid = styled.div`
 `;
 
 export const Card = styled.section<{ $soft?: boolean; $flush?: boolean }>`
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   padding: ${({ $flush }) => ($flush ? "0" : "20px")};
   border: 1px solid ${({ $soft, theme }) => ($soft ? theme.color.softBorder : theme.color.border)};
   border-radius: ${({ theme }) => theme.radius.card};
   background: ${({ $soft, theme }) => ($soft ? theme.color.softPanel : theme.color.panel)};
 
   @media (max-width: ${({ theme }) => theme.breakpoint.tablet}) {
-    padding: ${({ $flush }) => ($flush ? "0" : "16px")};
+    padding: ${({ $flush }) => ($flush ? "0" : "20px")};
   }
 `;
 
@@ -70,13 +76,21 @@ export const HeroSplit = styled.div`
 
 export const HeroSectionStack = styled.div`
   display: flex;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   flex-direction: column;
   gap: ${({ theme }) => theme.spacing.sectionGap};
+  padding: 20px;
 `;
 
 export const HeroPanel = styled.div<{ $market?: boolean }>`
   display: flex;
+  box-sizing: border-box;
+  width: 100%;
   min-width: 0;
+  max-width: 100%;
   flex-direction: column;
   gap: 14px;
 
@@ -156,18 +170,23 @@ export const MarketTitle = styled.h2`
 
 const railStyles = css`
   display: grid;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
 
   @media (max-width: ${({ theme }) => theme.breakpoint.tablet}) {
     display: flex;
     gap: 12px;
-    margin-inline: -2px;
     overflow-x: auto;
-    padding: 0 2px 4px;
-    scroll-padding-inline: 2px;
+    overflow-y: hidden;
+    padding: 0 0 4px;
+    scroll-padding-inline: 0;
     scroll-snap-type: x proximity;
     scrollbar-width: none;
+    overscroll-behavior-x: contain;
 
     &::-webkit-scrollbar {
       display: none;
@@ -193,8 +212,8 @@ export const MetricCard = styled.div`
   background: ${({ theme }) => theme.color.panel};
 
   @media (max-width: ${({ theme }) => theme.breakpoint.tablet}) {
-    flex: 0 0 38%;
-    max-width: 168px;
+    flex: 0 0 min(168px, 42vw);
+    max-width: none;
     height: auto;
     min-height: 100px;
     padding: 12px;
@@ -282,8 +301,35 @@ export const MarketStatusCard = styled.div`
   background: ${({ theme }) => theme.color.panel};
 
   @media (max-width: ${({ theme }) => theme.breakpoint.tablet}) {
-    flex: 0 0 38%;
-    max-width: 168px;
+    flex: 0 0 min(168px, 42vw);
+    max-width: none;
+    height: auto;
+    min-height: 100px;
+    padding: 12px;
+    overflow: visible;
+    scroll-snap-align: start;
+  }
+`;
+
+export const MarketStatusLink = styled(Link)`
+  display: block;
+  height: 112px;
+  min-height: 112px;
+  overflow: hidden;
+  padding: 12px;
+  border: 1px solid ${({ theme }) => theme.color.border};
+  border-radius: ${({ theme }) => theme.radius.card};
+  background: ${({ theme }) => theme.color.panel};
+  color: inherit;
+  text-decoration: none;
+
+  &:hover {
+    border-color: ${({ theme }) => theme.color.accent};
+  }
+
+  @media (max-width: ${({ theme }) => theme.breakpoint.tablet}) {
+    flex: 0 0 min(168px, 42vw);
+    max-width: none;
     height: auto;
     min-height: 100px;
     padding: 12px;
@@ -379,9 +425,18 @@ export const DecisionSectionCard = styled(Card)`
 
 export const DesktopTableWrap = styled.div`
   display: block;
+  overflow-x: auto;
 
   @media (max-width: ${({ theme }) => theme.breakpoint.mobile}) {
     display: none;
+  }
+`;
+
+export const DecisionEmptyState = styled.div`
+  padding: 8px 20px 20px;
+
+  p {
+    margin-top: 0;
   }
 `;
 
@@ -437,6 +492,18 @@ export const DesktopStockName = styled.div`
   font-weight: 700;
 `;
 
+export const DecisionStockLink = styled(Link)`
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: inherit;
+  text-decoration: none;
+
+  &:hover ${DesktopStockName} {
+    color: ${({ theme }) => theme.color.accent};
+  }
+`;
+
 export const MonoSub = styled.div`
   color: ${({ theme }) => theme.color.textSubtle};
   font-family: ${({ theme }) => theme.font.mono};
@@ -466,6 +533,148 @@ export const MobileDecisionList = styled.div`
       display: none;
     }
   }
+`;
+
+export const SignalSectionCard = styled(Card)`
+  overflow: hidden;
+`;
+
+export const QuantSignalTabs = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: calc(100% - 40px);
+  padding: 4px;
+  margin: 0 20px 12px;
+  overflow-x: auto;
+  border: 1px solid ${({ theme }) => theme.color.border};
+  border-radius: ${({ theme }) => theme.radius.pill};
+  background: ${({ theme }) => theme.color.softPanel};
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  @media (max-width: ${({ theme }) => theme.breakpoint.tablet}) {
+    max-width: calc(100% - 32px);
+    margin-inline: 16px;
+  }
+`;
+
+export const QuantSignalTabButton = styled.button<{ $active: boolean }>`
+  min-width: 74px;
+  height: 34px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: ${({ theme }) => theme.radius.pill};
+  background: ${({ $active, theme }) => ($active ? theme.color.accent : "transparent")};
+  color: ${({ $active, theme }) => ($active ? "#fff" : theme.color.textMuted)};
+  font: inherit;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+
+  &:focus-visible {
+    outline: 2px solid ${({ theme }) => theme.color.accent};
+    outline-offset: 2px;
+  }
+`;
+
+export const QuantSignalList = styled.div`
+  display: flex;
+  max-height: calc(104px * 3 + 20px);
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  padding: 0 20px 20px;
+  scrollbar-width: thin;
+
+  @media (max-width: ${({ theme }) => theme.breakpoint.tablet}) {
+    max-height: calc(98px * 3 + 20px);
+    padding: 0 20px 20px;
+  }
+`;
+
+export const QuantSignalCard = styled.div`
+  min-height: 104px;
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid ${({ theme }) => theme.color.border};
+  border-radius: ${({ theme }) => theme.radius.card};
+  background: ${({ theme }) => theme.color.softPanel};
+
+  @media (max-width: ${({ theme }) => theme.breakpoint.tablet}) {
+    min-height: 98px;
+    padding: 12px;
+  }
+`;
+
+export const QuantSignalStock = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+`;
+
+export const QuantSignalName = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: ${({ theme }) => theme.color.text};
+  font-size: 15px;
+  font-weight: 800;
+
+  span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+`;
+
+export const QuantSignalMeta = styled.div`
+  margin-top: 3px;
+  color: ${({ theme }) => theme.color.textSubtle};
+  font-size: 12px;
+  line-height: 1.25;
+`;
+
+export const QuantSignalReasonRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+`;
+
+export const QuantSignalReason = styled.span`
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid ${({ theme }) => theme.color.border};
+  border-radius: ${({ theme }) => theme.radius.pill};
+  color: ${({ theme }) => theme.color.textMuted};
+  font-size: 12px;
+  font-weight: 700;
+`;
+
+export const QuantSignalEmpty = styled.div`
+  min-height: 104px;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed ${({ theme }) => theme.color.border};
+  border-radius: ${({ theme }) => theme.radius.card};
+  background: ${({ theme }) => theme.color.softPanel};
+  color: ${({ theme }) => theme.color.textSubtle};
+  font-size: 13px;
+  font-weight: 800;
 `;
 
 export const DecisionBadge = styled.span<{ $code: string }>`
@@ -525,6 +734,24 @@ export const MobileNameLine = styled.div`
   white-space: nowrap;
 `;
 
+export const MobileDecisionStockLink = styled(Link)`
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: ${({ theme }) => theme.color.text};
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.15;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &:hover {
+    color: ${({ theme }) => theme.color.accent};
+  }
+`;
+
 export const MobileModelLine = styled.div`
   grid-column: 2;
   grid-row: 2;
@@ -564,7 +791,7 @@ export const UtilityList = styled.div<{ $maxHeight?: string }>`
   flex-direction: column;
   gap: 8px;
   overflow-y: auto;
-  padding-right: 4px;
+  padding: 0 20px 20px;
 `;
 
 export const UtilityButton = styled.button`
@@ -607,6 +834,7 @@ export const AdCard = styled(Card)`
   min-height: 180px;
   flex-direction: column;
   justify-content: space-between;
+  padding: 20px;
   border-color: ${({ theme }) => theme.color.borderStrong};
   border-style: dashed;
   background: ${({ theme }) => theme.color.softPanel};

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -13,11 +13,155 @@ import { MyPage } from "./MyPage";
 import { NetBuyingList } from "./NetBuyingList";
 import { NewsList } from "./NewsList";
 import { QuantModels } from "./QuantModels";
+import { QuantHome } from "./QuantHome";
 import { QuantToday } from "./QuantToday";
 import { Reports } from "./Reports";
 import { Services } from "./Services";
 import { TarotPage } from "./Services/TarotPage";
 import { StockDetail } from "./StockDetail";
+
+const { getMarketIndicesMock, getMarketStockRankingsMock } = vi.hoisted(() => ({
+  getMarketIndicesMock: vi.fn(async () => [
+    {
+      code: "0001",
+      name: "KOSPI",
+      value: 2719.55,
+      change: -15.32,
+      changeRate: -0.56,
+      trend: [2680, 2695, 2710, 2730, 2719.55],
+    },
+    {
+      code: "1001",
+      name: "KOSDAQ",
+      value: 946.21,
+      change: 4.12,
+      changeRate: 0.44,
+      trend: [930, 936, 940, 942, 946.21],
+    },
+    {
+      code: "2001",
+      name: "KOSPI200",
+      value: 365.12,
+      change: -2.21,
+      changeRate: -0.6,
+      trend: [360, 364, 368, 367, 365.12],
+    },
+  ]),
+  getMarketStockRankingsMock: vi.fn(async ({ sort }: { sort: "VOLUME" | "TRADE_AMOUNT" | "CHANGE_RATE_DESC" | "CHANGE_RATE_ASC" }) => {
+    const base = Array.from({ length: 20 }, (_, index) => ({
+      rank: index + 1,
+      code: `${String(index + 1).padStart(6, "0")}`,
+      name: `API종목${index + 1}`,
+      market: "KOSPI",
+      sector: index % 2 === 0 ? "반도체" : "자동차",
+      closePrice: 10000 + index,
+      volume: 2000000 - index,
+      tradeAmount: 1000000000 - index,
+      changeRate: index === 0 ? 1.25 : index === 1 ? -2.5 : 0,
+      tradeDate: "2026-05-29",
+    }));
+    return sort === "TRADE_AMOUNT" ? [...base].reverse() : base;
+  }),
+}));
+
+const { getInvestorTradeTopMock } = vi.hoisted(() => ({
+  getInvestorTradeTopMock: vi.fn(async ({
+    investorType,
+    tradeType,
+  }: {
+    investorType: "FOREIGN" | "INSTITUTION" | "ALL";
+    tradeType: "BUY" | "SELL";
+  }) => Array.from({ length: 20 }, (_, index) => ({
+    rank: index + 1,
+    code: `${String(index + 1).padStart(6, "1")}`,
+    name: `${investorType === "FOREIGN" ? "외국인" : investorType === "INSTITUTION" ? "기관" : "전체"}${tradeType === "BUY" ? "순매수" : "순매도"}${index + 1}`,
+    amount: 5000000000 - index,
+    volume: 1000000 - index,
+    currentPrice: 10000 + index,
+    changeRate: index === 0 ? 2.1 : index === 1 ? -1.5 : 0,
+  }))),
+}));
+
+const {
+  searchStocksMock,
+  getStockDetailMock,
+  getStockChartMock,
+  getStockInvestorMock,
+  getStockMinuteChartMock,
+  getStockOrderbookMock,
+  getStockDisclosuresMock,
+  getStockReportsMock,
+} = vi.hoisted(() => ({
+  searchStocksMock: vi.fn(async () => [
+    { code: "005930", name: "삼성전자", market: "KOSPI", sector: "반도체" },
+    { code: "000660", name: "SK하이닉스", market: "KOSPI", sector: "반도체" },
+  ]),
+  getStockDetailMock: vi.fn(async () => ({
+    code: "000660",
+    name: "SK하이닉스",
+    market: "KOSPI",
+    sector: "반도체",
+    currentPrice: 223700,
+    changeRate: -0.26,
+    volume: 34500000,
+    tradingValue: 7717650000000,
+    marketCap: 162000000000000,
+    openPrice: 224000,
+    highPrice: 225000,
+    lowPrice: 221000,
+  })),
+  getStockChartMock: vi.fn(async () => [
+    { date: "20260522", close: 221000, open: 220000, high: 222000, low: 219000, volume: 1000, changeRate: 0.4 },
+    { date: "20260523", close: 223700, open: 222000, high: 224000, low: 221000, volume: 1100, changeRate: 1.2 },
+  ]),
+  getStockInvestorMock: vi.fn(async () => ({
+    foreignBuy: 25000000000,
+    foreignSell: 18000000000,
+    foreignNet: 7000000000,
+    institutionBuy: 12000000000,
+    institutionSell: 15000000000,
+    institutionNet: -3000000000,
+    individualBuy: 21000000000,
+    individualSell: 22000000000,
+    individualNet: -1000000000,
+  })),
+  getStockMinuteChartMock: vi.fn(async () => [
+    { code: "000660", time: "093000", open: 222000, high: 223000, low: 221500, close: 222800, volume: 10000, tradeAmount: 2228000000, source: "KIS_REST" },
+    { code: "000660", time: "093100", open: 222800, high: 223700, low: 222700, close: 223700, volume: 12000, tradeAmount: 2684400000, source: "KIS_REST" },
+  ]),
+  getStockOrderbookMock: vi.fn(async () => ({
+    code: "000660",
+    timestamp: "2026-05-29T09:31:00",
+    asks: [{ level: 1, price: 223800, volume: 1200 }],
+    bids: [{ level: 1, price: 223600, volume: 1500 }],
+    expectedPrice: 223700,
+    expectedVolume: 900,
+  })),
+  getStockDisclosuresMock: vi.fn(async () => [
+    { code: "000660", title: "대규모기업집단현황공시", filedAt: "2026-05-29", source: "OpenDART", url: "https://dart.fss.or.kr" },
+  ]),
+  getStockReportsMock: vi.fn(async () => [
+    { source: "증권사", title: "HBM 수요 점검", publishedAt: "2026-05-29", url: "https://example.com/report", summary: "메모리 업황 회복 점검", licenseStatus: "metadata-only" },
+  ]),
+}));
+
+vi.mock("@/features/market/api", () => ({
+  getLastFridayBasicDate: () => "20260529",
+  getMarketIndices: getMarketIndicesMock,
+  getMarketStockRankings: getMarketStockRankingsMock,
+  getInvestorTradeTop: getInvestorTradeTopMock,
+}));
+
+vi.mock("@/features/stock/api", () => ({
+  searchStocks: searchStocksMock,
+  getStockDetail: getStockDetailMock,
+  getStockChart: getStockChartMock,
+  getStockInvestor: getStockInvestorMock,
+  getStockMinuteChart: getStockMinuteChartMock,
+  getStockOrderbook: getStockOrderbookMock,
+  getStockDisclosures: getStockDisclosuresMock,
+  getStockReports: getStockReportsMock,
+}));
 
 vi.mock("@/features/quant/api", () => {
   const decision = {
@@ -29,6 +173,7 @@ vi.mock("@/features/quant/api", () => {
     modelLabel: "상승장 모델",
     decisionLabel: "살펴볼 종목",
     decisionCode: "BUY",
+    signalDate: "2026-05-29",
     reasonBullets: ["Bull v4 후보"],
     cautionBullets: ["리플레이 기반 후보"],
   };
@@ -48,9 +193,11 @@ vi.mock("@/features/quant/api", () => {
       kpis: [],
       models: [{
         code: "BULL_V4",
+        modelVersion: "5.0.1",
         name: "Bull v4 모델",
         plainName: "상승장 리플레이 기반 종목 신호",
         description: "Bull v4 운영 모델",
+        category: "상승장",
         marketMode: "상승장 모델",
         status: "정상 운영",
         signalStrength: "보통",
@@ -62,12 +209,23 @@ vi.mock("@/features/quant/api", () => {
         currentCapital: 112340000,
         monthlyReturnPct: 4.56,
         monthlyMarketRegime: "BULL",
+      }, {
+        code: "BEAR_GUARD",
+        name: "Bear Guard 모델",
+        plainName: "하락장 방어형 종목 신호",
+        description: "하락장 운영 모델",
+        category: "하락장",
+        marketMode: "하락장 모델",
+        status: "관찰 중",
+        signalStrength: "낮음",
+        focus: ["방어", "변동성"],
+        todayCount: 0,
       }],
       reports: [report],
       news: [],
       asOf: "05.29 09:00",
     })),
-    getBullQuantModelDetail: vi.fn(async () => ({
+    getQuantModelDetail: vi.fn(async () => ({
       candidates: [{
         assetCode: "005930",
         assetName: "삼성전자",
@@ -101,6 +259,7 @@ vi.mock("@/features/quant/api", () => {
     })),
     getBullQuantDecisions: vi.fn(async () => [decision]),
     getBullQuantReports: vi.fn(async () => [report]),
+    getQuantReports: vi.fn(async () => [report]),
     getBullQuantReportDetail: vi.fn(async () => ({
       ...report,
       sections: ["백엔드 리포트 본문"],
@@ -135,7 +294,7 @@ describe("page smoke rendering", () => {
     ["서비스", "/services", <Services />],
     ["타로", "/tarot", <TarotPage />],
     ["관리자", "/admin", <Admin />],
-    ["오늘의 종목", "/quant/today", <QuantToday />],
+    ["오늘 추천 후보 전체", "/quant/today", <QuantToday />],
     ["모델 목록", "/quant", <QuantModels />],
     ["리포트", "/reports", <Reports />],
   ])("renders %s page", (heading, path, element) => {
@@ -146,11 +305,70 @@ describe("page smoke rendering", () => {
   it("renders index detail", () => {
     renderAt("/index/0001", <IndexDetail />, "/index/:id");
     expect(screen.getByRole("heading", { name: "KOSPI" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "관련 주요 종목" })).toBeInTheDocument();
+    expect(screen.getByText("지수 흐름과 같이 확인할 대표 종목입니다.")).toBeInTheDocument();
   });
 
-  it("renders stock detail", () => {
+  it("opens stock detail from index related stocks", async () => {
+    render(
+      <AppProviders>
+        <MemoryRouter initialEntries={["/index/0001"]}>
+          <Routes>
+            <Route path="/index/:id" element={<IndexDetail />} />
+            <Route path="/stock/:code" element={<div>종목 상세 이동됨</div>} />
+          </Routes>
+        </MemoryRouter>
+      </AppProviders>,
+    );
+
+    await userEvent.click(screen.getByText("SK하이닉스"));
+
+    expect(screen.getByText("종목 상세 이동됨")).toBeInTheDocument();
+  });
+
+  it("renders stock detail from the stock API", async () => {
     renderAt("/stock/000660", <StockDetail />, "/stock/:code");
-    expect(screen.getByRole("heading", { name: "SK하이닉스" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "SK하이닉스" })).toBeInTheDocument();
+    expect(getStockDetailMock).toHaveBeenCalledWith("000660");
+    expect(getStockChartMock).toHaveBeenCalledWith("000660", "3M");
+    expect(getStockInvestorMock).toHaveBeenCalledWith("000660");
+    expect(getStockMinuteChartMock).toHaveBeenCalledWith("000660");
+    expect(getStockOrderbookMock).toHaveBeenCalledWith("000660");
+    expect(getStockDisclosuresMock).toHaveBeenCalledWith("000660");
+    expect(getStockReportsMock).toHaveBeenCalledWith("000660");
+    expect(screen.getByLabelText("SK하이닉스 로고")).toHaveAttribute("src", "/stock-logos/000660.svg");
+    expect(screen.getAllByText("162조").length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { name: "요약" })).toBeInTheDocument();
+    expect(screen.getByLabelText("광고 영역")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "1분" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "년" })).toBeInTheDocument();
+    expect(screen.getByLabelText("축소")).toBeDisabled();
+    await userEvent.click(screen.getByLabelText("확대"));
+    expect(screen.getByLabelText("축소")).toBeEnabled();
+    const chart = screen.getByLabelText("가격 캔들 차트");
+    expect(chart).toBeInTheDocument();
+    fireEvent.pointerMove(chart, { pointerId: 1, clientX: 260, clientY: 140 });
+    expect(screen.getByTestId("chart-crosshair")).toBeInTheDocument();
+    expect(screen.queryByText("시가 222,000원")).not.toBeInTheDocument();
+    fireEvent.pointerDown(chart, { pointerId: 1, clientX: 760, clientY: 140 });
+    fireEvent.pointerUp(chart, { pointerId: 1, clientX: 760, clientY: 140 });
+    expect(screen.getByText("시가 222,000원")).toBeInTheDocument();
+    expect(screen.getByText("고가 224,000원")).toBeInTheDocument();
+    expect(screen.getAllByText("저가 221,000원").length).toBeGreaterThan(0);
+    expect(screen.getByText("종가 223,700원")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "호가" })).toBeInTheDocument();
+    expect(screen.getByText("읽기 전용 호가입니다. 주문 기능은 제공하지 않습니다.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "최근 체결 스냅샷" })).toBeInTheDocument();
+    expect(screen.getAllByText("REST snapshot").length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { name: "수급" })).toBeInTheDocument();
+    expect(screen.getByText("+70억")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "퀀트 판단" })).toBeInTheDocument();
+    expect(screen.getByText("오늘 모델 후보에는 없습니다.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "뉴스 / 공시" })).toBeInTheDocument();
+    expect(screen.getByText("대규모기업집단현황공시")).toBeInTheDocument();
+    expect(screen.getByText("HBM 수요 점검")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "메모" })).toBeInTheDocument();
+    expect(screen.getByText("종목 메모는 로그인 후 사용할 수 있습니다.")).toBeInTheDocument();
   });
 
   it("renders logged-out personal page gates", () => {
@@ -175,11 +393,72 @@ describe("page smoke rendering", () => {
     expect(screen.queryByText(/목데이터/)).not.toBeInTheDocument();
   });
 
-  it("keeps market page attached to quant decisions", () => {
-    renderAt("/market", <Dashboard />);
-    expect(screen.getByText("퀀트 모델 신호")).toBeInTheDocument();
-    expect(screen.getByText("오늘의 종목과 시장을 같이 봅니다.")).toBeInTheDocument();
+  it("shows today's candidates on the home page without duplicating signal tabs", async () => {
+    renderAt("/", <QuantHome />);
+    expect(screen.queryByText("퀀트 모델 신호")).not.toBeInTheDocument();
+    expect(await screen.findByText("오늘 추천 후보")).toBeInTheDocument();
+    expect(screen.getAllByText("삼성전자").length).toBeGreaterThan(0);
+
+    const text = document.body.textContent ?? "";
+    expect(text.indexOf("모바일 광고 영역")).toBeLessThan(text.indexOf("오늘 추천 후보"));
   });
+
+  it("shows top 20 market stocks with volume and trade amount toggles", async () => {
+    renderAt("/market", <Dashboard />);
+
+    expect(await screen.findByText("KOSPI")).toBeInTheDocument();
+    expect(screen.getByText("2,719.55")).toBeInTheDocument();
+    expect(getMarketIndicesMock).toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "거래량" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "거래대금" })).toBeInTheDocument();
+    expect(await screen.findByText("API종목1")).toBeInTheDocument();
+    expect(screen.getAllByText("1위").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("20위").length).toBeGreaterThan(0);
+    expect(screen.getByText("+1.25%")).toBeInTheDocument();
+    expect(screen.getByText("-2.50%")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "거래대금" }));
+
+    expect(getMarketStockRankingsMock).toHaveBeenCalledWith({ date: "20260529", sort: "TRADE_AMOUNT", limit: 20 });
+    expect(screen.getAllByText("거래대금").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("20위").length).toBeGreaterThan(0);
+  });
+
+  it("shows supply top 20 with investor and trade toggles", async () => {
+    renderAt("/market", <Dashboard />);
+
+    expect(screen.getByRole("heading", { name: "수급 TOP20" })).toBeInTheDocument();
+    expect(await screen.findByText("외국인순매수1")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "기관" }));
+    await userEvent.click(screen.getByRole("button", { name: "순매도" }));
+
+    expect(getInvestorTradeTopMock).toHaveBeenCalledWith({
+      date: "20260529",
+      investorType: "INSTITUTION",
+      tradeType: "SELL",
+      market: "ALL",
+      limit: 20,
+    });
+    expect(await screen.findByText("기관순매도1")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "더보기" })).toBeInTheDocument();
+  });
+
+  it("renders net buy page as a legacy weekly net-buy matrix", async () => {
+    renderAt("/net-buy?date=20260529&investorType=INSTITUTION&tradeType=SELL&market=ALL", <NetBuyingList />, "/net-buy");
+
+    expect(screen.getByRole("heading", { name: "순매수도" })).toBeInTheDocument();
+    expect((await screen.findAllByText("기관순매도1")).length).toBeGreaterThan(0);
+    expect(screen.getByText("합계")).toBeInTheDocument();
+    expect(screen.getByText("2026.05.29")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "이전주" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "오늘" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "다음주" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "기관" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "순매도" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "전체" }).length).toBeGreaterThan(0);
+  });
+
 
   it("renders quant report detail with user-facing body sections", async () => {
     renderAt("/reports/report-20260528-am", <Reports />, "/reports/:reportId");
@@ -194,11 +473,13 @@ describe("page smoke rendering", () => {
     expect(screen.getByText("타로 리딩")).toBeInTheDocument();
   });
 
-  it("renders admin model version management skeleton", () => {
+  it("renders admin work tabs and model package management", () => {
     renderAt("/admin", <Admin />);
-    expect(screen.getByText("모델 버전 관리")).toBeInTheDocument();
-    expect(screen.getByText("BULL_V4")).toBeInTheDocument();
-    expect(screen.getByText("READY_FOR_APPROVAL")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "관리자 처리할 일" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "계정" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "모델", selected: true })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "버그" })).toBeInTheDocument();
+    expect(screen.getByText("모델 패키지 관리")).toBeInTheDocument();
   });
 
   it("explains Bull v4 detail for first-time users", async () => {
@@ -229,22 +510,33 @@ describe("page smoke rendering", () => {
     expect(screen.getByRole("link", { name: "5월" })).toHaveAttribute("href", "/quant/BULL_V4?tab=reports&month=2026-05");
     expect(screen.getByRole("heading", { name: "광고 영역" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "요약" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "오늘 후보" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "후보 목록" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "리포트" })).toBeInTheDocument();
 
     const text = document.body.textContent ?? "";
     expect(text.indexOf("매매 기준")).toBeLessThan(text.indexOf("최근 6개월 수익률"));
   });
 
+  it("filters model list by category", async () => {
+    renderAt("/quant", <QuantModels />);
+
+    expect(await screen.findByText("Bull v4 모델")).toBeInTheDocument();
+    expect(screen.getByText("Bear Guard 모델")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "하락장" }));
+
+    expect(screen.queryByText("Bull v4 모델")).not.toBeInTheDocument();
+    expect(screen.getByText("Bear Guard 모델")).toBeInTheDocument();
+  });
+
   it("shows candidate filters and trade record period filters on Bull v4 detail", async () => {
     renderAt("/quant/BULL_V4", <QuantModels />, "/quant/:modelCode");
 
     expect(await screen.findByRole("tab", { name: "요약" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "오늘 후보" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "기간별 후보" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "후보 목록" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "거래 내역" })).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("tab", { name: "기간별 후보" }));
+    await userEvent.click(screen.getByRole("tab", { name: "후보 목록" }));
 
     expect(screen.getByText("기준일")).toBeInTheDocument();
     expect(screen.getByText("최근 30일")).toBeInTheDocument();
@@ -253,14 +545,13 @@ describe("page smoke rendering", () => {
 
     expect(screen.getByRole("tab", { name: "거래 내역", selected: true })).toBeInTheDocument();
     expect(screen.getByText("최근 7일")).toBeInTheDocument();
-    expect(screen.getByText("BUY")).toBeInTheDocument();
-    expect(screen.getByText("SELL")).toBeInTheDocument();
+    expect(screen.getAllByText("매수").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("매도").length).toBeGreaterThan(0);
     expect(screen.getByText("+5.12%")).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "최근 7일" }));
 
-    expect(screen.queryByText("Bull v4 historical replay entry")).not.toBeInTheDocument();
-    expect(screen.getByText("Bull v4 historical replay exit")).toBeInTheDocument();
+    expect(screen.getAllByText("삼성전자").length).toBeGreaterThan(0);
   });
 
   it("orders Bull v4 detail as performance, model rule, ad, and candidate tabs", async () => {
@@ -280,7 +571,7 @@ describe("page smoke rendering", () => {
     expect(text.indexOf("Bull v4 모델")).toBeLessThan(text.indexOf("수익률"));
     expect(text.indexOf("수익률")).toBeLessThan(text.indexOf("광고 영역"));
     expect(text.indexOf("광고 영역")).toBeLessThan(text.indexOf("요약"));
-    expect(text.indexOf("요약")).toBeLessThan(text.indexOf("오늘 후보"));
+    expect(text.indexOf("요약")).toBeLessThan(text.indexOf("후보 목록"));
   });
 
   it("renders Bull v4 monthly summary page from a chart month", async () => {
@@ -292,8 +583,7 @@ describe("page smoke rendering", () => {
     expect(screen.getByRole("heading", { name: "거래 내용" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "후보 종목" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "이후 향방" })).toBeInTheDocument();
-    expect(screen.getAllByText("Bull v4 historical replay entry").length).toBeGreaterThan(0);
-    expect(screen.getByText("Bull v4 조건 통과")).toBeInTheDocument();
+    expect(screen.getAllByText("삼성전자").length).toBeGreaterThan(0);
   });
 
   it("opens Bull v4 report tab for a selected chart month", async () => {

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import styled from "styled-components";
-import { getBullQuantModelDetail, getBullQuantReportDetail, getQuantHomeSummary } from "@/features/quant/api";
-import type { QuantCandidateHistoryItem, QuantDecision, QuantModelDetail, QuantModelSummary, QuantReportDetail, QuantReportSummary, QuantTradeHistoryItem } from "@/features/quant/types";
+import { getBullQuantReportDetail, getQuantHomeSummary, getQuantModelDetail, getQuantReports } from "@/features/quant/api";
+import type { QuantCandidateHistoryItem, QuantDecision, QuantModelCategory, QuantModelDetail, QuantModelSummary, QuantReportDetail, QuantReportSummary, QuantTradeHistoryItem } from "@/features/quant/types";
 import {
   Badge,
   Card,
@@ -31,6 +31,7 @@ import {
 type DetailTab = "overview" | "today" | "period" | "trades" | "reports";
 type PeriodFilter = "today" | "7" | "30" | "all";
 type SummaryTab = "candidate" | "entry" | "exit" | "capital" | "monthly";
+type ModelCategoryFilter = "전체" | QuantModelCategory;
 
 const EMPTY_DETAIL: QuantModelDetail = { candidates: [], trades: [] };
 
@@ -48,7 +49,7 @@ function todayIso() {
 
 function formatNumber(value?: number) {
   if (value === undefined || value === null || Number.isNaN(value)) return "-";
-  return value.toLocaleString("ko-KR");
+  return Math.round(value).toLocaleString("ko-KR");
 }
 
 function formatPct(value?: number) {
@@ -178,6 +179,17 @@ function averageReturn(items: QuantTradeHistoryItem[]) {
   return realized.reduce((sum, value) => sum + value, 0) / realized.length;
 }
 
+function entryDateFromReason(reason: string) {
+  const match = reason.match(/진입\s+(\d{4}-\d{2}-\d{2})/);
+  return match?.[1] ?? "";
+}
+
+function shareQuantity(entryPrice: number | undefined, positionCash: number) {
+  if (!entryPrice || Number.isNaN(entryPrice) || entryPrice <= 0) return "-";
+  const quantity = Math.floor(positionCash / entryPrice);
+  return quantity > 0 ? quantity.toLocaleString("ko-KR") : "-";
+}
+
 function buildMonthlyDirection(trades: QuantTradeHistoryItem[], candidates: QuantCandidateHistoryItem[]) {
   const exits = trades.filter((item) => item.side === "SELL");
   const winners = exits.filter((item) => (item.realizedReturnPct ?? 0) > 0).length;
@@ -227,24 +239,26 @@ export function QuantModels() {
   const [error, setError] = useState(false);
   const [activeTab, setActiveTab] = useState<DetailTab>("overview");
   const [activeSummaryTab, setActiveSummaryTab] = useState<SummaryTab>("candidate");
-  const [period, setPeriod] = useState<PeriodFilter>("30");
+  const [period, setPeriod] = useState<PeriodFilter>("all");
   const [baseDate, setBaseDate] = useState(todayIso());
-  const [tradePeriod, setTradePeriod] = useState<PeriodFilter>("30");
+  const [tradePeriod, setTradePeriod] = useState<PeriodFilter>("all");
   const [tradeBaseDate, setTradeBaseDate] = useState(todayIso());
   const [reportPeriod, setReportPeriod] = useState<PeriodFilter>("30");
   const [reportBaseDate, setReportBaseDate] = useState(todayIso());
+  const [modelCategoryFilter, setModelCategoryFilter] = useState<ModelCategoryFilter>("전체");
 
   useEffect(() => {
     let mounted = true;
     Promise.all([
       getQuantHomeSummary(),
-      modelCode ? getBullQuantModelDetail().catch(() => EMPTY_DETAIL) : Promise.resolve(EMPTY_DETAIL),
+      modelCode ? getQuantModelDetail(modelCode).catch(() => EMPTY_DETAIL) : Promise.resolve(EMPTY_DETAIL),
+      modelCode ? getQuantReports(modelCode).catch(() => []) : Promise.resolve(null),
     ])
-      .then(([summary, modelDetail]) => {
+      .then(([summary, modelDetail, modelReports]) => {
         if (!mounted) return;
         setModels(summary.models);
         setDecisions(summary.decisions);
-        setReports(summary.reports);
+        setReports(modelReports ?? summary.reports);
         setDetail(modelDetail);
         setLoaded(true);
       })
@@ -288,6 +302,14 @@ export function QuantModels() {
   }, [searchParams]);
 
   const selected = modelCode ? models.find((model) => model.code === modelCode) : null;
+  const modelCategoryFilters = useMemo<ModelCategoryFilter[]>(
+    () => ["전체", ...Array.from(new Set(models.map((model) => model.category)))],
+    [models],
+  );
+  const filteredModels = useMemo(
+    () => modelCategoryFilter === "전체" ? models : models.filter((model) => model.category === modelCategoryFilter),
+    [modelCategoryFilter, models],
+  );
 
   const selectedDecisions = useMemo(
     () => (selected ? decisions.filter((item) => item.modelNames.includes(selected.name)) : []),
@@ -351,8 +373,10 @@ export function QuantModels() {
   }
 
   if (selected) {
+    const isBullV4 = selected.code === "BULL_V4";
     const totalReturnPct = selected.totalReturnPct ?? 0;
     const totalProfit = selected.totalProfit ?? 0;
+    const positionCash = (selected.seedMoney ?? 100_000_000) * 0.1;
     const monthlyReturns = recentSixMonthReturns(selected.monthlyReturnPct);
     const monthlyLineChart = buildLineChartPoints(monthlyReturns);
     const currentMonthPoint = monthlyLineChart.points[monthlyLineChart.points.length - 1];
@@ -456,7 +480,7 @@ export function QuantModels() {
               </div>
               <Badge $tone="flat">{monthlyTrades.length}건</Badge>
             </CardHeader>
-            <TradeTable items={monthlyTrades} />
+            <TradeTable items={monthlyTrades} positionCash={positionCash} />
           </Card>
 
           <Card>
@@ -478,9 +502,9 @@ export function QuantModels() {
         <ModelHeader>
           <PageTitle>{selected.name}</PageTitle>
           <ModelMeta>
-            <span>5.0.1</span>
+            <span>{selected.modelVersion ?? "-"}</span>
             <span>1억원 paper</span>
-            <span>1종목 1천만원</span>
+            <span>{isBullV4 ? "1종목 1천만원" : "과거 검증 package"}</span>
           </ModelMeta>
         </ModelHeader>
 
@@ -488,7 +512,7 @@ export function QuantModels() {
           <KpiCard $soft $pad="16px">
             <SectionTitle>수익률</SectionTitle>
             <ValueText $tone={totalReturnPct >= 0 ? "up" : "down"}>{formatPct(selected.totalReturnPct)}</ValueText>
-            <MutedText>Bull v4 누적 성과</MutedText>
+            <MutedText>{selected.name} 누적 성과</MutedText>
           </KpiCard>
           <KpiCard $soft $pad="16px">
             <SectionTitle>수익금</SectionTitle>
@@ -503,7 +527,7 @@ export function QuantModels() {
           <KpiCard $soft $pad="16px">
             <SectionTitle>이번달 시장상황</SectionTitle>
             <ValueText>{selected.monthlyMarketRegime ?? "BULL"}</ValueText>
-            <MutedText>BULL / SIDEWAY / BEAR</MutedText>
+            <MutedText>{isBullV4 ? "BULL / SIDEWAY / BEAR" : "package 검증 요약"}</MutedText>
           </KpiCard>
         </KpiRail>
 
@@ -517,11 +541,8 @@ export function QuantModels() {
             <TabButton role="tab" aria-selected={activeTab === "overview"} $active={activeTab === "overview"} onClick={() => selectTab("overview")}>
               요약
             </TabButton>
-            <TabButton role="tab" aria-selected={activeTab === "today"} $active={activeTab === "today"} onClick={() => selectTab("today")}>
-              오늘 후보
-            </TabButton>
-            <TabButton role="tab" aria-selected={activeTab === "period"} $active={activeTab === "period"} onClick={() => selectTab("period")}>
-              기간별 후보
+            <TabButton role="tab" aria-selected={activeTab === "today" || activeTab === "period"} $active={activeTab === "today" || activeTab === "period"} onClick={() => selectTab("today")}>
+              후보 목록
             </TabButton>
             <TabButton role="tab" aria-selected={activeTab === "trades"} $active={activeTab === "trades"} onClick={() => selectTab("trades")}>
               거래 내역
@@ -552,11 +573,19 @@ export function QuantModels() {
                 {activeSummaryTab === "candidate" ? (
                   <RuleSection>
                     <SectionTitle>후보 선정 규칙</SectionTitle>
-                    <RuleList>
-                      <li>원천 데이터는 `market_daily_price` 기반 리플레이 결과를 사용합니다.</li>
-                      <li>`filtered_w4_range20_entry_confirmation` 파이프라인을 통과한 종목만 후보로 봅니다.</li>
-                      <li>후보는 최근 진입일 기준으로 정렬하고, 화면에는 최근 10개까지 노출합니다.</li>
-                    </RuleList>
+                    {isBullV4 ? (
+                      <RuleList>
+                        <li>원천 데이터는 `market_daily_price` 기반 리플레이 결과를 사용합니다.</li>
+                        <li>`filtered_w4_range20_entry_confirmation` 파이프라인을 통과한 종목만 후보로 봅니다.</li>
+                        <li>후보는 최근 진입일 기준으로 정렬하고, 화면에는 최근 10개까지 노출합니다.</li>
+                      </RuleList>
+                    ) : (
+                      <RuleList>
+                        <li>전달된 package의 `metrics.json` 과거 검증 산출물을 화면에 노출합니다.</li>
+                        <li>개별 거래 CSV는 prod package에 포함되지 않아 train/post 집계 매매 행으로 표시합니다.</li>
+                        <li>`runtime_ready=false` 상태이며 live order 또는 production runtime 활성화를 의미하지 않습니다.</li>
+                      </RuleList>
+                    )}
                   </RuleSection>
                 ) : null}
 
@@ -564,9 +593,9 @@ export function QuantModels() {
                   <RuleSection>
                     <SectionTitle>진입 규칙</SectionTitle>
                     <RuleList>
-                      <li>신호일과 실제 진입일을 분리해서 기록합니다.</li>
-                      <li>진입은 `entry_date`와 `entry_price` 기준으로 계산합니다.</li>
-                      <li>후보가 있어도 진입 확인 조건을 통과하지 않으면 거래 내역에 남기지 않습니다.</li>
+                      {isBullV4 ? <li>신호일과 실제 진입일을 분리해서 기록합니다.</li> : <li>package 모델은 전달된 과거 검증 기간별 집계만 표시합니다.</li>}
+                      {isBullV4 ? <li>진입은 `entry_date`와 `entry_price` 기준으로 계산합니다.</li> : <li>상세 runtime 진입 로직은 아직 prod runtime으로 활성화되지 않았습니다.</li>}
+                      {isBullV4 ? <li>후보가 있어도 진입 확인 조건을 통과하지 않으면 거래 내역에 남기지 않습니다.</li> : <li>개별 체결가는 package 산출물에 포함된 경우에만 별도 표시할 수 있습니다.</li>}
                     </RuleList>
                   </RuleSection>
                 ) : null}
@@ -660,19 +689,7 @@ export function QuantModels() {
             </Stack>
           ) : null}
 
-          {activeTab === "today" ? (
-            <Stack>
-              <CandidateTable items={selectedDecisions.map((item) => ({
-                assetCode: item.assetCode,
-                assetName: item.assetName,
-                date: baseDate,
-                label: item.decisionLabel,
-                reason: item.reasonBullets.join(", "),
-              }))} emptyText="현재 후보 종목이 없습니다. 조건을 통과한 종목만 보여줍니다." />
-            </Stack>
-          ) : null}
-
-          {activeTab === "period" ? (
+          {activeTab === "today" || activeTab === "period" ? (
             <Stack>
               <FilterBar>
                 <Inline $wrap>
@@ -692,7 +709,13 @@ export function QuantModels() {
                   ))}
                 </Inline>
               </FilterBar>
-              <CandidateTable items={periodCandidates} emptyText="선택한 기간에 표시할 후보 이력이 없습니다." />
+              <CandidateTable items={periodCandidates.length > 0 ? periodCandidates : selectedDecisions.map((item) => ({
+                assetCode: item.assetCode,
+                assetName: item.assetName,
+                date: baseDate,
+                label: item.decisionLabel,
+                reason: item.reasonBullets.join(", "),
+              }))} emptyText="선택한 기간에 표시할 후보 이력이 없습니다." />
             </Stack>
           ) : null}
 
@@ -716,7 +739,7 @@ export function QuantModels() {
                   ))}
                 </Inline>
               </FilterBar>
-              <TradeTable items={periodTrades} />
+              <TradeTable items={periodTrades} positionCash={positionCash} />
             </Stack>
           ) : null}
 
@@ -837,7 +860,7 @@ export function QuantModels() {
                             <SectionTitle>거래 내용</SectionTitle>
                             <Badge $tone="flat">{reportMonthTrades.length}건</Badge>
                           </CardHeader>
-                          <TradeTable items={reportMonthTrades} />
+                          <TradeTable items={reportMonthTrades} positionCash={positionCash} />
                         </section>
 
                         <section>
@@ -880,7 +903,7 @@ export function QuantModels() {
       <PageHeaderCard>
         <PageTitle>모델 목록</PageTitle>
         <PageHeaderMeta>
-          <MutedText>{models.length}개</MutedText>
+          <MutedText>{filteredModels.length} / {models.length}개</MutedText>
         </PageHeaderMeta>
       </PageHeaderCard>
       {error ? (
@@ -888,22 +911,46 @@ export function QuantModels() {
           <SubText>실제 모델 목록을 불러오지 못했습니다.</SubText>
         </Card>
       ) : null}
+      <FilterBar>
+        <Inline $wrap>
+          <FilterLabel>카테고리</FilterLabel>
+          {modelCategoryFilters.map((category) => (
+            <FilterButton
+              key={category}
+              type="button"
+              $active={modelCategoryFilter === category}
+              onClick={() => setModelCategoryFilter(category)}
+            >
+              {category}
+            </FilterButton>
+          ))}
+        </Inline>
+      </FilterBar>
       <Grid>
-        {models.map((model) => (
-          <CardLink key={model.code} to={`/quant/${model.code}`}>
+        {filteredModels.map((model) => (
+          <ModelCardLink key={model.code} to={`/quant/${model.code}`}>
             <CardHeader>
               <SectionTitle>{model.name}</SectionTitle>
               <Badge $tone="accent">{model.status}</Badge>
             </CardHeader>
             <SubText>{model.plainName}</SubText>
-            <ChipRow>{model.focus.map((item) => <Chip key={item}>{item}</Chip>)}</ChipRow>
+            <ChipRow>
+              <Chip $active>{model.category}</Chip>
+              {model.focus.map((item) => <Chip key={item}>{item}</Chip>)}
+            </ChipRow>
             <MutedText>오늘 종목 {model.todayCount}개 · {model.marketMode}</MutedText>
-          </CardLink>
+          </ModelCardLink>
         ))}
         {models.length === 0 && !error ? (
           <Card>
             <SectionTitle>불러오는 중</SectionTitle>
             <SubText>Bull v4 모델 상태를 확인하고 있습니다.</SubText>
+          </Card>
+        ) : null}
+        {models.length > 0 && filteredModels.length === 0 ? (
+          <Card>
+            <SectionTitle>표시할 모델이 없습니다</SectionTitle>
+            <SubText>선택한 카테고리에 해당하는 모델이 없습니다.</SubText>
           </Card>
         ) : null}
       </Grid>
@@ -920,10 +967,8 @@ function CandidateTable({ items, emptyText }: { items: QuantCandidateHistoryItem
             <tr>
               <th>날짜</th>
               <th>종목</th>
-              <th>상태</th>
-              <th>근거</th>
               <th className="num">가격</th>
-              <th className="num">수익률</th>
+              <th>buy/sell</th>
             </tr>
           </thead>
           <tbody>
@@ -931,15 +976,13 @@ function CandidateTable({ items, emptyText }: { items: QuantCandidateHistoryItem
               <tr key={`${item.assetCode}-${item.date}-${item.label}`}>
                 <td>{item.date || "-"}</td>
                 <td>{item.assetName} <MutedCode>{item.assetCode}</MutedCode></td>
-                <td><Badge $tone="accent">{item.label}</Badge></td>
-                <td>{item.reason}</td>
                 <td className="num">{formatNumber(item.price)}</td>
-                <td className="num">{formatPct(item.returnPct)}</td>
+                <td><Badge $tone="accent">BUY</Badge></td>
               </tr>
             ))}
             {items.length === 0 ? (
               <tr>
-                <td colSpan={6}>{emptyText}</td>
+                <td colSpan={4}>{emptyText}</td>
               </tr>
             ) : null}
           </tbody>
@@ -949,35 +992,71 @@ function CandidateTable({ items, emptyText }: { items: QuantCandidateHistoryItem
   );
 }
 
-function TradeTable({ items }: { items: QuantTradeHistoryItem[] }) {
+function TradeTable({ items, positionCash }: { items: QuantTradeHistoryItem[]; positionCash: number }) {
+  const rows = items.flatMap((item) => {
+    const entryDate = entryDateFromReason(item.reason);
+    const exitDate = dateOnly(item.fillTime);
+    const entryPrice = item.entryPrice ?? item.fillPrice;
+    const exitPrice = item.exitPrice ?? item.fillPrice;
+    const quantity = shareQuantity(entryPrice, positionCash);
+    return [
+      {
+        key: `${item.tradeId}-buy`,
+        date: entryDate || exitDate,
+        item,
+        entryPrice,
+        exitPrice,
+        quantity,
+        realizedReturnPct: undefined,
+        action: "매수",
+        actionOrder: 0,
+        tone: "accent" as const,
+      },
+      {
+        key: `${item.tradeId}-sell`,
+        date: exitDate,
+        item,
+        entryPrice,
+        exitPrice,
+        quantity,
+        realizedReturnPct: item.realizedReturnPct,
+        action: "매도",
+        actionOrder: 1,
+        tone: "flat" as const,
+      },
+    ];
+  }).sort((a, b) => a.date.localeCompare(b.date) || a.actionOrder - b.actionOrder);
+
   return (
     <TableCard>
       <TableScroll>
         <DataTable>
           <thead>
             <tr>
-              <th>시간</th>
+              <th>날짜</th>
               <th>종목</th>
-              <th>구분</th>
-              <th>사유</th>
-              <th className="num">체결가</th>
-              <th className="num">실현 수익률</th>
+              <th className="num">진입가</th>
+              <th className="num">청산가</th>
+              <th className="num">주수</th>
+              <th className="num">실현수익</th>
+              <th>매수/매도</th>
             </tr>
           </thead>
           <tbody>
-            {items.map((item) => (
-              <tr key={item.tradeId}>
-                <td>{item.fillTime || "-"}</td>
-                <td>{item.assetName} <MutedCode>{item.assetCode}</MutedCode></td>
-                <td><Badge $tone={item.side === "BUY" ? "accent" : "flat"}>{item.side}</Badge></td>
-                <td>{item.reason}</td>
-                <td className="num">{formatNumber(item.fillPrice)}</td>
-                <td className="num">{formatPct(item.realizedReturnPct)}</td>
+            {rows.map((row) => (
+              <tr key={row.key}>
+                <td>{row.date || "-"}</td>
+                <td>{row.item.assetName} <MutedCode>{row.item.assetCode}</MutedCode></td>
+                <td className="num">{formatNumber(row.entryPrice)}</td>
+                <td className="num">{formatNumber(row.exitPrice)}</td>
+                <td className="num">{row.quantity}</td>
+                <td className="num">{formatPct(row.realizedReturnPct)}</td>
+                <td><Badge $tone={row.tone}>{row.action}</Badge></td>
               </tr>
             ))}
-            {items.length === 0 ? (
+            {rows.length === 0 ? (
               <tr>
-                <td colSpan={6}>아직 표시할 매매 내역이 없습니다.</td>
+                <td colSpan={7}>아직 표시할 매매 내역이 없습니다.</td>
               </tr>
             ) : null}
           </tbody>
@@ -994,6 +1073,26 @@ const AdSlot = styled(Card)`
   justify-content: center;
   border-style: dashed;
   background: ${({ theme }) => theme.color.softPanel};
+`;
+
+const ModelCardLink = styled(CardLink)`
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-block: 28px;
+
+  ${CardHeader} {
+    margin-bottom: 0;
+  }
+
+  ${SubText},
+  ${MutedText} {
+    margin: 0;
+  }
+
+  ${ChipRow} {
+    margin-top: 0;
+  }
 `;
 
 const ModelHeader = styled(Card)`

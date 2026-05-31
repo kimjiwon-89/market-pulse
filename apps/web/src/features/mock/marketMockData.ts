@@ -7,6 +7,8 @@ export interface MockStock {
   changeRate: number;
   sector: string;
   marketCap: string;
+  volume: number;
+  tradeAmount: number;
 }
 
 export interface MockIndex {
@@ -34,11 +36,26 @@ export const mockIndices: MockIndex[] = [
 ];
 
 export const mockStocks: MockStock[] = [
-  { code: "000660", name: "SK하이닉스", market: "KOSPI", price: 2237000, change: -6000, changeRate: -0.26, sector: "반도체", marketCap: "162조" },
-  { code: "005930", name: "삼성전자", market: "KOSPI", price: 295250, change: -11750, changeRate: -3.82, sector: "반도체", marketCap: "176조" },
-  { code: "005380", name: "현대차", market: "KOSPI", price: 674000, change: -7000, changeRate: -1.02, sector: "자동차", marketCap: "142조" },
-  { code: "035720", name: "카카오", market: "KOSPI", price: 48300, change: 650, changeRate: 1.36, sector: "인터넷", marketCap: "21조" },
-  { code: "102780", name: "KODEX 반도체", market: "ETF", price: 20950, change: -1880, changeRate: -8.23, sector: "ETF", marketCap: "1.8조" },
+  { code: "000660", name: "SK하이닉스", market: "KOSPI", price: 2237000, change: -6000, changeRate: -0.26, sector: "반도체", marketCap: "162조", volume: 34500000, tradeAmount: 77176500000000 },
+  { code: "005930", name: "삼성전자", market: "KOSPI", price: 295250, change: -11750, changeRate: -3.82, sector: "반도체", marketCap: "176조", volume: 42100000, tradeAmount: 12427725000000 },
+  { code: "005380", name: "현대차", market: "KOSPI", price: 674000, change: -7000, changeRate: -1.02, sector: "자동차", marketCap: "142조", volume: 10800000, tradeAmount: 7279200000000 },
+  { code: "035720", name: "카카오", market: "KOSPI", price: 48300, change: 650, changeRate: 1.36, sector: "인터넷", marketCap: "21조", volume: 29800000, tradeAmount: 1439340000000 },
+  { code: "102780", name: "KODEX 반도체", market: "ETF", price: 20950, change: -1880, changeRate: -8.23, sector: "ETF", marketCap: "1.8조", volume: 52400000, tradeAmount: 1097780000000 },
+  { code: "035420", name: "NAVER", market: "KOSPI", price: 198700, change: 3200, changeRate: 1.64, sector: "인터넷", marketCap: "32조", volume: 9200000, tradeAmount: 1828040000000 },
+  { code: "068270", name: "셀트리온", market: "KOSPI", price: 187500, change: -2500, changeRate: -1.32, sector: "바이오", marketCap: "40조", volume: 7600000, tradeAmount: 1425000000000 },
+  { code: "051910", name: "LG화학", market: "KOSPI", price: 412000, change: 5500, changeRate: 1.35, sector: "화학", marketCap: "29조", volume: 4100000, tradeAmount: 1689200000000 },
+  { code: "373220", name: "LG에너지솔루션", market: "KOSPI", price: 385000, change: -4500, changeRate: -1.16, sector: "2차전지", marketCap: "90조", volume: 3300000, tradeAmount: 1270500000000 },
+  { code: "000270", name: "기아", market: "KOSPI", price: 118500, change: 1800, changeRate: 1.54, sector: "자동차", marketCap: "47조", volume: 12900000, tradeAmount: 1528650000000 },
+  { code: "207940", name: "삼성바이오로직스", market: "KOSPI", price: 874000, change: 9000, changeRate: 1.04, sector: "바이오", marketCap: "62조", volume: 980000, tradeAmount: 856520000000 },
+  { code: "006400", name: "삼성SDI", market: "KOSPI", price: 364000, change: -6500, changeRate: -1.75, sector: "2차전지", marketCap: "25조", volume: 2800000, tradeAmount: 1019200000000 },
+  { code: "105560", name: "KB금융", market: "KOSPI", price: 84200, change: 700, changeRate: 0.84, sector: "금융", marketCap: "33조", volume: 14200000, tradeAmount: 1195640000000 },
+  { code: "055550", name: "신한지주", market: "KOSPI", price: 51200, change: -300, changeRate: -0.58, sector: "금융", marketCap: "26조", volume: 16100000, tradeAmount: 824320000000 },
+  { code: "028260", name: "삼성물산", market: "KOSPI", price: 156000, change: 1200, changeRate: 0.78, sector: "지주", marketCap: "28조", volume: 5100000, tradeAmount: 795600000000 },
+  { code: "096770", name: "SK이노베이션", market: "KOSPI", price: 122300, change: -2100, changeRate: -1.69, sector: "에너지", marketCap: "12조", volume: 8700000, tradeAmount: 1064010000000 },
+  { code: "066570", name: "LG전자", market: "KOSPI", price: 98200, change: 1400, changeRate: 1.45, sector: "전자", marketCap: "16조", volume: 11300000, tradeAmount: 1109660000000 },
+  { code: "012330", name: "현대모비스", market: "KOSPI", price: 254000, change: 2500, changeRate: 0.99, sector: "자동차부품", marketCap: "24조", volume: 3600000, tradeAmount: 914400000000 },
+  { code: "034020", name: "두산에너빌리티", market: "KOSPI", price: 21850, change: 950, changeRate: 4.55, sector: "기계", marketCap: "14조", volume: 47200000, tradeAmount: 1031320000000 },
+  { code: "247540", name: "에코프로비엠", market: "KOSDAQ", price: 168400, change: -3200, changeRate: -1.86, sector: "2차전지", marketCap: "16조", volume: 6800000, tradeAmount: 1145120000000 },
 ];
 
 export const mockInvestorFlows: MockInvestorFlow[] = [

@@ -5,12 +5,24 @@ Production deploy runs when a pull request into `main` is closed as merged.
 ## Flow
 
 1. GitHub Actions checks out the repo.
-2. API image is built from `apps/api`.
-3. Web image is built from `apps/web`.
-4. Images are pushed to Docker Hub.
-5. `infra/docker-compose.yml` is uploaded to EC2 as `/app/docker-compose.yml`.
-6. `scripts/deploy.sh` is uploaded to EC2 as `/app/deploy.sh`.
-7. EC2 runs `/app/deploy.sh`.
+2. API tests run with Java 17.
+3. Web dependencies install, then web tests and production build run.
+4. API image is built from `apps/api`.
+5. Web image is built from `apps/web`.
+6. Images are pushed to Docker Hub.
+7. `infra/docker-compose.yml` is uploaded to EC2 as `/app/docker-compose.yml`.
+8. `scripts/deploy.sh` is uploaded to EC2 as `/app/deploy.sh`.
+9. `scripts/apply-migrations.sh` is uploaded to EC2 as `/app/apply-migrations.sh`.
+10. `db/migrations/*.sql` is uploaded to EC2 under `/app/migrations/`.
+11. EC2 runs `/app/deploy.sh`.
+
+During `/app/deploy.sh`:
+
+1. Docker pulls API and web images.
+2. `docker compose run --rm -T migrator` applies un-applied SQL files from `/app/migrations` and records them in `schema_migrations`.
+3. Containers restart with `docker compose up -d --no-build`.
+4. The API health check calls `http://localhost:8080/actuator/health` inside the API container.
+5. Deployment status is printed.
 
 ## EC2 Requirements
 
@@ -31,6 +43,7 @@ DB_NAME=marketPulse
 DB_USERNAME=
 DB_PASSWORD=
 APP_SCHEDULER_ENABLED=false
+QUANT_LIVE_PAPER_SCHEDULER_ENABLED=true
 JWT_SECRET=
 ADMIN_USERNAME=
 ADMIN_PASSWORD=
@@ -56,3 +69,9 @@ Required GitHub Actions secrets:
 ## Safety
 
 Do not run this deploy flow manually or mutate EC2 `/app` without explicit user approval in the current request.
+
+Production HTTP health can also be checked through the web container at:
+
+```text
+https://marketp.duckdns.org/api/actuator/health
+```

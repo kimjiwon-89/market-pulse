@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "modelCode": "kosdaq-bull",
+  "modelVersion": "1.0.0",
+  "runtimeConfigKey": "kosdaq-bull-v1.0.0",
+  "marketScope": "KOSDAQ",
+  "grain": "asset_signal_date",
+  "primaryKeys": ["signalDate", "assetCode"],
+  "sources": [
+    {
+      "name": "market_daily_price",
+      "requiredAssetTypes": ["STOCK", "INDEX"],
+      "requiredIndexes": ["KOSPI", "KOSDAQ"],
+      "stockUniverse": "KOSDAQ"
+    }
+  ],
+  "features": [
+    {"name": "marketScope", "type": "string", "nullable": false, "allowedValues": ["KOSDAQ"]},
+    {"name": "range20", "type": "number", "nullable": false},
+    {"name": "ret60", "type": "number", "nullable": false},
+    {"name": "ma60Dist", "type": "number", "nullable": false},
+    {"name": "entryNextBody", "type": "number", "nullable": false},
+    {"name": "entryMa20Dist", "type": "number", "nullable": false},
+    {"name": "candleLoc", "type": "number", "nullable": false},
+    {"name": "upperShadow", "type": "number", "nullable": false},
+    {"name": "volExp", "type": "number", "nullable": false},
+    {"name": "tradeAmount", "type": "number", "nullable": false},
+    {"name": "kospiAboveMa20", "type": "boolean", "nullable": false},
+    {"name": "kosdaqAboveMa20", "type": "boolean", "nullable": false}
+  ],
+  "timingPolicy": {
+    "signalDate": "Candidate date derived from historical market features.",
+    "entryCheckDate": "Delayed confirmation date after signal date.",
+    "executionDate": "First tradable day after entry check date.",
+    "returnPeriod": "Execution date to exit date."
+  }
+}

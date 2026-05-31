@@ -1,5 +1,13 @@
 # Prod Active Status
 
+## 2026-05-31 Quant Package Handoff
+
+- Four lab handoff packages are now present in prod intake: `KOSPI_BULL`, `KOSDAQ_BULL`, `KOSPI_WATCH`, and `KOSDAQ_WATCH`.
+- User-facing model-list exposure is seeded through `quant_model_package_registry` with `public_visible=true`, `package_status=APPROVED`, and `runtime_ready=false`.
+- The packages are visible shells for `/quant` and `/api/quant/live/models`; no production runtime, replay cache activation, public trading signal approval, or live order path is enabled.
+- Prod agents should start from `.agents/handoff/quant/<model>/README.md` and `domains/quant-serving/packages/<MODEL_CODE>/manifest.json`.
+- Safety: do not deploy, trigger production workflows, mutate production infra, or enable live orders without explicit current-message approval.
+
 Date: 2026-05-28
 
 ## Current State
@@ -278,3 +286,7 @@ Date: 2026-05-28
 - Intent: codify the user-approved quant runtime handoff location.
 - Outcome: added a strict `AGENTS.md` contract for `.agents/handoff/quant/<MODEL_CODE>/` packages, including folder shape, production execution limits, runtime implementation path, worker/container rule, exposure gates, and migration requirement.
 - Changed files: `AGENTS.md`, `CLAUDE.md`, `.agents/current/active-status.md`.
+
+- Intent: receive the lab `kosdaq-bull-v1.0.0` package through the standard prod handoff path.
+- Outcome: copied the lab package into `.agents/handoff/quant/kosdaq-bull/` with prod-facing README, validation, runtime requirements, artifacts, source package, and empty sample-output marker. This is review input only; no runtime implementation, public exposure, live orders, deployment, or production DB change was performed.
+- Changed files: `.agents/handoff/quant/kosdaq-bull/*`, `.agents/current/active-status.md`.

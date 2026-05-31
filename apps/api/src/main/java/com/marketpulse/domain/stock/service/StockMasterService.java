@@ -1,5 +1,6 @@
 package com.marketpulse.domain.stock.service;
 
+import com.marketpulse.domain.quant.mapper.MarketDailyPriceMapper;
 import com.marketpulse.domain.stock.dto.StockSearchResultDto;
 import com.marketpulse.domain.stock.mapper.StockMasterMapper;
 import com.marketpulse.domain.stock.vo.KrxStockInfoVo;
@@ -21,6 +22,7 @@ public class StockMasterService {
 
     private final KrxApiClient krxApiClient;
     private final StockMasterMapper stockMasterMapper;
+    private final MarketDailyPriceMapper marketDailyPriceMapper;
 
     private static final String PATH_KOSPI  = "/sto/stk_isu_base_info";
     private static final String PATH_KOSDAQ = "/sto/ksq_isu_base_info";
@@ -29,7 +31,11 @@ public class StockMasterService {
     private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("yyyyMMdd");
 
     public List<StockSearchResultDto> search(String q, int limit) {
-        return stockMasterMapper.searchByName(q, limit).stream()
+        List<StockMasterVo> marketDailyStocks = searchMarketDailyStocks(q, limit);
+        List<StockMasterVo> rows = marketDailyStocks.isEmpty()
+                ? stockMasterMapper.searchByName(q, limit)
+                : marketDailyStocks;
+        return rows.stream()
                 .map(v -> StockSearchResultDto.builder()
                         .code(v.getCode())
                         .name(v.getName())
@@ -37,6 +43,15 @@ public class StockMasterService {
                         .sector(v.getSector())
                         .build())
                 .toList();
+    }
+
+    private List<StockMasterVo> searchMarketDailyStocks(String q, int limit) {
+        try {
+            return marketDailyPriceMapper.searchLatestStocks(q, limit);
+        } catch (Exception e) {
+            log.warn("market_daily_price stock search failed, falling back to stock_master: {}", e.getMessage());
+            return List.of();
+        }
     }
 
     // 자정 스케줄러 호출 — 어제 날짜 기준 (장 마감 후 데이터 확정)

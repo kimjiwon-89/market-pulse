@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "runtimeConfigKey": "kosdaq-bull-v1.0.0",
+  "modelCode": "kosdaq-bull",
+  "modelVersion": "1.0.0",
+  "family": "KOSDAQ_BULL",
+  "enabled": false,
+  "publicExposure": false,
+  "paperOnly": true,
+  "marketScope": "KOSDAQ",
+  "universe": {
+    "assetType": "STOCK",
+    "includeExchange": "KOSDAQ",
+    "exchangeMapRule": "sector == KOSPI maps to KOSPI; all other STOCK sectors map to KOSDAQ",
+    "requiredIndexes": ["KOSPI", "KOSDAQ"]
+  },
+  "portfolio": {
+    "seedCapitalKrw": 1000000000,
+    "positionCashKrw": 100000000,
+    "maxPositions": 10,
+    "maxBuysPerSignalDay": 5,
+    "liquidityCapPctOfSignalDayTradeAmount": 3.0
+  },
+  "entry": {
+    "signalCadenceTradingDays": 5,
+    "entryDelayTradingDays": 5,
+    "entryLocMin": 0.55,
+    "entryMa20DistMin": 0.02,
+    "entryNextBodyMin": 0.005,
+    "entryDrawdownMin": -0.05,
+    "entryUpperShadowMax": 0.08,
+    "entryBodyRetMin": 0.0
+  },
+  "signalFilter": {
+    "range20Min": 0.25,
+    "range20Max": 0.4,
+    "ret60Min": 0.2,
+    "ret60Max": 1.0,
+    "ma60DistMin": 0.05,
+    "volExpMax": 3.0,
+    "candleLocMin": 0.45,
+    "upperShadowMax": 0.08,
+    "tradeAmountMinKrw": 500000000,
+    "topN": 50
+  },
+  "regimeGate": {
+    "type": "both_indexes_above_ma20",
+    "kospiRequired": true,
+    "kosdaqRequired": true
+  },
+  "exit": {
+    "earlyFailClosePct": -0.06,
+    "earlyFailDays": 3,
+    "stopLossPct": -0.12,
+    "trailTriggerPct": 0.2,
+    "trailGivebackPct": 0.2,
+    "baseMaxHoldTradingDays": 30,
+    "conditionalExtensionReturnPct": 0.25,
+    "conditionalExtensionRequiresCloseAboveMa20": true,
+    "conditionalExtensionMaxHoldTradingDays": 60,
+    "netTradingCostPct": 0.003
+  },
+  "cache": {
+    "required": true,
+    "recommendedFactTable": "quant_kosdaq_bull_replay_fact",
+    "refreshLookbackCalendarDays": 120,
+    "serveFromCacheOnly": true
+  },
+  "dataReadiness": {
+    "requireStockRows": true,
+    "requireIndexRows": true,
+    "hideWhenCacheEmpty": true,
+    "hideWhenDataDelayed": true
+  }
+}

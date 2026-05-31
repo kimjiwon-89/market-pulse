@@ -1,11 +1,17 @@
 import { apiClient } from "@/services/apiClient";
+import { getLastFridayBasicDate, getMarketStockRankings } from "@/features/market/api";
+import { mockNews } from "@/features/mock/marketMockData";
 import type {
   QuantDecision,
   QuantHomeSummary,
   QuantHotStockItem,
   QuantKpi,
+  QuantMarketRegime,
+  QuantMarketRegimeSnapshot,
   QuantMarketOverviewItem,
   QuantModelDetail,
+  QuantModelCategory,
+  QuantModelLabel,
   QuantModelSummary,
   QuantNewsItem,
   QuantReportDetail,
@@ -39,6 +45,7 @@ interface ApiResponse<T> {
 interface LiveModelSummaryDto {
   modelCode: string;
   modelVersion?: string;
+  configKey?: string;
   modelName?: string;
   status?: string;
   seedMoney?: number;
@@ -49,11 +56,14 @@ interface LiveModelSummaryDto {
   rawCandidateCountToday?: number;
   actualEntryCountToday?: number;
   latestReportTime?: string;
+  category?: QuantModelCategory;
+  modelCategory?: QuantModelCategory;
 }
 
 interface LiveCandidateDto {
   assetCode: string;
   assetName: string;
+  signalDate?: string;
   candidateType?: string;
   decision?: string;
   reason?: string;
@@ -93,6 +103,8 @@ interface LiveTradeDto {
   assetName: string;
   side: string;
   fillTime?: string;
+  signalPrice?: number;
+  observedPrice?: number;
   fillPrice?: number;
   realizedReturnPct?: number;
   modelReason?: string;
@@ -112,6 +124,31 @@ interface IndexResponseDto {
     bstp_nmix_prdy_vrss?: string;
     bstp_nmix_prpr?: string;
   };
+}
+
+interface MarketRegimeSnapshotDto {
+  tradeDate?: string;
+  cacheDate?: string;
+  liveKospi?: number | string;
+  liveKosdaq?: number | string;
+  kospiRegime?: QuantMarketRegime;
+  kosdaqRegime?: QuantMarketRegime;
+  kospiAllowedStrategy?: string;
+  kosdaqAllowedStrategy?: string;
+  kospiRiskBudget?: number | string;
+  kosdaqRiskBudget?: number | string;
+  combinedRegime?: QuantMarketRegime;
+  allowedStrategy?: string;
+  confidence?: number | string;
+  riskBudget?: number | string;
+  bullScore?: number;
+  bearScore?: number;
+  stressScore?: number;
+  breadthMa20?: number | string;
+  breadthMa60?: number | string;
+  volatility20?: number | string;
+  liquidityTrend?: number | string;
+  updatedAt?: string;
 }
 
 async function getData<T>(path: string, params?: Record<string, unknown>): Promise<T> {
@@ -146,6 +183,23 @@ function formatPct(value?: number) {
   return `${value >= 0 ? "+" : ""}${value.toFixed(2)}%`;
 }
 
+function shortDate(value?: string) {
+  if (!value) return "";
+  const parts = value.split("-");
+  return parts.length === 3 ? `${parts[1]}/${parts[2]}` : value;
+}
+
+function todayIsoKst() {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
 function parseNumber(value?: string | number) {
   if (value === undefined || value === null) return undefined;
   const parsed = Number(String(value).replace(/,/g, ""));
@@ -159,18 +213,27 @@ function toneFromCode(code: string): StockBadgeTone {
 }
 
 function mapModel(dto: LiveModelSummaryDto): QuantModelSummary {
-  const status = dto.status === "RUNNING" ? "정상 운영" : dto.status === "DATA_DELAYED" ? "관찰 중" : "관리자 점검";
+  const code = dto.modelCode || BULL_MODEL_CODE;
+  const name = dto.modelName || (code === BULL_MODEL_CODE ? BULL_MODEL_NAME : code);
+  const category = dto.category ?? dto.modelCategory ?? "상승장";
+  const marketMode: QuantModelLabel = category === "하락장" ? "하락장 모델" : category === "횡보장" ? "횡보장 모델" : "상승장 모델";
+  const status = dto.status === "RUNNING" ? "정상 운영" : dto.status === "DATA_DELAYED" || dto.status === "PACKAGE_READY" ? "관찰 중" : "관리자 점검";
   const signalStrength = (dto.actualEntryCountToday ?? 0) > 0 ? "높음" : (dto.rawCandidateCountToday ?? 0) > 0 ? "보통" : "낮음";
   const seedMoney = dto.seedMoney ?? BULL_PAPER_SEED_MONEY;
   const totalProfit = dto.totalProfit ?? 0;
   const totalReturnPct = dto.totalReturnPct ?? (seedMoney > 0 ? (totalProfit / seedMoney) * 100 : 0);
 
   return {
-    code: BULL_MODEL_CODE,
-    name: BULL_MODEL_NAME,
-    plainName: "상승장 리플레이 기반 종목 신호",
-    description: "승률보다 손익비와 체크포인트를 함께 보는 Bull v4 운영 모델입니다.",
-    marketMode: "상승장 모델",
+    code,
+    modelVersion: dto.modelVersion,
+    configKey: dto.configKey,
+    name,
+    plainName: code === BULL_MODEL_CODE ? "상승장 리플레이 기반 종목 신호" : `${name} 후보 신호`,
+    description: code === BULL_MODEL_CODE
+      ? "승률보다 손익비와 체크포인트를 함께 보는 Bull v4 운영 모델입니다."
+      : `${name} 모델이 선별한 후보 종목입니다.`,
+    category,
+    marketMode,
     status,
     signalStrength,
     focus: ["Bull v4", "리플레이 검증", "위험 체크포인트"],
@@ -184,16 +247,17 @@ function mapModel(dto: LiveModelSummaryDto): QuantModelSummary {
   };
 }
 
-function mapDecision(dto: LiveCandidateDto): QuantDecision {
+function mapDecision(dto: LiveCandidateDto, model: QuantModelSummary = mapModel(fallbackBullModel)): QuantDecision {
   const warning = (dto.expectedReturnPct ?? 0) < 0 || dto.decision === "WARNING";
 
   return {
     assetCode: dto.assetCode,
     assetName: dto.assetName,
+    signalDate: dto.signalDate,
     badgeText: dto.assetName.slice(0, 1),
     badgeTone: toneFromCode(dto.assetCode),
-    modelNames: [BULL_MODEL_NAME],
-    modelLabel: "상승장 모델",
+    modelNames: [model.name],
+    modelLabel: model.marketMode,
     decisionLabel: warning ? "조심할 종목" : "살펴볼 종목",
     decisionCode: warning ? "WARNING" : "BUY",
     reasonBullets: [dto.reason || dto.candidateType || "Bull v4 후보로 선별됨"],
@@ -205,14 +269,15 @@ function mapDecision(dto: LiveCandidateDto): QuantDecision {
 }
 
 function mapReport(dto: LiveReportSummaryDto): QuantReportSummary {
+  const modelName = dto.modelCode === BULL_MODEL_CODE ? BULL_MODEL_NAME : dto.modelCode;
   return {
     id: String(dto.reportId),
     title: dto.title || `${BULL_MODEL_NAME} 리포트`,
-    modelCode: BULL_MODEL_CODE,
-    modelName: BULL_MODEL_NAME,
-    publishedAt: formatDateTime(dto.generatedAt) ?? dto.reportDate ?? "-",
+    modelCode: dto.modelCode ?? BULL_MODEL_CODE,
+    modelName,
+    publishedAt: dto.reportDate ?? formatDateTime(dto.generatedAt) ?? "-",
     summary: `수익률 ${formatPct(dto.totalReturnPct)} · 진입 ${dto.entryCount ?? 0}건 · 청산 ${dto.exitCount ?? 0}건`,
-    keywords: [`경고 ${dto.warningCount ?? 0}건`, dto.period ?? "리포트", "Bull v4"],
+    keywords: [`경고 ${dto.warningCount ?? 0}건`, dto.period ?? "리포트", modelName],
   };
 }
 
@@ -247,7 +312,7 @@ function mapModelDetail(dto: LiveModelDetailDto): QuantModelDetail {
     candidates: (dto.candidates ?? []).map((item) => ({
       assetCode: item.assetCode,
       assetName: item.assetName,
-      date: "",
+      date: item.signalDate ?? "",
       label: item.decision || item.candidateType || "후보",
       reason: item.reason || "Bull v4 조건을 통과한 후보입니다.",
       price: item.signalPrice,
@@ -259,6 +324,8 @@ function mapModelDetail(dto: LiveModelDetailDto): QuantModelDetail {
       assetName: item.assetName,
       side: item.side,
       fillTime: item.fillTime ?? "",
+      entryPrice: item.signalPrice,
+      exitPrice: item.observedPrice ?? item.fillPrice,
       fillPrice: item.fillPrice,
       realizedReturnPct: item.realizedReturnPct,
       reason: item.modelReason || "Bull v4 replay trade",
@@ -275,6 +342,15 @@ function mapNews(dto: NewsDto): QuantNewsItem {
   };
 }
 
+function buildFallbackNews(): QuantNewsItem[] {
+  return mockNews.slice(0, 5).map((item) => ({
+    id: item.id,
+    title: item.title,
+    source: item.source,
+    publishedAt: item.date,
+  }));
+}
+
 function regimeFromChangeRate(changeRate?: number): QuantMarketOverviewItem["regime"] {
   if (changeRate === undefined) return "SIDE";
   if (changeRate >= 1) return "BULL";
@@ -282,16 +358,79 @@ function regimeFromChangeRate(changeRate?: number): QuantMarketOverviewItem["reg
   return "SIDE";
 }
 
+function normalizeRegime(value?: string): QuantMarketRegime {
+  if (value === "BULL" || value === "BEAR" || value === "CRASH" || value === "SIDEWAYS" || value === "SIDE") {
+    return value;
+  }
+  return "SIDEWAYS";
+}
+
+function directionFromRegime(regime: QuantMarketRegime): QuantMarketOverviewItem["direction"] {
+  if (regime === "BULL") return "up";
+  if (regime === "BEAR" || regime === "CRASH") return "down";
+  return "flat";
+}
+
+function formatRiskBudget(value?: number) {
+  if (value === undefined || Number.isNaN(value)) return "리스크 -";
+  return `리스크 ${Math.round(value * 100)}%`;
+}
+
+function mapMarketRegime(dto?: MarketRegimeSnapshotDto): QuantMarketRegimeSnapshot | undefined {
+  if (!dto) return undefined;
+
+  return {
+    tradeDate: dto.tradeDate,
+    cacheDate: dto.cacheDate,
+    liveKospi: parseNumber(dto.liveKospi),
+    liveKosdaq: parseNumber(dto.liveKosdaq),
+    kospiRegime: normalizeRegime(dto.kospiRegime),
+    kosdaqRegime: normalizeRegime(dto.kosdaqRegime),
+    kospiAllowedStrategy: dto.kospiAllowedStrategy,
+    kosdaqAllowedStrategy: dto.kosdaqAllowedStrategy,
+    kospiRiskBudget: parseNumber(dto.kospiRiskBudget),
+    kosdaqRiskBudget: parseNumber(dto.kosdaqRiskBudget),
+    combinedRegime: normalizeRegime(dto.combinedRegime),
+    allowedStrategy: dto.allowedStrategy,
+    confidence: parseNumber(dto.confidence),
+    riskBudget: parseNumber(dto.riskBudget),
+    bullScore: dto.bullScore,
+    bearScore: dto.bearScore,
+    stressScore: dto.stressScore,
+    breadthMa20: parseNumber(dto.breadthMa20),
+    breadthMa60: parseNumber(dto.breadthMa60),
+    volatility20: parseNumber(dto.volatility20),
+    liquidityTrend: parseNumber(dto.liquidityTrend),
+    updatedAt: dto.updatedAt,
+  };
+}
+
 function mapIndex(
   id: "kospi" | "kosdaq",
   label: "KOSPI" | "KOSDAQ",
   dto?: IndexResponseDto,
+  regime?: QuantMarketRegimeSnapshot,
 ): QuantMarketOverviewItem {
   const current = dto?.output1;
   const changeRate = parseNumber(current?.bstp_nmix_prdy_ctrt);
   const changePoint = parseNumber(current?.bstp_nmix_prdy_vrss);
   const price = parseNumber(current?.bstp_nmix_prpr);
   const direction = changeRate === undefined ? "flat" : changeRate > 0 ? "up" : changeRate < 0 ? "down" : "flat";
+  const regimeName = id === "kospi" ? regime?.kospiRegime : regime?.kosdaqRegime;
+  const liveValue = id === "kospi" ? regime?.liveKospi : regime?.liveKosdaq;
+  const allowedStrategy = id === "kospi" ? regime?.kospiAllowedStrategy : regime?.kosdaqAllowedStrategy;
+  const riskBudget = id === "kospi" ? regime?.kospiRiskBudget : regime?.kosdaqRiskBudget;
+
+  if (regimeName) {
+    return {
+      id,
+      label,
+      value: liveValue === undefined ? "-" : liveValue.toLocaleString("ko-KR", { maximumFractionDigits: 2 }),
+      regime: regimeName,
+      delta: `${allowedStrategy ?? "전략 확인 중"} · ${formatRiskBudget(riskBudget)}`,
+      direction: directionFromRegime(regimeName),
+    };
+  }
 
   return {
     id,
@@ -312,6 +451,35 @@ function buildHotStocks(): QuantHotStockItem[] {
     { id: "down-1", label: "하락률 1위", assetName: "데이터 준비 중", changeRate: "-", direction: "flat" },
     { id: "down-2", label: "하락률 2위", assetName: "데이터 준비 중", changeRate: "-", direction: "flat" },
   ];
+}
+
+async function getHotStocks(): Promise<QuantHotStockItem[]> {
+  const date = getLastFridayBasicDate();
+  const [upStocks, downStocks] = await Promise.all([
+    getMarketStockRankings({ date, sort: "CHANGE_RATE_DESC", limit: 2 }).catch(() => []),
+    getMarketStockRankings({ date, sort: "CHANGE_RATE_ASC", limit: 2 }).catch(() => []),
+  ]);
+
+  const items: QuantHotStockItem[] = [
+    ...upStocks.map((item, index) => ({
+      id: `up-${index + 1}`,
+      label: `상승률 ${index + 1}위`,
+      assetName: item.name || item.code,
+      assetCode: item.code,
+      changeRate: `${shortDate(item.tradeDate)} · ${formatPct(item.changeRate)}`,
+      direction: "up" as const,
+    })),
+    ...downStocks.map((item, index) => ({
+      id: `down-${index + 1}`,
+      label: `하락률 ${index + 1}위`,
+      assetName: item.name || item.code,
+      assetCode: item.code,
+      changeRate: `${shortDate(item.tradeDate)} · ${formatPct(item.changeRate)}`,
+      direction: "down" as const,
+    })),
+  ];
+
+  return items.length > 0 ? items : buildHotStocks();
 }
 
 function buildKpis(model: QuantModelSummary | undefined, rawModel: LiveModelSummaryDto | undefined, reports: LiveReportSummaryDto[]): QuantKpi[] {
@@ -350,30 +518,44 @@ function buildKpis(model: QuantModelSummary | undefined, rawModel: LiveModelSumm
 }
 
 export async function getQuantHomeSummary(): Promise<QuantHomeSummary> {
-  const [models, candidates, reports, news, kospi, kosdaq] = await Promise.all([
+  const [models, reports, news, kospi, kosdaq, regimeSnapshot, hotStocks] = await Promise.all([
     getData<LiveModelSummaryDto[]>("/quant/live/models").catch(() => []),
-    getData<LiveCandidateDto[]>(`/quant/live/models/${BULL_MODEL_CODE}/candidates`).catch(() => []),
     getData<LiveReportSummaryDto[]>("/quant/live/reports", { modelCode: BULL_MODEL_CODE }).catch(() => []),
     getData<NewsDto[]>("/news/inquire-daily-news", { limit: 5 }).catch(() => []),
     getData<IndexResponseDto>("/index/inquire-daily-indexchartprice", { indexCode: "0001" }).catch(() => undefined),
     getData<IndexResponseDto>("/index/inquire-daily-indexchartprice", { indexCode: "1001" }).catch(() => undefined),
+    getData<MarketRegimeSnapshotDto>("/quant/live/market-regime/latest").catch(() => undefined),
+    getHotStocks(),
   ]);
+  const marketRegime = mapMarketRegime(regimeSnapshot);
 
-  const bullModelDto = models.find((model) => model.modelCode === BULL_MODEL_CODE) ?? fallbackBullModel;
+  const visibleModelDtos = models.length > 0 ? models : [fallbackBullModel];
+  const mappedModels = visibleModelDtos.map(mapModel);
+  const allCandidates = await Promise.all(visibleModelDtos.map(async (modelDto) => {
+    const model = mapModel(modelDto);
+    const candidates = await getData<LiveCandidateDto[]>(`/quant/live/models/${model.code}/candidates`).catch(() => []);
+    return candidates.map((item) => mapDecision(item, model));
+  }));
+  const today = todayIsoKst();
+  const decisions = allCandidates.flat().filter((item) => item.signalDate === today);
+  const bullModelDto = visibleModelDtos.find((model) => model.modelCode === BULL_MODEL_CODE) ?? fallbackBullModel;
   const bullModel = mapModel(bullModelDto);
 
+  const mappedNews = news.map(mapNews).filter((item) => item.title !== "제목 없음");
+
   return {
-    decisions: candidates.map(mapDecision),
+    decisions,
     kpis: buildKpis(bullModel, bullModelDto, reports),
-    models: [bullModel],
+    models: mappedModels,
     reports: reports.map(mapReport),
-    news: news.map(mapNews).filter((item) => item.title !== "제목 없음"),
+    news: mappedNews.length > 0 ? mappedNews : buildFallbackNews(),
     marketOverview: [
-      mapIndex("kospi", "KOSPI", kospi),
-      mapIndex("kosdaq", "KOSDAQ", kosdaq),
+      mapIndex("kospi", "KOSPI", kospi, marketRegime),
+      mapIndex("kosdaq", "KOSDAQ", kosdaq, marketRegime),
     ],
-    hotStocks: buildHotStocks(),
-    asOf: formatDateTime(bullModelDto?.latestReportTime),
+    marketRegime,
+    hotStocks,
+    asOf: formatDateTime(marketRegime?.updatedAt) ?? formatDateTime(bullModelDto?.latestReportTime),
   };
 }
 
@@ -383,17 +565,30 @@ export async function getBullQuantModel() {
 }
 
 export async function getBullQuantModelDetail() {
+  return getQuantModelDetail(BULL_MODEL_CODE);
+}
+
+export async function getQuantModelDetail(modelCode: string) {
+  if (modelCode !== BULL_MODEL_CODE) {
+    const detail = await getData<LiveModelDetailDto>(`/quant/live/models/${modelCode}`);
+    return mapModelDetail(detail);
+  }
   const detail = await getData<LiveModelDetailDto>(`/quant/live/models/${BULL_MODEL_CODE}`);
   return mapModelDetail(detail);
 }
 
 export async function getBullQuantDecisions() {
   const candidates = await getData<LiveCandidateDto[]>(`/quant/live/models/${BULL_MODEL_CODE}/candidates`);
-  return candidates.map(mapDecision);
+  return candidates.map((item) => mapDecision(item, mapModel(fallbackBullModel)));
 }
 
 export async function getBullQuantReports() {
   const reports = await getData<LiveReportSummaryDto[]>("/quant/live/reports", { modelCode: BULL_MODEL_CODE });
+  return reports.map(mapReport);
+}
+
+export async function getQuantReports(modelCode: string) {
+  const reports = await getData<LiveReportSummaryDto[]>("/quant/live/reports", { modelCode });
   return reports.map(mapReport);
 }
 

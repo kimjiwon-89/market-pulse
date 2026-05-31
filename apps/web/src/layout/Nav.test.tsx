@@ -19,6 +19,7 @@ describe("Nav active state", () => {
     );
 
     expect(screen.getByRole("link", { name: "오늘의 종목" })).toHaveClass("active");
+    expect(screen.getByRole("link", { name: "오늘의 종목" })).toHaveAttribute("href", "/quant/today");
     expect(screen.getByRole("link", { name: "모델 목록" })).not.toHaveClass("active");
   });
 });

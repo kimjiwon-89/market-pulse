@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "modelCode": "kospi-bull-r20-shadow",
+  "modelVersion": "0.1.0",
+  "runtimeConfigKey": "kospi-bull-r20-shadow-v0.1.0",
+  "marketScope": "KOSPI",
+  "outputs": [
+    {
+      "name": "candidateSignals",
+      "type": "array",
+      "description": "KOSPI-only ranked candidate signals, including skipped candidates when shadow logging is enabled."
+    },
+    {
+      "name": "paperShadowReplay",
+      "type": "object",
+      "description": "Virtual entries, exits, daily mark-to-market, costs, and portfolio-level paper metrics."
+    },
+    {
+      "name": "adminSummary",
+      "type": "object",
+      "description": "Admin-only summary for forward paper evidence review."
+    }
+  ],
+  "requiredFields": [
+    "runtimeConfigKey",
+    "modelCode",
+    "modelVersion",
+    "marketScope",
+    "signalDate",
+    "assetCode",
+    "assetName",
+    "candidateRank",
+    "score",
+    "entryCheckDate",
+    "entryDate",
+    "virtualEntryPrice",
+    "virtualExitDate",
+    "virtualExitPrice",
+    "returnPct",
+    "costPct",
+    "exitReason",
+    "positionCashKrw",
+    "paperPnlKrw",
+    "cacheGeneratedAt"
+  ],
+  "servingPolicy": {
+    "publicExposureRequiresProdActive": true,
+    "adminOnlyBeforeApproval": true,
+    "liveOrdersAllowed": false
+  }
+}

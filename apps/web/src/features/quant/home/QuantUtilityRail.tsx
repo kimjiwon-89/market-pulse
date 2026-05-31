@@ -25,7 +25,7 @@ export function QuantNewsCard({ news }: QuantUtilityRailProps) {
   const navigate = useNavigate();
 
   return (
-    <Card>
+    <Card $flush>
       <SectionHead>
         <SectionTitle>뉴스</SectionTitle>
         <SmallButton type="button" onClick={() => navigate("/news")}>
@@ -47,7 +47,7 @@ export function QuantNewsCard({ news }: QuantUtilityRailProps) {
 export function QuantAdCard({ slot = "desktop_side_top" }: { slot?: QuantAdSlot }) {
   return (
     <AdSlotFrame $slot={slot}>
-      <AdCard data-ad-slot={slot}>
+      <AdCard $flush data-ad-slot={slot}>
         <AdLabel>AD</AdLabel>
         <div>
           <SectionTitle>{slot === "desktop_side_top" ? "광고 영역" : "모바일 광고 영역"}</SectionTitle>
@@ -62,16 +62,16 @@ export function QuantFavoriteFolderCard() {
   const navigate = useNavigate();
 
   return (
-    <Card>
+    <Card $flush>
       <SectionHead>
-        <SectionTitle>관심 폴더</SectionTitle>
-        <SmallButton type="button" onClick={() => navigate("/my")}>
+        <SectionTitle>관심 종목</SectionTitle>
+        <SmallButton type="button" onClick={() => navigate("/my/favorites")}>
           관리
         </SmallButton>
       </SectionHead>
       <UtilityList $maxHeight="160px">
-        <UtilityRow type="button" onClick={() => navigate("/my")}>
-          <span>로그인 후 관심 폴더를 불러옵니다.</span>
+        <UtilityRow type="button" onClick={() => navigate("/my/favorites")}>
+          <span>로그인 후 관심 종목을 불러옵니다.</span>
           <strong>-</strong>
         </UtilityRow>
       </UtilityList>
