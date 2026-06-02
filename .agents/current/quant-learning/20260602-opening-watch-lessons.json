@@ -1,0 +1,227 @@
+{
+  "tradeDate": "2026-06-02",
+  "capturedAtKst": "2026-06-02T09:01:15+09:00",
+  "source": "naver-finance-current-daily-minute-and-public-market-observation",
+  "purpose": "opening-session shadow learning labels for intraday candidate monitoring",
+  "dataQualityWarnings": [
+    {
+      "system": "marketp public ranking API",
+      "warning": "Requested 20260602 ranking returned 2026-05-26 tradeDate rows, so public ranking API must not drive today's intraday decisions until date validation is fixed.",
+      "modelRule": "Reject ranking rows when requestedDate != tradeDate."
+    },
+    {
+      "system": "opening minutes",
+      "warning": "Only first 1-2 opening minutes were available at capture time. Treat labels as watch-state, not confirmed-entry-state.",
+      "modelRule": "Do not convert WATCH to ENTRY_READY before 09:10 KST unless pre-open gap sentinel already confirmed."
+    }
+  ],
+  "sessionRules": [
+    {
+      "window": "09:00-09:10",
+      "action": "WATCH_ONLY",
+      "reason": "Remove opening auction noise and false gap prints."
+    },
+    {
+      "window": "09:10-09:30",
+      "action": "ALLOW_PAPER_ENTRY_READY",
+      "requiredConfirmations": [
+        "price_above_vwap",
+        "one_minute_high_rebreak",
+        "one_minute_volume_above_previous_5_minute_average",
+        "theme_breadth_at_least_3_symbols_or_large_liquid_trade_amount_rank"
+      ]
+    },
+    {
+      "window": "all_day",
+      "action": "BLOCK_LIVE_ORDER",
+      "reason": "Realtime scanner is not production-approved. Use paper/shadow only."
+    }
+  ],
+  "watchClusters": [
+    {
+      "cluster": "SAMSUNG_LARGE_LIQUID_MOMENTUM",
+      "state": "WATCH",
+      "reason": "Samsung Electronics and preferred share opened positive with meaningful early liquidity.",
+      "members": ["005930", "005935"],
+      "promotionRule": "Promote to ENTRY_READY if common or preferred share breaks +5% with trade amount leadership and holds above VWAP after 09:10."
+    },
+    {
+      "cluster": "LG_THEME_PROXY_ROTATION",
+      "state": "WATCH",
+      "reason": "LG Electronics common share was locked/stale near previous limit-up while LG HelloVision and LG Electronics preferred showed active follow-through.",
+      "members": ["037560", "066575", "066570"],
+      "promotionRule": "Prefer proxy names over LG Electronics common when common share has little tradable volume or remains near limit-up lock."
+    },
+    {
+      "cluster": "ROBOT_THEME_SPREAD",
+      "state": "WATCH",
+      "reason": "Robot names continued from the prior LG/Samsung automation theme.",
+      "members": ["108490", "277810", "007820", "090360", "454910"],
+      "promotionRule": "Promote only names with live volume and post-09:10 rebreak; avoid locked or no-volume names."
+    }
+  ],
+  "labels": [
+    {
+      "assetCode": "005930",
+      "assetName": "삼성전자",
+      "market": "KOSPI",
+      "observedReturnPct": 3.58,
+      "observedGapPct": 3.30,
+      "observedVolume": 3297210,
+      "labels": ["large_liquid_momentum", "opening_strength_watch"],
+      "state": "WATCH",
+      "nextStateTrigger": "+5% break or 365000 rebreak after 09:10 with VWAP and volume confirmation",
+      "blockedActions": ["live_order"]
+    },
+    {
+      "assetCode": "005935",
+      "assetName": "삼성전자우",
+      "market": "KOSPI",
+      "observedReturnPct": 5.24,
+      "observedGapPct": 1.09,
+      "observedVolume": 588139,
+      "labels": ["large_liquid_proxy", "opening_strength_watch"],
+      "state": "WATCH",
+      "nextStateTrigger": "Hold above +5% after 09:10 while Samsung common remains strong",
+      "blockedActions": ["live_order"]
+    },
+    {
+      "assetCode": "037560",
+      "assetName": "LG헬로비전",
+      "market": "KOSPI",
+      "observedReturnPct": 10.49,
+      "observedGapPct": 8.04,
+      "observedVolume": 1721415,
+      "labels": ["theme_proxy_rotation", "lg_follow_through_watch"],
+      "state": "WATCH",
+      "nextStateTrigger": "Pullback-and-rebreak after 09:10; avoid immediate chase after double-digit opening strength",
+      "blockedActions": ["live_order", "blind_chase"]
+    },
+    {
+      "assetCode": "066575",
+      "assetName": "LG전자우",
+      "market": "KOSPI",
+      "observedReturnPct": 7.96,
+      "observedGapPct": 6.67,
+      "observedVolume": 194866,
+      "labels": ["leader_proxy_entry_watch", "lg_preferred_share_rotation"],
+      "state": "WATCH",
+      "nextStateTrigger": "LG proxy breadth confirmed and price rebreak after 09:10",
+      "blockedActions": ["live_order", "blind_chase"]
+    },
+    {
+      "assetCode": "066570",
+      "assetName": "LG전자",
+      "market": "KOSPI",
+      "observedReturnPct": 0.00,
+      "observedGapPct": 0.00,
+      "observedVolume": 95,
+      "labels": ["prior_limit_leader", "low_tradable_volume_watch_only"],
+      "state": "WATCH_ONLY",
+      "nextStateTrigger": "Only monitor as theme leader; do not enter unless tradable volume returns and price unlocks cleanly",
+      "blockedActions": ["live_order", "paper_entry_without_liquidity"]
+    },
+    {
+      "assetCode": "108490",
+      "assetName": "로보티즈",
+      "market": "KOSDAQ",
+      "observedReturnPct": 10.31,
+      "observedGapPct": 7.58,
+      "observedVolume": 42112,
+      "labels": ["robot_theme_spread", "opening_strength_watch"],
+      "state": "WATCH",
+      "nextStateTrigger": "Post-09:10 high rebreak with robot cluster breadth and volume acceleration",
+      "blockedActions": ["live_order", "blind_chase"]
+    },
+    {
+      "assetCode": "277810",
+      "assetName": "레인보우로보틱스",
+      "market": "KOSDAQ",
+      "observedReturnPct": 6.34,
+      "observedGapPct": 3.80,
+      "observedVolume": 15697,
+      "labels": ["robot_theme_spread", "samsung_robot_proxy_watch"],
+      "state": "WATCH",
+      "nextStateTrigger": "Volume acceleration plus robot cluster breadth after 09:10",
+      "blockedActions": ["live_order"]
+    },
+    {
+      "assetCode": "007820",
+      "assetName": "엠엑스로보틱스",
+      "market": "KOSDAQ",
+      "observedReturnPct": 7.62,
+      "observedGapPct": 0.74,
+      "observedVolume": 8663,
+      "labels": ["robot_theme_spread", "low_gap_intraday_watch"],
+      "state": "WATCH",
+      "nextStateTrigger": "Low-gap breakout continuation with rising one-minute volume after 09:10",
+      "blockedActions": ["live_order"]
+    },
+    {
+      "assetCode": "178320",
+      "assetName": "서진시스템",
+      "market": "KOSDAQ",
+      "observedReturnPct": 3.99,
+      "observedGapPct": 6.52,
+      "observedVolume": 168630,
+      "labels": ["opening_volume_watch", "candidate_pool_observer"],
+      "state": "WATCH",
+      "nextStateTrigger": "Recover opening high and hold above VWAP after 09:10",
+      "blockedActions": ["live_order"]
+    },
+    {
+      "assetCode": "001740",
+      "assetName": "SK네트웍스",
+      "market": "KOSPI",
+      "observedReturnPct": 3.62,
+      "observedGapPct": 3.62,
+      "observedVolume": 308530,
+      "labels": ["prior_momentum_continuation_watch"],
+      "state": "WATCH",
+      "nextStateTrigger": "Post-09:10 rebreak with trade amount acceleration",
+      "blockedActions": ["live_order"]
+    },
+    {
+      "assetCode": "003550",
+      "assetName": "LG",
+      "market": "KOSPI",
+      "observedReturnPct": -11.34,
+      "observedGapPct": -7.90,
+      "observedVolume": 74178,
+      "labels": ["theme_follow_failure", "penalty_sample"],
+      "state": "BLOCKED",
+      "nextStateTrigger": "Do not promote unless reversal recovers VWAP and LG cluster breadth turns positive again",
+      "blockedActions": ["live_order", "paper_entry"]
+    },
+    {
+      "assetCode": "011070",
+      "assetName": "LG이노텍",
+      "market": "KOSPI",
+      "observedReturnPct": -12.16,
+      "observedGapPct": -9.74,
+      "observedVolume": 17697,
+      "labels": ["theme_follow_failure", "penalty_sample"],
+      "state": "BLOCKED",
+      "nextStateTrigger": "Do not promote unless reversal recovers VWAP and LG cluster breadth turns positive again",
+      "blockedActions": ["live_order", "paper_entry"]
+    }
+  ],
+  "modelUpdatesRequested": [
+    {
+      "modelFamily": "PREOPEN_GAP_SENTINEL",
+      "update": "Use prior limit-up leader state to route attention to proxies instead of chasing locked common shares."
+    },
+    {
+      "modelFamily": "KOSPI_INTRADAY_MOMENTUM",
+      "update": "Keep Samsung common and preferred share in watch state when early gap is moderate and liquidity is high."
+    },
+    {
+      "modelFamily": "THEME_INTRADAY_SPREAD",
+      "update": "Score LG proxy rotation and robot theme breadth separately from the prior-day leader."
+    },
+    {
+      "modelFamily": "KOSDAQ_INTRADAY_BREAKOUT",
+      "update": "Prefer low-gap robot names only after post-09:10 high rebreak and volume acceleration."
+    }
+  ]
+}

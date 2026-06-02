@@ -21,6 +21,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class LiveQuantPaperTradingServiceTest {
@@ -32,6 +33,9 @@ class LiveQuantPaperTradingServiceTest {
         when(priceMapper.findLatestStockTradeDateOnOrBefore(any())).thenReturn(LocalDate.of(2026, 5, 29));
         when(priceMapper.findStockRankings(eq(LocalDate.of(2026, 5, 29)), eq("CHANGE_RATE_DESC"), anyInt()))
                 .thenReturn(List.of(ranking("005930", "삼성전자", "KOSPI", "10000", "4.20")));
+
+        when(priceMapper.findStockRankings(eq(LocalDate.of(2026, 5, 29)), eq("TRADE_AMOUNT"), anyInt()))
+                .thenReturn(List.of());
 
         FakeRepository repository = new FakeRepository();
         RealtimeQuoteProvider quoteProvider = code -> Optional.of(new BigDecimal("10000"));
@@ -57,10 +61,42 @@ class LiveQuantPaperTradingServiceTest {
     }
 
     @Test
+    void runOnceIncludesLargeLiquidMoverOutsideChangeRateTopFive() {
+        MarketDailyPriceMapper priceMapper = mock(MarketDailyPriceMapper.class);
+        when(priceMapper.findLatestStockTradeDateOnOrBefore(any())).thenReturn(LocalDate.of(2026, 6, 1));
+        when(priceMapper.findStockRankings(eq(LocalDate.of(2026, 6, 1)), eq("CHANGE_RATE_DESC"), anyInt()))
+                .thenReturn(List.of(
+                        ranking("001740", "SK네트웍스", "KOSPI", "10920", "30.00"),
+                        ranking("001820", "삼화콘덴서", "KOSPI", "132600", "30.00"),
+                        ranking("019180", "티에이치엔", "KOSPI", "9680", "29.93"),
+                        ranking("011230", "삼화전자", "KOSPI", "3480", "29.85"),
+                        ranking("003720", "삼영", "KOSPI", "13250", "23.83")
+                ));
+        when(priceMapper.findStockRankings(eq(LocalDate.of(2026, 6, 1)), eq("TRADE_AMOUNT"), anyInt()))
+                .thenReturn(List.of(
+                        ranking("005930", "삼성전자", "KOSPI", "299000", "2.22"),
+                        ranking("066570", "LG전자", "KOSPI", "239500", "1.05")
+                ));
+
+        FakeRepository repository = new FakeRepository();
+        RealtimeQuoteProvider quoteProvider = code -> Optional.of(new BigDecimal("10000"));
+        LiveQuantPaperTradingService service = new LiveQuantPaperTradingService(priceMapper, quoteProvider, repository, CLOCK);
+
+        service.runOnce();
+
+        assertThat(repository.candidates)
+                .extracting(LiveQuantPaperTradingRepository.PaperCandidate::assetCode)
+                .contains("005930", "066570");
+        verify(priceMapper).findStockRankings(eq(LocalDate.of(2026, 6, 1)), eq("TRADE_AMOUNT"), anyInt());
+    }
+
+    @Test
     void runOnceSellsOpenPositionWhenStopLossIsHit() {
         MarketDailyPriceMapper priceMapper = mock(MarketDailyPriceMapper.class);
         when(priceMapper.findLatestStockTradeDateOnOrBefore(any())).thenReturn(LocalDate.of(2026, 5, 29));
         when(priceMapper.findStockRankings(eq(LocalDate.of(2026, 5, 29)), eq("CHANGE_RATE_DESC"), anyInt()))
+                .thenReturn(List.of());
+        when(priceMapper.findStockRankings(eq(LocalDate.of(2026, 5, 29)), eq("TRADE_AMOUNT"), anyInt()))
                 .thenReturn(List.of());
 
         FakeRepository repository = new FakeRepository();

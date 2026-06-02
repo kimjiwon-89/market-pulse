@@ -16,7 +16,9 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Slf4j
@@ -29,7 +31,9 @@ public class LiveQuantPaperTradingService {
     private static final BigDecimal STOP_LOSS_PCT = new BigDecimal("-5.00");
     private static final int MAX_HOLD_DAYS = 20;
     private static final int MAX_CANDIDATES_PER_MODEL = 5;
+    private static final int MAX_LIQUID_CANDIDATES_PER_MODEL = 3;
     private static final int RANKING_SCAN_LIMIT = 500;
+    private static final int LIQUIDITY_SCAN_LIMIT = 200;
 
     private final MarketDailyPriceMapper priceMapper;
     private final RealtimeQuoteProvider quoteProvider;
@@ -66,14 +70,11 @@ public class LiveQuantPaperTradingService {
 
         int sold = closeTriggeredPositions();
         List<MarketStockRankingDto> ranked = priceMapper.findStockRankings(marketDate, "CHANGE_RATE_DESC", RANKING_SCAN_LIMIT);
+        List<MarketStockRankingDto> liquidRanked = priceMapper.findStockRankings(marketDate, "TRADE_AMOUNT", LIQUIDITY_SCAN_LIMIT);
         int candidates = 0;
         int bought = 0;
         for (ModelSpec spec : ModelSpec.activeBullModels()) {
-            List<MarketStockRankingDto> modelCandidates = ranked.stream()
-                    .filter(item -> matchesMarket(spec, item))
-                    .filter(item -> item.getClosePrice() != null && item.getClosePrice().signum() > 0)
-                    .limit(MAX_CANDIDATES_PER_MODEL)
-                    .toList();
+            List<MarketStockRankingDto> modelCandidates = selectCandidates(spec, ranked, liquidRanked);
             for (MarketStockRankingDto row : modelCandidates) {
                 BigDecimal price = quote(row.getCode()).orElse(row.getClosePrice());
                 LiveQuantPaperTradingRepository.PaperCandidate candidate = new LiveQuantPaperTradingRepository.PaperCandidate(
@@ -99,6 +100,26 @@ public class LiveQuantPaperTradingService {
         log.info("Live quant paper tick: signalDate={}, marketDate={}, candidates={}, bought={}, sold={}",
                 signalDate, marketDate, candidates, bought, sold);
         return new RunResult(signalDate, marketDate, candidates, bought, sold);
+    }
+
+    private List<MarketStockRankingDto> selectCandidates(
+            ModelSpec spec,
+            List<MarketStockRankingDto> ranked,
+            List<MarketStockRankingDto> liquidRanked
+    ) {
+        Map<String, MarketStockRankingDto> selected = new LinkedHashMap<>();
+        ranked.stream()
+                .filter(item -> matchesMarket(spec, item))
+                .filter(LiveQuantPaperTradingService::hasTradablePrice)
+                .limit(MAX_CANDIDATES_PER_MODEL)
+                .forEach(item -> selected.putIfAbsent(item.getCode(), item));
+        liquidRanked.stream()
+                .filter(item -> matchesMarket(spec, item))
+                .filter(LiveQuantPaperTradingService::hasTradablePrice)
+                .filter(LiveQuantPaperTradingService::hasPositiveChange)
+                .limit(MAX_LIQUID_CANDIDATES_PER_MODEL)
+                .forEach(item -> selected.putIfAbsent(item.getCode(), item));
+        return List.copyOf(selected.values());
     }
 
     public List<LiveQuantCandidateDto> candidates(String modelCode, LocalDate signalDate) {
@@ -262,6 +283,14 @@ public class LiveQuantPaperTradingService {
             return "KOSPI".equals(spec.market());
         }
         return market.toUpperCase().contains(spec.market());
+    }
+
+    private static boolean hasTradablePrice(MarketStockRankingDto row) {
+        return row.getClosePrice() != null && row.getClosePrice().signum() > 0;
+    }
+
+    private static boolean hasPositiveChange(MarketStockRankingDto row) {
+        return row.getChangeRate() != null && row.getChangeRate().signum() > 0;
     }
 
     private static BigDecimal safe(BigDecimal value) {

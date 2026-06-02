@@ -326,7 +326,9 @@ export function QuantModels() {
   );
 
   const periodCandidates = candidateHistory.filter((item) => inPeriod(dateOnly(item.date), baseDate, period));
-  const periodTrades = detail.trades.filter((item) => inPeriod(dateOnly(item.fillTime), tradeBaseDate, tradePeriod));
+  const periodTrades = detail.trades
+    .filter((item) => inPeriod(dateOnly(item.fillTime), tradeBaseDate, tradePeriod))
+    .sort((a, b) => dateOnly(b.fillTime).localeCompare(dateOnly(a.fillTime)) || b.fillTime.localeCompare(a.fillTime));
   const selectedReportMonth = searchParams.get("month");
   const selectedReportId = searchParams.get("report");
 
@@ -389,6 +391,7 @@ export function QuantModels() {
     const reportMonthKey = selectedReportMonth ?? thisMonthKey();
     const reportMonthCandidates = candidateHistory.filter((item) => monthOnly(item.date) === reportMonthKey);
     const reportMonthTrades = detail.trades.filter((item) => monthOnly(item.fillTime) === reportMonthKey);
+    const periodTradeReturn = averageReturn(periodTrades);
     const reportMonthTradeReturn = averageReturn(reportMonthTrades);
     const reportMonthReturnPct = reportMonthKey === thisMonthKey() ? selected.monthlyReturnPct : reportMonthTradeReturn;
     const reportMonthAssetCount = uniqueAssetCount([...reportMonthCandidates, ...reportMonthTrades]);
@@ -739,6 +742,23 @@ export function QuantModels() {
                   ))}
                 </Inline>
               </FilterBar>
+              <Grid $columns="repeat(3, minmax(0, 1fr))">
+                <Card $soft>
+                  <SectionTitle>선택 기간 수익률</SectionTitle>
+                  <ValueText>{formatPct(periodTradeReturn)}</ValueText>
+                  <SubText>거래 내역 기준 실현 수익률입니다.</SubText>
+                </Card>
+                <Card $soft>
+                  <SectionTitle>거래 건수</SectionTitle>
+                  <ValueText>{periodTrades.length}건</ValueText>
+                  <SubText>최신 거래가 먼저 보입니다.</SubText>
+                </Card>
+                <Card $soft>
+                  <SectionTitle>기준일</SectionTitle>
+                  <ValueText>{tradeBaseDate}</ValueText>
+                  <SubText>기간 필터와 함께 적용됩니다.</SubText>
+                </Card>
+              </Grid>
               <TradeTable items={periodTrades} positionCash={positionCash} />
             </Stack>
           ) : null}
@@ -1027,7 +1047,7 @@ function TradeTable({ items, positionCash }: { items: QuantTradeHistoryItem[]; p
         tone: "flat" as const,
       },
     ];
-  }).sort((a, b) => a.date.localeCompare(b.date) || a.actionOrder - b.actionOrder);
+  }).sort((a, b) => b.date.localeCompare(a.date) || a.actionOrder - b.actionOrder);
 
   return (
     <TableCard>
