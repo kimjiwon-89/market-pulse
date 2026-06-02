@@ -18,6 +18,7 @@ import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -36,8 +37,8 @@ public class LiveQuantPaperTradingService {
     private static final int MAX_HOLD_DAYS = 20;
     private static final int MAX_CANDIDATES_PER_MODEL = 5;
     private static final int MAX_LIQUID_CANDIDATES_PER_MODEL = 3;
-    private static final int MAX_REALTIME_SCAN_UNIVERSE = 80;
-    private static final int MAX_REALTIME_SCAN_CANDIDATES_PER_MODEL = 8;
+    private static final int MAX_REALTIME_SCAN_UNIVERSE = 24;
+    private static final int MAX_REALTIME_SCAN_CANDIDATES_PER_MODEL = 6;
     private static final int RANKING_SCAN_LIMIT = 500;
     private static final int LIQUIDITY_SCAN_LIMIT = 200;
     private static final int MAX_MARKET_DATE_STALENESS_DAYS = 3;
@@ -103,6 +104,7 @@ public class LiveQuantPaperTradingService {
         List<MarketStockRankingDto> liquidRanked = rankingDataStale ? List.of() : liquidityScanRows;
         int candidates = 0;
         int bought = 0;
+        Map<String, Optional<RealtimeStockSnapshot>> snapshotCache = new HashMap<>();
         for (ModelSpec spec : ModelSpec.activeBullModels()) {
             List<MarketStockRankingDto> modelCandidates = selectCandidates(spec, ranked, liquidRanked);
             Set<String> buyCandidateAssetCodes = new HashSet<>();
@@ -135,15 +137,16 @@ public class LiveQuantPaperTradingService {
                     marketDate,
                     rankingScanRows,
                     liquidityScanRows,
-                    buyCandidateAssetCodes
+                    buyCandidateAssetCodes,
+                    snapshotCache
             )) {
                 repository.upsertCandidate(candidate);
-                recordMonitoring(candidate, snapshot(candidate.assetCode()).orElse(null), signalDate);
+                recordMonitoring(candidate, snapshot(candidate.assetCode(), snapshotCache).orElse(null), signalDate);
                 candidates++;
             }
-            for (LiveQuantPaperTradingRepository.PaperCandidate candidate : realtimeClusterCandidates(spec, signalDate, marketDate)) {
+            for (LiveQuantPaperTradingRepository.PaperCandidate candidate : realtimeClusterCandidates(spec, signalDate, marketDate, snapshotCache)) {
                 repository.upsertCandidate(candidate);
-                recordMonitoring(candidate, snapshot(candidate.assetCode()).orElse(null), signalDate);
+                recordMonitoring(candidate, snapshot(candidate.assetCode(), snapshotCache).orElse(null), signalDate);
                 candidates++;
             }
         }
@@ -178,24 +181,15 @@ public class LiveQuantPaperTradingService {
             LocalDate marketDate,
             List<MarketStockRankingDto> ranked,
             List<MarketStockRankingDto> liquidRanked,
-            Set<String> excludedAssetCodes
+            Set<String> excludedAssetCodes,
+            Map<String, Optional<RealtimeStockSnapshot>> snapshotCache
     ) {
         Map<String, MarketStockRankingDto> universe = new LinkedHashMap<>();
-        ranked.stream()
-                .filter(item -> matchesMarket(spec, item))
-                .filter(item -> !excludedAssetCodes.contains(item.getCode()))
-                .filter(item -> !ClusterMember.isSpecialClusterAsset(item.getCode()))
-                .limit(MAX_REALTIME_SCAN_UNIVERSE)
-                .forEach(item -> universe.putIfAbsent(item.getCode(), item));
-        liquidRanked.stream()
-                .filter(item -> matchesMarket(spec, item))
-                .filter(item -> !excludedAssetCodes.contains(item.getCode()))
-                .filter(item -> !ClusterMember.isSpecialClusterAsset(item.getCode()))
-                .limit(MAX_REALTIME_SCAN_UNIVERSE)
-                .forEach(item -> universe.putIfAbsent(item.getCode(), item));
+        addRealtimeScanUniverse(universe, spec, ranked, excludedAssetCodes);
+        addRealtimeScanUniverse(universe, spec, liquidRanked, excludedAssetCodes);
 
         return universe.values().stream()
-                .map(row -> realtimeMarketCandidate(spec, signalDate, marketDate, row))
+                .map(row -> realtimeMarketCandidate(spec, signalDate, marketDate, row, snapshotCache))
                 .flatMap(Optional::stream)
                 .sorted(Comparator
                         .comparing((LiveQuantPaperTradingRepository.PaperCandidate item) -> decisionPriority(item.decision()))
@@ -205,13 +199,34 @@ public class LiveQuantPaperTradingService {
                 .toList();
     }
 
+    private void addRealtimeScanUniverse(
+            Map<String, MarketStockRankingDto> universe,
+            ModelSpec spec,
+            List<MarketStockRankingDto> rows,
+            Set<String> excludedAssetCodes
+    ) {
+        for (MarketStockRankingDto item : rows) {
+            if (universe.size() >= MAX_REALTIME_SCAN_UNIVERSE) {
+                return;
+            }
+            if (!matchesMarket(spec, item)) {
+                continue;
+            }
+            if (excludedAssetCodes.contains(item.getCode()) || ClusterMember.isSpecialClusterAsset(item.getCode())) {
+                continue;
+            }
+            universe.putIfAbsent(item.getCode(), item);
+        }
+    }
+
     private Optional<LiveQuantPaperTradingRepository.PaperCandidate> realtimeMarketCandidate(
             ModelSpec spec,
             LocalDate signalDate,
             LocalDate marketDate,
-            MarketStockRankingDto row
+            MarketStockRankingDto row,
+            Map<String, Optional<RealtimeStockSnapshot>> snapshotCache
     ) {
-        Optional<RealtimeStockSnapshot> maybeSnapshot = snapshot(row.getCode());
+        Optional<RealtimeStockSnapshot> maybeSnapshot = snapshot(row.getCode(), snapshotCache);
         if (maybeSnapshot.isEmpty()) {
             return Optional.empty();
         }
@@ -256,14 +271,15 @@ public class LiveQuantPaperTradingService {
     private List<LiveQuantPaperTradingRepository.PaperCandidate> realtimeClusterCandidates(
             ModelSpec spec,
             LocalDate signalDate,
-            LocalDate marketDate
+            LocalDate marketDate,
+            Map<String, Optional<RealtimeStockSnapshot>> snapshotCache
     ) {
         List<LiveQuantPaperTradingRepository.PaperCandidate> candidates = new ArrayList<>();
         for (ClusterMember member : ClusterMember.lgSecondDayCluster()) {
             if (!spec.market().equals(member.market())) {
                 continue;
             }
-            Optional<RealtimeStockSnapshot> snapshot = snapshot(member.assetCode());
+            Optional<RealtimeStockSnapshot> snapshot = snapshot(member.assetCode(), snapshotCache);
             if (snapshot.isEmpty()) {
                 continue;
             }
@@ -504,6 +520,10 @@ public class LiveQuantPaperTradingService {
             log.warn("Paper realtime snapshot failed for assetCode={}: {}", assetCode, e.getMessage());
             return Optional.empty();
         }
+    }
+
+    private Optional<RealtimeStockSnapshot> snapshot(String assetCode, Map<String, Optional<RealtimeStockSnapshot>> cache) {
+        return cache.computeIfAbsent(assetCode, this::snapshot);
     }
 
     private void recordMonitoring(

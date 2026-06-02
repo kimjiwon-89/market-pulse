@@ -18,6 +18,7 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -206,7 +207,44 @@ class LiveQuantPaperTradingServiceTest {
                     assertThat(candidate.assetCode()).isEqualTo("356860");
                     assertThat(candidate.source()).isEqualTo("AUTO_PAPER_INTRADAY");
                     assertThat(candidate.decision()).isEqualTo("BUY");
-                });
+        });
+    }
+
+    @Test
+    void runOnceCapsRealtimeScanUniversePerModel() {
+        Clock juneSecond = Clock.fixed(Instant.parse("2026-06-02T01:50:00Z"), ZoneId.of("Asia/Seoul"));
+        MarketDailyPriceMapper priceMapper = mock(MarketDailyPriceMapper.class);
+        List<MarketStockRankingDto> kosdaqRows = new ArrayList<>();
+        for (int index = 0; index < 40; index++) {
+            kosdaqRows.add(ranking(String.format("%06d", 300000 + index), "KOSDAQ" + index, "KOSDAQ", "10000", "7.00"));
+        }
+        when(priceMapper.findLatestStockTradeDateOnOrBefore(any())).thenReturn(LocalDate.of(2026, 5, 26));
+        when(priceMapper.findStockRankings(eq(LocalDate.of(2026, 5, 26)), eq("CHANGE_RATE_DESC"), anyInt()))
+                .thenReturn(kosdaqRows);
+        when(priceMapper.findStockRankings(eq(LocalDate.of(2026, 5, 26)), eq("TRADE_AMOUNT"), anyInt()))
+                .thenReturn(kosdaqRows);
+
+        FakeRepository repository = new FakeRepository();
+        AtomicInteger snapshotCalls = new AtomicInteger();
+        RealtimeStockSnapshotProvider snapshotProvider = assetCode -> {
+            snapshotCalls.incrementAndGet();
+            return Optional.of(snapshot(assetCode, assetCode, "KOSDAQ", "11000", "7.00", 10_000_000_000L));
+        };
+        LiveQuantPaperTradingService service = new LiveQuantPaperTradingService(
+                priceMapper,
+                code -> Optional.of(new BigDecimal("10000")),
+                snapshotProvider,
+                IntradayMonitoringRepository.NOOP,
+                repository,
+                juneSecond
+        );
+
+        service.runOnce();
+
+        assertThat(snapshotCalls.get()).isEqualTo(33);
+        assertThat(repository.candidates)
+                .filteredOn(candidate -> candidate.modelCode().equals("KOSDAQ_BULL"))
+                .hasSize(6);
     }
 
     @Test
