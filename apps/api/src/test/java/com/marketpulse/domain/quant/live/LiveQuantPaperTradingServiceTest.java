@@ -1,9 +1,12 @@
 package com.marketpulse.domain.quant.live;
 
 import com.marketpulse.domain.market.dto.MarketStockRankingDto;
+import com.marketpulse.domain.quant.live.service.IntradayMonitoringRepository;
 import com.marketpulse.domain.quant.live.service.LiveQuantPaperTradingRepository;
 import com.marketpulse.domain.quant.live.service.LiveQuantPaperTradingService;
 import com.marketpulse.domain.quant.live.service.RealtimeQuoteProvider;
+import com.marketpulse.domain.quant.live.service.RealtimeStockSnapshot;
+import com.marketpulse.domain.quant.live.service.RealtimeStockSnapshotProvider;
 import com.marketpulse.domain.quant.mapper.MarketDailyPriceMapper;
 import org.junit.jupiter.api.Test;
 
@@ -91,6 +94,86 @@ class LiveQuantPaperTradingServiceTest {
     }
 
     @Test
+    void runOnceBlocksStaleRankingCandidatesButKeepsRealtimeClusterWatch() {
+        Clock juneSecond = Clock.fixed(Instant.parse("2026-06-02T01:50:00Z"), ZoneId.of("Asia/Seoul"));
+        MarketDailyPriceMapper priceMapper = mock(MarketDailyPriceMapper.class);
+        when(priceMapper.findLatestStockTradeDateOnOrBefore(any())).thenReturn(LocalDate.of(2026, 5, 26));
+        when(priceMapper.findStockRankings(eq(LocalDate.of(2026, 5, 26)), eq("CHANGE_RATE_DESC"), anyInt()))
+                .thenReturn(List.of(ranking("001740", "SK네트웍스", "KOSPI", "11760", "30.00")));
+        when(priceMapper.findStockRankings(eq(LocalDate.of(2026, 5, 26)), eq("TRADE_AMOUNT"), anyInt()))
+                .thenReturn(List.of(ranking("005930", "삼성전자", "KOSPI", "356000", "2.22")));
+
+        FakeRepository repository = new FakeRepository();
+        RealtimeStockSnapshotProvider snapshotProvider = snapshotProvider(List.of(
+                snapshot("037560", "LG헬로비전", "KOSPI", "3300", "15.38", 105_384_057_176L),
+                snapshot("066570", "LG전자", "KOSPI", "361500", "-4.99", 2_223_961_612_500L)
+        ));
+        LiveQuantPaperTradingService service = new LiveQuantPaperTradingService(
+                priceMapper,
+                code -> Optional.of(new BigDecimal("10000")),
+                snapshotProvider,
+                IntradayMonitoringRepository.NOOP,
+                repository,
+                juneSecond
+        );
+
+        LiveQuantPaperTradingService.RunResult result = service.runOnce();
+
+        assertThat(result.marketDate()).isEqualTo(LocalDate.of(2026, 5, 26));
+        assertThat(repository.candidates)
+                .extracting(LiveQuantPaperTradingRepository.PaperCandidate::assetCode)
+                .containsExactlyInAnyOrder("037560", "066570");
+        assertThat(repository.candidates)
+                .noneMatch(candidate -> candidate.source().equals("AUTO_PAPER_INTRADAY"));
+        assertThat(repository.trades).isEmpty();
+    }
+
+    @Test
+    void runOnceClassifiesLgClusterFollowThroughAndFailures() {
+        Clock juneSecond = Clock.fixed(Instant.parse("2026-06-02T01:50:00Z"), ZoneId.of("Asia/Seoul"));
+        MarketDailyPriceMapper priceMapper = mock(MarketDailyPriceMapper.class);
+        when(priceMapper.findLatestStockTradeDateOnOrBefore(any())).thenReturn(LocalDate.of(2026, 6, 2));
+        when(priceMapper.findStockRankings(eq(LocalDate.of(2026, 6, 2)), eq("CHANGE_RATE_DESC"), anyInt()))
+                .thenReturn(List.of());
+        when(priceMapper.findStockRankings(eq(LocalDate.of(2026, 6, 2)), eq("TRADE_AMOUNT"), anyInt()))
+                .thenReturn(List.of());
+
+        FakeRepository repository = new FakeRepository();
+        RealtimeStockSnapshotProvider snapshotProvider = snapshotProvider(List.of(
+                snapshot("037560", "LG헬로비전", "KOSPI", "3300", "15.38", 105_384_057_176L),
+                snapshot("034220", "LG디스플레이", "KOSPI", "16700", "5.70", 757_072_192_205L),
+                snapshot("011070", "LG이노텍", "KOSPI", "1204000", "-21.31", 656_481_849_500L)
+        ));
+        LiveQuantPaperTradingService service = new LiveQuantPaperTradingService(
+                priceMapper,
+                code -> Optional.of(new BigDecimal("10000")),
+                snapshotProvider,
+                IntradayMonitoringRepository.NOOP,
+                repository,
+                juneSecond
+        );
+
+        service.runOnce();
+
+        assertThat(repository.candidates)
+                .filteredOn(candidate -> candidate.assetCode().equals("037560"))
+                .singleElement()
+                .satisfies(candidate -> {
+                    assertThat(candidate.decision()).isEqualTo("HOT");
+                    assertThat(candidate.reason()).contains("FOLLOW_THROUGH_WATCH");
+                    assertThat(candidate.expectedReturnPct()).isEqualByComparingTo("15.38");
+                });
+        assertThat(repository.candidates)
+                .filteredOn(candidate -> candidate.assetCode().equals("011070"))
+                .singleElement()
+                .satisfies(candidate -> {
+                    assertThat(candidate.decision()).isEqualTo("WARNING");
+                    assertThat(candidate.reason()).contains("THEME_FOLLOW_FAILURE");
+                });
+        assertThat(repository.trades).isEmpty();
+    }
+
+    @Test
     void runOnceSellsOpenPositionWhenStopLossIsHit() {
         MarketDailyPriceMapper priceMapper = mock(MarketDailyPriceMapper.class);
         when(priceMapper.findLatestStockTradeDateOnOrBefore(any())).thenReturn(LocalDate.of(2026, 5, 29));
@@ -133,6 +216,30 @@ class LiveQuantPaperTradingServiceTest {
         dto.setChangeRate(new BigDecimal(changeRate));
         dto.setTradeDate(LocalDate.of(2026, 5, 29));
         return dto;
+    }
+
+    private RealtimeStockSnapshot snapshot(
+            String code,
+            String name,
+            String market,
+            String currentPrice,
+            String changeRate,
+            long tradingValue
+    ) {
+        return new RealtimeStockSnapshot(
+                code,
+                name,
+                market,
+                new BigDecimal(currentPrice),
+                new BigDecimal(changeRate),
+                tradingValue
+        );
+    }
+
+    private RealtimeStockSnapshotProvider snapshotProvider(List<RealtimeStockSnapshot> snapshots) {
+        return assetCode -> snapshots.stream()
+                .filter(snapshot -> snapshot.assetCode().equals(assetCode))
+                .findFirst();
     }
 
     private static class FakeRepository implements LiveQuantPaperTradingRepository {

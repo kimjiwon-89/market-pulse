@@ -1,0 +1,169 @@
+{
+  "tradeDate": "2026-06-01",
+  "compareDate": "2026-06-02",
+  "capturedAtKst": "2026-06-02T10:30:00+09:00",
+  "source": [
+    "Seoul Data Lab / Seoul Shinmun 2026-06-01 KOSDAQ morning decline article",
+    "Naver Finance current fall ranking pages",
+    "marketp public stock detail endpoint",
+    "marketp public ranking and chart endpoints for data-quality validation"
+  ],
+  "purpose": "shadow learning labels for downside continuation, rebound watch, and stale-data rejection",
+  "dataQualityWarnings": [
+    {
+      "system": "marketp ranking API",
+      "observed": "Requests for 20260601 and 20260602 returned 2026-05-26 tradeDate rows.",
+      "modelRule": "Reject ranking rows when requestedDate != response.tradeDate; never train or trade on stale ranking rows."
+    },
+    {
+      "system": "marketp chart API",
+      "observed": "Several 3M chart requests returned only old March rows instead of recent 2026-06-01 candles.",
+      "modelRule": "Reject chart features when lastCandleDate is older than two trading sessions; downgrade to price-only watch state."
+    },
+    {
+      "system": "extreme fall ranking",
+      "observed": "Some current KOSPI fall leaders were REIT, preferred share, or ETN instruments.",
+      "modelRule": "Apply corporate-action and instrument-type exclusion before using drops greater than 30% as model evidence."
+    }
+  ],
+  "marketRegime": [
+    {
+      "market": "KOSDAQ",
+      "state": "broad_risk_off",
+      "evidence": "2026-06-01 09:15 KST KOSDAQ was -2.31%, opened/high at 1072.77 and fell to 1049.92; decliners outnumbered advancers 1496 to 186.",
+      "modelRule": "When index open equals high and breadth collapse is present, treat most weak symbols as downside-continuation candidates unless they reclaim VWAP with sector breadth."
+    },
+    {
+      "market": "KOSPI",
+      "state": "index_strength_with_relative_weakness_pockets",
+      "evidence": "KOSPI was strong while KOSDAQ declined; individual KOSPI symbols such as LG Innotek and Samsung SDI still showed material weakness on 2026-06-02.",
+      "modelRule": "Do not use index strength as an all-clear. Add relative-weakness scanning for large-cap or theme-linked names that fall while the index is positive."
+    }
+  ],
+  "kosdaqDownsideLabels": [
+    {
+      "assetCode": "052710",
+      "assetName": "Amotech",
+      "yesterdayMovePct": -18.66,
+      "todayObservedPct": -11.32,
+      "assessment": "downside_continuation",
+      "reasonConfidence": "medium",
+      "modelAction": "avoid dip-buy; promote to downside watch until prior-day low and VWAP are reclaimed."
+    },
+    {
+      "assetCode": "220100",
+      "assetName": "FutureChem",
+      "yesterdayMovePct": -17.68,
+      "todayObservedPct": -5.2,
+      "assessment": "downside_continuation",
+      "reasonConfidence": "medium",
+      "modelAction": "block rebound entry unless two consecutive 1-minute higher lows and sector breadth improve."
+    },
+    {
+      "assetCode": "064800",
+      "assetName": "JoyWorks&Co",
+      "yesterdayMovePct": -17.03,
+      "todayObservedPct": -1.09,
+      "assessment": "weak_stabilization_not_confirmed",
+      "reasonConfidence": "low",
+      "modelAction": "keep in watch-only; require volume-backed reclaim before rebound label."
+    },
+    {
+      "assetCode": "084990",
+      "assetName": "Helixmith",
+      "yesterdayMovePct": -15.23,
+      "todayObservedPct": -7.3,
+      "assessment": "downside_continuation",
+      "reasonConfidence": "medium",
+      "modelAction": "avoid catching falling knife; require news catalyst and VWAP reclaim for any long signal."
+    },
+    {
+      "assetCode": "305090",
+      "assetName": "MicroDigital",
+      "yesterdayMovePct": -14.98,
+      "todayObservedPct": -4.53,
+      "assessment": "downside_continuation",
+      "reasonConfidence": "medium",
+      "modelAction": "hold as negative-momentum watch; no long signal while today remains negative."
+    },
+    {
+      "assetCode": "036930",
+      "assetName": "Jusung Engineering",
+      "yesterdayMovePct": -9.0,
+      "todayObservedPct": 3.23,
+      "assessment": "technical_rebound_watch",
+      "reasonConfidence": "medium",
+      "modelAction": "allow paper rebound watch only after VWAP hold and prior-breakdown-zone reclaim."
+    },
+    {
+      "assetCode": "950160",
+      "assetName": "Kolon TissueGene",
+      "yesterdayMovePct": -7.18,
+      "todayObservedPct": 8.86,
+      "assessment": "technical_rebound_watch",
+      "reasonConfidence": "medium",
+      "modelAction": "rebound candidate, but block live entry until volume and close-location confirmation."
+    }
+  ],
+  "kospiWeaknessLabels": [
+    {
+      "assetCode": "011070",
+      "assetName": "LG Innotek",
+      "todayObservedPct": -18.1,
+      "assessment": "theme_follow_failure",
+      "reasonConfidence": "medium",
+      "modelAction": "label as failed LG follow-through; do not buy solely from group-theme strength."
+    },
+    {
+      "assetCode": "204210",
+      "assetName": "JK Riverstone REIT",
+      "todayObservedPct": -59.85,
+      "assessment": "extreme_drop_requires_exclusion_check",
+      "reasonConfidence": "low",
+      "modelAction": "exclude from normal momentum training until corporate-action and instrument filters pass."
+    },
+    {
+      "assetCode": "006400",
+      "assetName": "Samsung SDI",
+      "todayObservedPct": -4.29,
+      "assessment": "large_cap_relative_weakness",
+      "reasonConfidence": "medium",
+      "modelAction": "track as KOSPI relative-weakness pocket despite index strength."
+    },
+    {
+      "assetCode": "373220",
+      "assetName": "LG Energy Solution",
+      "todayObservedPct": 1.54,
+      "assessment": "mild_rebound",
+      "reasonConfidence": "medium",
+      "modelAction": "do not group all battery names as weak; require symbol-level confirmation."
+    }
+  ],
+  "trainingRules": [
+    {
+      "label": "downside_continuation",
+      "condition": "previous session drop <= -4% and current session remains negative, with stale chart rejected or VWAP not reclaimed",
+      "action": "block long entry; keep as risk/off or short-watch signal for future downside model."
+    },
+    {
+      "label": "technical_rebound_watch",
+      "condition": "previous session drop <= -5% and current session turns positive >= 3% with valid intraday volume confirmation",
+      "action": "paper-only rebound watch; require VWAP hold, higher-low sequence, and prior breakdown-zone reclaim."
+    },
+    {
+      "label": "theme_follow_failure",
+      "condition": "theme leader or group leader rises but related symbol fades or opens current session sharply down",
+      "action": "do not promote by theme membership alone; require own-symbol liquidity and price confirmation."
+    },
+    {
+      "label": "relative_weakness_pocket",
+      "condition": "symbol drops materially while its broad index is flat/positive or making highs",
+      "action": "separate from index trend; inspect sector/corporate reason before any long candidate promotion."
+    },
+    {
+      "label": "stale_data_reject",
+      "condition": "requested date differs from response tradeDate or chart last candle is older than two sessions",
+      "action": "invalidate feature set and prevent candidate, signal, and training writes from that source."
+    }
+  ]
+}

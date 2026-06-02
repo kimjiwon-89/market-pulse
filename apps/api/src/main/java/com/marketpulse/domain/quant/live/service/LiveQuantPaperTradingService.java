@@ -16,6 +16,8 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,9 +36,15 @@ public class LiveQuantPaperTradingService {
     private static final int MAX_LIQUID_CANDIDATES_PER_MODEL = 3;
     private static final int RANKING_SCAN_LIMIT = 500;
     private static final int LIQUIDITY_SCAN_LIMIT = 200;
+    private static final int MAX_MARKET_DATE_STALENESS_DAYS = 3;
+    private static final BigDecimal FOLLOW_THROUGH_WATCH_PCT = new BigDecimal("10.00");
+    private static final BigDecimal SECONDARY_WATCH_PCT = new BigDecimal("5.00");
+    private static final BigDecimal FAILURE_PCT = new BigDecimal("-3.00");
 
     private final MarketDailyPriceMapper priceMapper;
     private final RealtimeQuoteProvider quoteProvider;
+    private final RealtimeStockSnapshotProvider snapshotProvider;
+    private final IntradayMonitoringRepository monitoringRepository;
     private final LiveQuantPaperTradingRepository repository;
     private final Clock clock;
 
@@ -44,9 +52,11 @@ public class LiveQuantPaperTradingService {
     public LiveQuantPaperTradingService(
             MarketDailyPriceMapper priceMapper,
             RealtimeQuoteProvider quoteProvider,
+            RealtimeStockSnapshotProvider snapshotProvider,
+            IntradayMonitoringRepository monitoringRepository,
             LiveQuantPaperTradingRepository repository
     ) {
-        this(priceMapper, quoteProvider, repository, Clock.system(KST));
+        this(priceMapper, quoteProvider, snapshotProvider, monitoringRepository, repository, Clock.system(KST));
     }
 
     public LiveQuantPaperTradingService(
@@ -55,8 +65,21 @@ public class LiveQuantPaperTradingService {
             LiveQuantPaperTradingRepository repository,
             Clock clock
     ) {
+        this(priceMapper, quoteProvider, assetCode -> Optional.empty(), IntradayMonitoringRepository.NOOP, repository, clock);
+    }
+
+    public LiveQuantPaperTradingService(
+            MarketDailyPriceMapper priceMapper,
+            RealtimeQuoteProvider quoteProvider,
+            RealtimeStockSnapshotProvider snapshotProvider,
+            IntradayMonitoringRepository monitoringRepository,
+            LiveQuantPaperTradingRepository repository,
+            Clock clock
+    ) {
         this.priceMapper = priceMapper;
         this.quoteProvider = quoteProvider;
+        this.snapshotProvider = snapshotProvider;
+        this.monitoringRepository = monitoringRepository;
         this.repository = repository;
         this.clock = clock;
     }
@@ -69,8 +92,13 @@ public class LiveQuantPaperTradingService {
         }
 
         int sold = closeTriggeredPositions();
-        List<MarketStockRankingDto> ranked = priceMapper.findStockRankings(marketDate, "CHANGE_RATE_DESC", RANKING_SCAN_LIMIT);
-        List<MarketStockRankingDto> liquidRanked = priceMapper.findStockRankings(marketDate, "TRADE_AMOUNT", LIQUIDITY_SCAN_LIMIT);
+        boolean rankingDataStale = isRankingDataStale(signalDate, marketDate);
+        List<MarketStockRankingDto> ranked = rankingDataStale
+                ? List.of()
+                : priceMapper.findStockRankings(marketDate, "CHANGE_RATE_DESC", RANKING_SCAN_LIMIT);
+        List<MarketStockRankingDto> liquidRanked = rankingDataStale
+                ? List.of()
+                : priceMapper.findStockRankings(marketDate, "TRADE_AMOUNT", LIQUIDITY_SCAN_LIMIT);
         int candidates = 0;
         int bought = 0;
         for (ModelSpec spec : ModelSpec.activeBullModels()) {
@@ -91,10 +119,16 @@ public class LiveQuantPaperTradingService {
                         "AUTO_PAPER_INTRADAY"
                 );
                 repository.upsertCandidate(candidate);
+                recordMonitoring(candidate, null, signalDate);
                 candidates++;
                 if (buyIfNeeded(candidate, price)) {
                     bought++;
                 }
+            }
+            for (LiveQuantPaperTradingRepository.PaperCandidate candidate : realtimeClusterCandidates(spec, signalDate, marketDate)) {
+                repository.upsertCandidate(candidate);
+                recordMonitoring(candidate, snapshot(candidate.assetCode()).orElse(null), signalDate);
+                candidates++;
             }
         }
         log.info("Live quant paper tick: signalDate={}, marketDate={}, candidates={}, bought={}, sold={}",
@@ -122,13 +156,67 @@ public class LiveQuantPaperTradingService {
         return List.copyOf(selected.values());
     }
 
+    private List<LiveQuantPaperTradingRepository.PaperCandidate> realtimeClusterCandidates(
+            ModelSpec spec,
+            LocalDate signalDate,
+            LocalDate marketDate
+    ) {
+        List<LiveQuantPaperTradingRepository.PaperCandidate> candidates = new ArrayList<>();
+        for (ClusterMember member : ClusterMember.lgSecondDayCluster()) {
+            if (!spec.market().equals(member.market())) {
+                continue;
+            }
+            Optional<RealtimeStockSnapshot> snapshot = snapshot(member.assetCode());
+            if (snapshot.isEmpty()) {
+                continue;
+            }
+            ClusterDecision decision = classifyClusterMember(member, snapshot.get());
+            if (decision == null) {
+                continue;
+            }
+            candidates.add(new LiveQuantPaperTradingRepository.PaperCandidate(
+                    null,
+                    spec.modelCode(),
+                    signalDate,
+                    signalDate != null ? signalDate : marketDate,
+                    snapshot.get().assetCode(),
+                    firstNonBlank(snapshot.get().assetName(), member.assetName()),
+                    decision.decision(),
+                    decision.reason(),
+                    snapshot.get().currentPrice(),
+                    safe(snapshot.get().changeRate()),
+                    "AUTO_PAPER_REALTIME_CLUSTER"
+            ));
+        }
+        return candidates.stream()
+                .sorted(Comparator.comparing(LiveQuantPaperTradingRepository.PaperCandidate::assetCode))
+                .toList();
+    }
+
+    private ClusterDecision classifyClusterMember(ClusterMember member, RealtimeStockSnapshot snapshot) {
+        BigDecimal changeRate = safe(snapshot.changeRate());
+        if (changeRate.compareTo(FOLLOW_THROUGH_WATCH_PCT) >= 0) {
+            return new ClusterDecision("HOT", member.cluster() + " FOLLOW_THROUGH_WATCH: realtime cluster member +" + changeRate + "%");
+        }
+        if (changeRate.compareTo(SECONDARY_WATCH_PCT) >= 0) {
+            return new ClusterDecision("WATCH", member.cluster() + " SECONDARY_WATCH: realtime cluster member +" + changeRate + "%");
+        }
+        if (member.leader() && changeRate.signum() < 0) {
+            return new ClusterDecision("COOLDOWN", member.cluster() + " LEADER_PULLBACK_COOLDOWN: previous leader is negative today");
+        }
+        if (changeRate.compareTo(FAILURE_PCT) <= 0) {
+            return new ClusterDecision("WARNING", member.cluster() + " THEME_FOLLOW_FAILURE: realtime cluster member " + changeRate + "%");
+        }
+        return null;
+    }
+
     public List<LiveQuantCandidateDto> candidates(String modelCode, LocalDate signalDate) {
         return repository.findCandidates(modelCode, signalDate).stream()
                 .map(item -> new LiveQuantCandidateDto(
                         item.assetCode(),
                         item.assetName(),
                         item.signalDate().toString(),
-                        "AUTO_PAPER",
+                        item.source(),
                         item.decision(),
                         item.reason(),
                         item.signalPrice(),
@@ -207,6 +295,9 @@ public class LiveQuantPaperTradingService {
     }
 
     private boolean buyIfNeeded(LiveQuantPaperTradingRepository.PaperCandidate candidate, BigDecimal price) {
+        if (!"BUY".equals(candidate.decision())) {
+            return false;
+        }
         if (price == null || price.signum() <= 0) {
             return false;
         }
@@ -285,6 +376,27 @@ public class LiveQuantPaperTradingService {
         return market.toUpperCase().contains(spec.market());
     }
 
+    private Optional<RealtimeStockSnapshot> snapshot(String assetCode) {
+        try {
+            return snapshotProvider.currentSnapshot(assetCode);
+        } catch (Exception e) {
+            log.warn("Paper realtime snapshot failed for assetCode={}: {}", assetCode, e.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    private void recordMonitoring(
+            LiveQuantPaperTradingRepository.PaperCandidate candidate,
+            RealtimeStockSnapshot snapshot,
+            LocalDate signalDate
+    ) {
+        try {
+            monitoringRepository.record(candidate, snapshot, signalDate, clock.instant());
+        } catch (Exception e) {
+            log.warn("Intraday monitoring persistence failed for assetCode={}: {}", candidate.assetCode(), e.getMessage());
+        }
+    }
+
     private static boolean hasTradablePrice(MarketStockRankingDto row) {
         return row.getClosePrice() != null && row.getClosePrice().signum() > 0;
     }
@@ -295,6 +407,17 @@ public class LiveQuantPaperTradingService {
 
     private static BigDecimal safe(BigDecimal value) {
         return value == null ? BigDecimal.ZERO : value;
+    }
+
+    private static boolean isRankingDataStale(LocalDate signalDate, LocalDate marketDate) {
+        if (signalDate == null || marketDate == null) {
+            return false;
+        }
+        return ChronoUnit.DAYS.between(marketDate, signalDate) > MAX_MARKET_DATE_STALENESS_DAYS;
+    }
+
+    private static String firstNonBlank(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value;
     }
 
     public record RunResult(
@@ -313,5 +436,24 @@ public class LiveQuantPaperTradingService {
                     new ModelSpec("KOSDAQ_BULL", "KOSDAQ")
             );
         }
+    }
+
+    private record ClusterMember(String assetCode, String assetName, String market, String cluster, boolean leader) {
+        static List<ClusterMember> lgSecondDayCluster() {
+            return List.of(
+                    new ClusterMember("066570", "LG전자", "KOSPI", "LG_NEXT_DAY_CLUSTER", true),
+                    new ClusterMember("066575", "LG전자우", "KOSPI", "LG_NEXT_DAY_CLUSTER", false),
+                    new ClusterMember("037560", "LG헬로비전", "KOSPI", "LG_NEXT_DAY_CLUSTER", false),
+                    new ClusterMember("003550", "LG", "KOSPI", "LG_NEXT_DAY_CLUSTER", false),
+                    new ClusterMember("003555", "LG우", "KOSPI", "LG_NEXT_DAY_CLUSTER", false),
+                    new ClusterMember("011070", "LG이노텍", "KOSPI", "LG_NEXT_DAY_CLUSTER", false),
+                    new ClusterMember("034220", "LG디스플레이", "KOSPI", "LG_NEXT_DAY_CLUSTER", false),
+                    new ClusterMember("064400", "LG씨엔에스", "KOSPI", "LG_NEXT_DAY_CLUSTER", false),
+                    new ClusterMember("032640", "LG유플러스", "KOSPI", "LG_NEXT_DAY_CLUSTER", false)
+            );
+        }
+    }
+
+    private record ClusterDecision(String decision, String reason) {
     }
 }

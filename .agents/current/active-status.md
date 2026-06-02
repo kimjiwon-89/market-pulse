@@ -310,3 +310,19 @@ Date: 2026-05-28
 - Intent: apply the root `수정사항.txt` notes before homepage review.
 - Outcome: added dated today-candidate filtering, model-detail selected-period return and latest-first trades, real API login, admin bug memo capture, and verified web/API smoke paths.
 - Changed files: `apps/web/src/features/quant/api.ts`, `apps/web/src/pages/QuantToday/index.tsx`, `apps/web/src/pages/QuantModels/index.tsx`, `apps/web/src/pages/Login/index.tsx`, `apps/web/src/pages/Admin/index.tsx`, tests, `.agents/current/active-status.md`.
+
+- Intent: add 2026-06-01 downside and 2026-06-02 morning continuation/rebound lessons to quant shadow learning.
+- Outcome: documented KOSDAQ broad risk-off, KOSPI relative-weakness pockets, stale ranking/chart rejection, downside continuation, rebound watch, and theme follow-failure labels.
+- Changed files: `report/quant/realtime-signal/source.md`, `.agents/current/quant-learning/20260601-downside-lessons.json`, `.agents/current/active-status.md`.
+
+- Intent: identify why the model missed LG second-day monitoring and train the shadow model on the gap.
+- Outcome: confirmed candidates were generated from stale 2026-05-26 rankings, LG second-day proxy winners were not watched, LG failed-follow names were not risk-flagged, and added cluster spillover/stale-ranking learning rules.
+- Changed files: `report/quant/realtime-signal/source.md`, `.agents/current/quant-learning/20260602-lg-monitoring-gaps.json`, `.agents/current/active-status.md`.
+
+- Intent: implement an emergency realtime monitoring layer for the LG miss pattern.
+- Outcome: enabled 1-minute live paper ticks, blocked stale ranking BUY generation, added realtime stock snapshots, classified LG next-day cluster members as WATCH/COOLDOWN/WARNING, and prevented non-BUY candidates from opening paper positions.
+- Changed files: `apps/api/src/main/java/com/marketpulse/domain/quant/live/*`, `apps/api/src/main/resources/application.yml`, tests, learning/report docs, `.agents/current/active-status.md`.
+
+- Intent: close the requested five realtime-monitoring gaps and document model coverage limits.
+- Outcome: added reviewed intraday monitoring migration, persisted tick snapshots/events/bars from live paper runs, exposed realtime cluster source types to the web, added 1-minute home/today polling, and documented that Bull-only models cannot cover every market regime.
+- Changed files: `db/migrations/2026-06-02-quant-intraday-monitoring.sql`, API live quant services/tests, web quant API/home/today files, learning/report docs, `.agents/current/active-status.md`.

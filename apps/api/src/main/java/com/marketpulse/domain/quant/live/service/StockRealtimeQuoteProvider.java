@@ -10,7 +10,7 @@ import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
-public class StockRealtimeQuoteProvider implements RealtimeQuoteProvider {
+public class StockRealtimeQuoteProvider implements RealtimeQuoteProvider, RealtimeStockSnapshotProvider {
     private final StockDetailService stockDetailService;
 
     @Override
@@ -20,5 +20,21 @@ public class StockRealtimeQuoteProvider implements RealtimeQuoteProvider {
             return Optional.empty();
         }
         return Optional.of(BigDecimal.valueOf(detail.getCurrentPrice()));
+    }
+
+    @Override
+    public Optional<RealtimeStockSnapshot> currentSnapshot(String assetCode) {
+        StockDetailDto detail = stockDetailService.getDetail(assetCode);
+        if (detail == null || detail.getCurrentPrice() <= 0) {
+            return Optional.empty();
+        }
+        return Optional.of(new RealtimeStockSnapshot(
+                assetCode,
+                detail.getName(),
+                detail.getMarket(),
+                BigDecimal.valueOf(detail.getCurrentPrice()),
+                BigDecimal.valueOf(detail.getChangeRate()),
+                detail.getTradingValue()
+        ));
     }
 }

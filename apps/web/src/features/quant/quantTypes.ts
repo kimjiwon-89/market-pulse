@@ -1,5 +1,5 @@
-export type QuantDecisionLabel = "살펴볼 종목" | "기다릴 종목" | "조심할 종목";
-export type QuantDecisionCode = "BUY" | "SELL" | "WARNING" | "SIDE";
+export type QuantDecisionLabel = "살펴볼 종목" | "기다릴 종목" | "조심할 종목" | "매수 후보" | "감시 종목" | "집중 감시" | "진입 대기" | "추격 금지";
+export type QuantDecisionCode = "BUY" | "SELL" | "WARNING" | "SIDE" | "WATCH" | "HOT" | "ENTRY_READY" | "COOLDOWN";
 export type QuantModelLabel = "상승장 모델" | "횡보장 모델" | "하락장 모델" | "여러 모델";
 export type QuantModelCategory = "상승장" | "횡보장" | "하락장" | "기타";
 export type StockBadgeTone = "red" | "blue" | "navy" | "purple" | "black";
