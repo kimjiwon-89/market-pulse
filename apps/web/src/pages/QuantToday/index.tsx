@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import styled from "styled-components";
 import { FavoriteFolderPicker } from "@/features/quant/FavoriteFolderPicker";
 import { StockInitialBadge } from "@/features/quant/StockInitialBadge";
-import { getBullQuantDecisions } from "@/features/quant/api";
+import { getQuantDecisions } from "@/features/quant/api";
 import type { QuantDecision } from "@/features/quant/quantTypes";
 import {
   Badge,
@@ -53,7 +53,7 @@ export function QuantToday() {
   useEffect(() => {
     let mounted = true;
     setError(false);
-    const load = () => getBullQuantDecisions(selectedDate)
+    const load = () => getQuantDecisions(selectedDate)
       .then((items) => {
         if (!mounted) return;
         setDecisions(items);
