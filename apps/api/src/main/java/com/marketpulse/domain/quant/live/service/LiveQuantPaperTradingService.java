@@ -500,7 +500,11 @@ public class LiveQuantPaperTradingService {
         if (market == null || market.isBlank()) {
             return matchesMarket(spec, fallback);
         }
-        return market.toUpperCase().contains(spec.market());
+        String upperMarket = market.toUpperCase();
+        if (upperMarket.contains("KOSPI") || upperMarket.contains("KOSDAQ")) {
+            return upperMarket.contains(spec.market());
+        }
+        return matchesMarket(spec, fallback);
     }
 
     private static int decisionPriority(String decision) {
