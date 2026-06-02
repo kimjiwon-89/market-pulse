@@ -120,7 +120,7 @@ Date: 2026-05-28
 - Changed files: `apps/web/public/logo.png`, `apps/web/index.html`, `apps/web/src/layout/Header.tsx`, `market-pulse-prod/.agents/current/active-status.md`.
 
 - Intent: fix the realtime quant monitor showing only LG/KOSPI candidates.
-- Outcome: added market-wide realtime scan candidates for both `KOSPI_BULL` and `KOSDAQ_BULL`, while keeping stale daily rankings blocked as buy evidence; `/quant/today` now loads candidates from every visible model.
+- Outcome: added market-wide realtime scan candidates for both `KOSPI_BULL` and `KOSDAQ_BULL`, while keeping stale daily rankings blocked as buy evidence; `/quant/today` now loads candidates from every visible model; scanner calls are capped and cached per tick to avoid long-running realtime API sweeps.
 - Changed files: `apps/api/src/main/java/com/marketpulse/domain/quant/live/service/LiveQuantPaperTradingService.java`, `apps/api/src/test/java/com/marketpulse/domain/quant/live/LiveQuantPaperTradingServiceTest.java`, `apps/web/src/features/quant/api.ts`, `apps/web/src/pages/QuantToday/index.tsx`.
 
 - Intent: expose only the active Bull v4 quant model on user-facing quant pages and remove quant-home mock data.
