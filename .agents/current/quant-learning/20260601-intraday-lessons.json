@@ -1,0 +1,124 @@
+{
+  "tradeDate": "2026-06-01",
+  "source": "naver-finance-minute-daily-and-public-news",
+  "purpose": "shadow learning labels for intraday candidate redesign",
+  "marketLessons": [
+    {
+      "lesson": "Do not rely on daily change-rate top-N only.",
+      "evidence": "Samsung Electronics was a large-liquid momentum candidate with low opening gap and +10.09% close, but can be missed by small change-rate top-N filters.",
+      "requiredFeatureGroup": "large_liquid_momentum"
+    },
+    {
+      "lesson": "Pre-open and opening gap scan must run before normal intraday scanner.",
+      "evidence": "LG Electronics first valid minute at 09:02 was already +25.94% versus previous close and hit limit-up at 09:08.",
+      "requiredFeatureGroup": "preopen_gap_and_opening_burst"
+    },
+    {
+      "lesson": "When the leader is already high-gap limit-up, prefer theme proxy candidates with lower gap and stronger intraday room.",
+      "evidence": "LG Electronics opened near limit-up, while LG HelloVision and LG Electronics preferred had better intraday efficiency.",
+      "requiredFeatureGroup": "theme_proxy_rotation"
+    },
+    {
+      "lesson": "Theme spread must be modeled as a cluster, not as isolated symbols.",
+      "evidence": "LG group, robot, AI and automation names moved together around Nvidia/LG/Samsung robot automation narratives.",
+      "requiredFeatureGroup": "theme_cluster_breadth"
+    }
+  ],
+  "labels": [
+    {
+      "assetCode": "066570",
+      "assetName": "LG전자",
+      "market": "KOSPI",
+      "labels": ["high_gap_limit_leader", "preopen_required", "chase_risk"],
+      "previousClose": 293000,
+      "firstValidMinute": "202606010902",
+      "firstValidClose": 369000,
+      "limitUpFirstSeen": "202606010908",
+      "close": 380500,
+      "returnPct": 29.86,
+      "modelAction": "watch before open; avoid blind chase after +25%; use proxy or pullback-relock"
+    },
+    {
+      "assetCode": "005930",
+      "assetName": "삼성전자",
+      "market": "KOSPI",
+      "labels": ["large_liquid_momentum", "stable_intraday_entry"],
+      "previousClose": 317000,
+      "firstValidMinute": "202606010900",
+      "entryMilestones": [
+        {"time": "202606010904", "returnPct": 3.15},
+        {"time": "202606010937", "returnPct": 5.05},
+        {"time": "202606011010", "returnPct": 7.10}
+      ],
+      "close": 349000,
+      "returnPct": 10.09,
+      "modelAction": "promote to ENTRY_READY on +5% break with trade-amount rank and VWAP confirmation"
+    },
+    {
+      "assetCode": "037560",
+      "assetName": "LG헬로비전",
+      "market": "KOSPI",
+      "labels": ["theme_spread_best_entry", "low_gap_limit_proxy"],
+      "returnPct": 30.00,
+      "gapPct": 4.55,
+      "intradayPct": 24.35,
+      "modelAction": "prefer over high-gap LG Electronics after LG theme confirms"
+    },
+    {
+      "assetCode": "066575",
+      "assetName": "LG전자우",
+      "market": "KOSPI",
+      "labels": ["leader_proxy_entry", "preferred_share_rotation"],
+      "returnPct": 29.99,
+      "gapPct": 9.20,
+      "intradayPct": 19.04,
+      "modelAction": "candidate when common share is locked or near limit-up"
+    },
+    {
+      "assetCode": "090360",
+      "assetName": "로보스타",
+      "market": "KOSDAQ",
+      "labels": ["affiliate_robot_limit", "preopen_required"],
+      "returnPct": 30.00,
+      "gapPct": 30.00,
+      "intradayPct": 0.00,
+      "modelAction": "pre-open only; do not chase after full gap"
+    },
+    {
+      "assetCode": "219750",
+      "assetName": "한국비티비",
+      "market": "KOSDAQ",
+      "labels": ["intraday_efficiency_breakout"],
+      "returnPct": 29.86,
+      "gapPct": 0.00,
+      "intradayPct": 29.86,
+      "modelAction": "high priority for 1-minute breakout scanner"
+    },
+    {
+      "assetCode": "355390",
+      "assetName": "크라우드웍스",
+      "market": "KOSDAQ",
+      "labels": ["intraday_efficiency_breakout"],
+      "returnPct": 29.86,
+      "gapPct": 2.36,
+      "intradayPct": 26.87,
+      "modelAction": "high priority for 1-minute breakout scanner"
+    },
+    {
+      "assetCode": "034220",
+      "assetName": "LG디스플레이",
+      "market": "KOSPI",
+      "labels": ["failed_theme_follow"],
+      "returnPct": -1.80,
+      "gapPct": 7.27,
+      "intradayPct": -8.46,
+      "modelAction": "penalize weak follow-through even inside strong theme"
+    }
+  ],
+  "requiredModelFamilies": [
+    "KOSPI_INTRADAY_MOMENTUM",
+    "KOSDAQ_INTRADAY_BREAKOUT",
+    "THEME_INTRADAY_SPREAD",
+    "PREOPEN_GAP_SENTINEL"
+  ]
+}

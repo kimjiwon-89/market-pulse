@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
+import styled from "styled-components";
 import { FavoriteFolderPicker } from "@/features/quant/FavoriteFolderPicker";
 import { StockInitialBadge } from "@/features/quant/StockInitialBadge";
-import { getQuantHomeSummary } from "@/features/quant/api";
+import { getBullQuantDecisions } from "@/features/quant/api";
 import type { QuantDecision } from "@/features/quant/quantTypes";
 import {
   Badge,
+  Button,
   Card,
   DataTable,
   Inline,
@@ -22,6 +24,17 @@ import {
   TextLink,
 } from "@/components/ui/Page";
 
+function todayIsoKst() {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
 function tone(code: QuantDecision["decisionCode"]) {
   if (code === "BUY") return "up";
   if (code === "SELL") return "down";
@@ -30,27 +43,31 @@ function tone(code: QuantDecision["decisionCode"]) {
 }
 
 export function QuantToday() {
+  const today = todayIsoKst();
+  const [selectedDate, setSelectedDate] = useState(today);
   const [decisions, setDecisions] = useState<QuantDecision[]>([]);
   const [asOf, setAsOf] = useState<string>();
   const [error, setError] = useState(false);
 
   useEffect(() => {
     let mounted = true;
-    getQuantHomeSummary()
-      .then((summary) => {
+    setError(false);
+    getBullQuantDecisions(selectedDate)
+      .then((items) => {
         if (!mounted) return;
-        setDecisions(summary.decisions);
-        setAsOf(summary.asOf);
+        setDecisions(items);
+        setAsOf(selectedDate);
       })
       .catch(() => {
         if (!mounted) return;
         setError(true);
+        setDecisions([]);
       });
 
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [selectedDate]);
 
   const modelCount = useMemo(
     () => new Set(decisions.flatMap((item) => item.modelNames)).size,
@@ -70,6 +87,22 @@ export function QuantToday() {
           <Badge $tone="flat">{modelCount}개 모델</Badge>
         </PageHeaderMeta>
       </PageHeaderCard>
+
+      <Card $soft>
+        <FilterRow>
+          <Inline $wrap>
+            <FilterLabel>기준일</FilterLabel>
+            <DateInput
+              type="date"
+              value={selectedDate}
+              max={today}
+              onChange={(event) => setSelectedDate(event.target.value)}
+            />
+            <Button type="button" onClick={() => setSelectedDate(today)}>오늘</Button>
+          </Inline>
+          <SubText>선택한 날짜의 자동 후보만 표시합니다.</SubText>
+        </FilterRow>
+      </Card>
 
       {error ? (
         <Card $soft>
@@ -92,7 +125,7 @@ export function QuantToday() {
             </thead>
             <tbody>
               {decisions.map((item) => (
-                <tr key={`${item.assetCode}-${item.modelNames.join("-")}`}>
+                <tr key={`${item.signalDate}-${item.assetCode}-${item.modelNames.join("-")}`}>
                   <td>
                     <Inline>
                       <StockInitialBadge text={item.badgeText} tone={item.badgeTone} />
@@ -130,3 +163,27 @@ export function QuantToday() {
     </PageShell>
   );
 }
+
+const FilterRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+`;
+
+const FilterLabel = styled.span`
+  color: ${({ theme }) => theme.color.textMuted};
+  font-size: 12px;
+  font-weight: 800;
+`;
+
+const DateInput = styled.input`
+  height: 34px;
+  border: 1px solid ${({ theme }) => theme.color.border};
+  border-radius: ${({ theme }) => theme.radius.control};
+  padding: 0 10px;
+  color: ${({ theme }) => theme.color.text};
+  background: ${({ theme }) => theme.color.input};
+  font: inherit;
+`;

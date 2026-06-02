@@ -1,5 +1,5 @@
 import { apiClient } from "@/services/apiClient";
-import { getLastFridayBasicDate, getMarketStockRankings } from "@/features/market/api";
+import { getMarketStockRankings } from "@/features/market/api";
 import { mockNews } from "@/features/mock/marketMockData";
 import type {
   QuantDecision,
@@ -200,6 +200,10 @@ function todayIsoKst() {
   }).formatToParts(new Date());
   const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
   return `${values.year}-${values.month}-${values.day}`;
+}
+
+function todayBasicKst() {
+  return todayIsoKst().replaceAll("-", "");
 }
 
 function parseNumber(value?: string | number) {
@@ -463,7 +467,7 @@ function buildHotStocks(): QuantHotStockItem[] {
 }
 
 async function getHotStocks(): Promise<QuantHotStockItem[]> {
-  const date = getLastFridayBasicDate();
+  const date = todayBasicKst();
   const [upStocks, downStocks] = await Promise.all([
     getMarketStockRankings({ date, sort: "CHANGE_RATE_DESC", limit: 2 }).catch(() => []),
     getMarketStockRankings({ date, sort: "CHANGE_RATE_ASC", limit: 2 }).catch(() => []),
@@ -541,16 +545,16 @@ export async function getQuantHomeSummary(): Promise<QuantHomeSummary> {
   const visibleModelDtos = (models.length > 0 ? models : [fallbackBullModel])
     .filter((model) => !HIDDEN_MODEL_CODES.has(model.modelCode));
   const mappedModels = visibleModelDtos.map(mapModel);
+  const today = todayIsoKst();
   const allCandidates = await Promise.all(visibleModelDtos.map(async (modelDto) => {
     const model = mapModel(modelDto);
-    const candidates = await getData<LiveCandidateDto[]>(`/quant/live/models/${model.code}/candidates`).catch(() => []);
+    const candidates = await getData<LiveCandidateDto[]>(`/quant/live/models/${model.code}/candidates`, { date: today }).catch(() => []);
     return candidates.map((item) => mapDecision(item, model));
   }));
-  const today = todayIsoKst();
   const candidatePool = allCandidates.flat();
-  const todayCandidates = candidatePool.filter((item) => item.signalDate === today);
-  const autoPaperCandidates = candidatePool.filter((item) => item.sourceType === "AUTO_PAPER");
-  const decisions = (todayCandidates.length > 0 ? todayCandidates : autoPaperCandidates.length > 0 ? autoPaperCandidates : candidatePool).slice(0, 8);
+  const decisions = candidatePool
+    .filter((item) => item.signalDate === today && item.sourceType === "AUTO_PAPER")
+    .slice(0, 8);
   const bullModelDto = visibleModelDtos.find((model) => model.modelCode === PRIMARY_MODEL_CODE) ?? visibleModelDtos[0] ?? fallbackBullModel;
   const bullModel = mapModel(bullModelDto);
 
@@ -586,9 +590,11 @@ export async function getQuantModelDetail(modelCode: string) {
   return mapModelDetail(detail);
 }
 
-export async function getBullQuantDecisions() {
-  const candidates = await getData<LiveCandidateDto[]>(`/quant/live/models/${PRIMARY_MODEL_CODE}/candidates`);
-  return candidates.map((item) => mapDecision(item, mapModel(fallbackBullModel)));
+export async function getBullQuantDecisions(date = todayIsoKst()) {
+  const candidates = await getData<LiveCandidateDto[]>(`/quant/live/models/${PRIMARY_MODEL_CODE}/candidates`, { date });
+  return candidates
+    .map((item) => mapDecision(item, mapModel(fallbackBullModel)))
+    .filter((item) => item.signalDate === date && item.sourceType === "AUTO_PAPER");
 }
 
 export async function getBullQuantReports() {

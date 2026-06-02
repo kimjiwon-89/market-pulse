@@ -1,5 +1,6 @@
 package com.marketpulse.domain.quant.live;
 
+import com.marketpulse.domain.quant.live.dto.LiveQuantCandidateDto;
 import com.marketpulse.domain.quant.live.dto.LiveQuantModelDetailDto;
 import com.marketpulse.domain.quant.live.dto.LiveQuantModelSummaryDto;
 import com.marketpulse.domain.quant.live.dto.LiveQuantReportDetailDto;
@@ -8,9 +9,12 @@ import com.marketpulse.domain.quant.live.service.BullV4Runtime;
 import com.marketpulse.domain.quant.live.service.HistoricalReplayProvider;
 import com.marketpulse.domain.quant.live.service.LiveQuantSimulationService;
 import com.marketpulse.domain.quant.live.service.LiveQuantRuntimeRegistry;
+import com.marketpulse.domain.quant.live.service.LiveQuantPaperTradingService;
+import com.marketpulse.domain.quant.live.service.QuantModelPackageService;
 import com.marketpulse.domain.quant.live.service.RealtimeQuoteProvider;
 import com.marketpulse.domain.quant.live.service.ReplayTradeFact;
 import com.marketpulse.domain.quant.live.service.RuleBasedReportWriter;
+import org.springframework.beans.factory.ObjectProvider;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -18,6 +22,8 @@ import java.time.LocalDate;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class LiveQuantSimulationServiceTest {
 
@@ -100,6 +106,48 @@ class LiveQuantSimulationServiceTest {
     }
 
     @Test
+    void datedPackageCandidateLookupDoesNotMixHistoricalValidationRows() {
+        QuantModelPackageService packageService = mock(QuantModelPackageService.class);
+        when(packageService.publicVisibleCandidates("KOSPI_BULL")).thenReturn(List.of(
+                new LiveQuantCandidateDto(
+                        "005930",
+                        "Samsung Electronics",
+                        "2026-05-30",
+                        "HISTORICAL_VALIDATION",
+                        "POST",
+                        "historical validation",
+                        new BigDecimal("86100"),
+                        new BigDecimal("4.24")
+                )
+        ));
+        LiveQuantPaperTradingService paperTradingService = mock(LiveQuantPaperTradingService.class);
+        when(paperTradingService.candidates("KOSPI_BULL", LocalDate.of(2026, 6, 2))).thenReturn(List.of(
+                new LiveQuantCandidateDto(
+                        "066570",
+                        "LG Electronics",
+                        "2026-06-02",
+                        "AUTO_PAPER",
+                        "BUY",
+                        "today paper candidate",
+                        new BigDecimal("239500"),
+                        new BigDecimal("1.05")
+                )
+        ));
+        LiveQuantSimulationService datedService = new LiveQuantSimulationService(
+                new LiveQuantRuntimeRegistry(List.of()),
+                provider(packageService),
+                provider(paperTradingService)
+        );
+
+        List<LiveQuantCandidateDto> candidates = datedService.getCandidates("KOSPI_BULL", "2026-06-02");
+
+        assertThat(candidates).extracting(LiveQuantCandidateDto::candidateType)
+                .containsExactly("AUTO_PAPER");
+        assertThat(candidates).extracting(LiveQuantCandidateDto::assetCode)
+                .containsExactly("066570");
+    }
+
+    @Test
     void aggregateReportsHideLegacyBullV4Runtime() {
         assertThat(service.getReports("WEEKLY", null)).isEmpty();
         assertThat(service.getReports("DAILY", null)).isEmpty();
@@ -146,5 +194,11 @@ class LiveQuantSimulationServiceTest {
     private LiveQuantSimulationService service(RealtimeQuoteProvider quoteProvider, HistoricalReplayProvider replayProvider) {
         BullV4Runtime runtime = new BullV4Runtime(new RuleBasedReportWriter(), quoteProvider, replayProvider);
         return new LiveQuantSimulationService(new LiveQuantRuntimeRegistry(List.of(runtime)));
+    }
+
+    private static <T> ObjectProvider<T> provider(T value) {
+        ObjectProvider<T> provider = mock(ObjectProvider.class);
+        when(provider.getIfAvailable()).thenReturn(value);
+        return provider;
     }
 }
