@@ -86,12 +86,16 @@ public class LiveQuantSimulationService {
 
     public List<LiveQuantCandidateDto> getCandidates(String modelCode, String date) {
         List<LiveQuantCandidateDto> paperCandidates = paperCandidates(modelCode, date);
+        boolean datedLookup = date != null && !date.isBlank();
         try {
             return java.util.stream.Stream.concat(
                     paperCandidates.stream(),
                     registry.require(modelCode).candidates(date).stream()
             ).toList();
         } catch (IllegalArgumentException e) {
+            if (datedLookup) {
+                return paperCandidates;
+            }
             if (packageService != null) {
                 return java.util.stream.Stream.concat(
                         paperCandidates.stream(),

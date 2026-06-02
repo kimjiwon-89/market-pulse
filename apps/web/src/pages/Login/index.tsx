@@ -2,8 +2,17 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
-import { setAuth } from "@/services/apiClient";
+import { apiClient, setAuth } from "@/services/apiClient";
 import { Button, Card, MutedText, PageTitle, Stack, SubText } from "@/components/ui/Page";
+
+type LoginResponse = {
+  data?: {
+    token?: string;
+    username?: string;
+    role?: string;
+  };
+  message?: string;
+};
 
 const LoginShell = styled.main`
   min-height: 100vh;
@@ -47,17 +56,25 @@ export function Login() {
     e.preventDefault();
     setError("");
     setLoading(true);
-    window.setTimeout(() => {
+    try {
       if (!username.trim() || !password.trim()) {
-        setError("아이디와 비밀번호를 입력해주세요");
-        setLoading(false);
-        return;
+        throw new Error("아이디와 비밀번호를 입력해주세요.");
       }
-      const role = username.toLowerCase().includes("admin") ? "ADMIN" : "USER";
-      setAuth("mock-token", username, role);
+      const response = await apiClient.post<LoginResponse>("/auth/login", {
+        username: username.trim(),
+        password,
+      });
+      const auth = response.data.data;
+      if (!auth?.token || !auth.username || !auth.role) {
+        throw new Error(response.data.message ?? "로그인 응답이 올바르지 않습니다.");
+      }
+      setAuth(auth.token, auth.username, auth.role);
       navigate("/", { replace: true });
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "로그인에 실패했습니다.");
+    } finally {
       setLoading(false);
-    }, 250);
+    }
   }
 
   return (

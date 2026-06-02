@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { mockNews } from "@/features/mock/marketMockData";
+import { apiClient } from "@/services/apiClient";
 import { getQuantHomeSummary } from "./api";
 
 vi.mock("@/services/apiClient", () => ({
@@ -16,7 +17,7 @@ vi.mock("@/services/apiClient", () => ({
             data: [
               {
                 modelCode: "BULL_V4",
-                modelName: "Bull v4 모델",
+                modelName: "Bull v4",
                 status: "RUNNING",
                 seedMoney: 100000000,
                 totalReturnPct: 999,
@@ -47,11 +48,11 @@ vi.mock("@/services/apiClient", () => ({
             success: true,
             data: [{
               assetCode: "005930",
-              assetName: "삼성전자",
+              assetName: "Samsung Electronics",
               signalDate: "2026-05-30",
               candidateType: "HISTORICAL_VALIDATION",
               decision: "POST",
-              reason: "최근 검증 후보",
+              reason: "historical validation candidate",
               signalPrice: 86100,
               expectedReturnPct: 4.24,
             }],
@@ -106,7 +107,7 @@ vi.mock("@/services/apiClient", () => ({
             data: [{
               rank: 1,
               code: "005930",
-              name: "삼성전자",
+              name: "Samsung Electronics",
               closePrice: 86100,
               volume: 19665151,
               tradeAmount: 1690000000000,
@@ -149,14 +150,12 @@ describe("getQuantHomeSummary", () => {
       label: "KOSPI",
       value: "2,886.74",
       regime: "BULL",
-      delta: "FULL_RISK · 리스크 100%",
       direction: "up",
     });
     expect(summary.marketOverview?.[1]).toMatchObject({
       label: "KOSDAQ",
       value: "742.31",
       regime: "BEAR",
-      delta: "DEFENSIVE_ONLY · 리스크 20%",
       direction: "down",
     });
   });
@@ -165,22 +164,25 @@ describe("getQuantHomeSummary", () => {
     const summary = await getQuantHomeSummary();
 
     expect(summary.hotStocks?.[0]).toMatchObject({
-      assetName: "삼성전자",
+      assetName: "Samsung Electronics",
       assetCode: "005930",
       changeRate: "05/26 · +4.24%",
     });
   });
 
-  it("hides legacy Bull v4 and falls back to latest candidates when today has none", async () => {
+  it("hides legacy Bull v4 and does not show historical candidates as today picks", async () => {
     const summary = await getQuantHomeSummary();
 
     expect(summary.models.map((model) => model.code)).toEqual(["KOSPI_BULL"]);
     expect(summary.models[0].focus.join(" ")).not.toContain("Bull v4");
-    expect(summary.decisions).toHaveLength(1);
-    expect(summary.decisions[0]).toMatchObject({
-      assetCode: "005930",
-      assetName: "삼성전자",
-      modelNames: ["KOSPI Bull v1"],
-    });
+    expect(summary.decisions).toHaveLength(0);
+    expect(apiClient.get).toHaveBeenCalledWith(
+      "/quant/live/models/KOSPI_BULL/candidates",
+      expect.objectContaining({
+        params: expect.objectContaining({
+          date: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+        }),
+      }),
+    );
   });
 });

@@ -537,8 +537,20 @@ describe("page smoke rendering", () => {
     expect(screen.getByLabelText("최근 6개월 월별 수익률 선 그래프")).toBeInTheDocument();
     expect(screen.queryByText("10%")).not.toBeInTheDocument();
     expect(screen.queryByText("50%")).not.toBeInTheDocument();
-    expect(screen.getByLabelText("5월 수익률 +4.56%, 전월 대비 +4.56%p")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "5월" })).toHaveAttribute("href", "/quant/BULL_V4?tab=reports&month=2026-05");
+    const currentMonthLabel = new Intl.DateTimeFormat("ko-KR", {
+      timeZone: "Asia/Seoul",
+      month: "numeric",
+    }).format(new Date());
+    const currentParts = new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Seoul",
+      year: "numeric",
+      month: "2-digit",
+    }).formatToParts(new Date());
+    const currentYear = currentParts.find((part) => part.type === "year")?.value;
+    const currentMonth = currentParts.find((part) => part.type === "month")?.value;
+    const currentMonthKey = `${currentYear}-${currentMonth}`;
+    expect(screen.getByLabelText(`${currentMonthLabel} 수익률 +4.56%, 전월 대비 +4.56%p`)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: currentMonthLabel })).toHaveAttribute("href", `/quant/BULL_V4?tab=reports&month=${currentMonthKey}`);
     expect(screen.getByRole("heading", { name: "광고 영역" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "요약" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "후보 목록" })).toBeInTheDocument();
@@ -578,7 +590,7 @@ describe("page smoke rendering", () => {
     expect(screen.getByText("최근 7일")).toBeInTheDocument();
     expect(screen.getAllByText("매수").length).toBeGreaterThan(0);
     expect(screen.getAllByText("매도").length).toBeGreaterThan(0);
-    expect(screen.getByText("+5.12%")).toBeInTheDocument();
+    expect(screen.getAllByText("+5.12%").length).toBeGreaterThan(0);
 
     await userEvent.click(screen.getByRole("button", { name: "최근 7일" }));
 

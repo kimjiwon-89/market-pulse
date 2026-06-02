@@ -24,6 +24,14 @@ import { listQuantModelPackages, scanQuantModelPackages, updateQuantModelPackage
 import type { QuantModelPackage } from "./api";
 
 type AdminTab = "accounts" | "models" | "ops" | "revenue" | "bugs";
+type BugMemo = {
+  id: string;
+  title: string;
+  content: string;
+  createdAt: string;
+};
+
+const BUG_MEMO_STORAGE_KEY = "market-pulse-admin-bug-memos";
 
 const tabs: Array<{ id: AdminTab; label: string }> = [
   { id: "accounts", label: "계정" },
@@ -68,6 +76,15 @@ export function Admin() {
   const [packages, setPackages] = useState<QuantModelPackage[]>([]);
   const [packageError, setPackageError] = useState(false);
   const [packageLoading, setPackageLoading] = useState(true);
+  const [bugTitle, setBugTitle] = useState("");
+  const [bugContent, setBugContent] = useState("");
+  const [bugMemos, setBugMemos] = useState<BugMemo[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(BUG_MEMO_STORAGE_KEY) ?? "[]") as BugMemo[];
+    } catch {
+      return [];
+    }
+  });
 
   useEffect(() => {
     let mounted = true;
@@ -113,6 +130,21 @@ export function Admin() {
       adminNote: publicVisible ? "공개 승인" : "관리자 비공개",
     });
     setPackages((items) => items.map((item) => item.modelCode === modelCode ? updated : item));
+  }
+
+  function saveBugMemo() {
+    if (!bugTitle.trim() && !bugContent.trim()) return;
+    const nextMemo: BugMemo = {
+      id: `BUG-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${String(bugMemos.length + 1).padStart(3, "0")}`,
+      title: bugTitle.trim() || "무제 버그 메모",
+      content: bugContent.trim(),
+      createdAt: new Date().toISOString(),
+    };
+    const nextMemos = [nextMemo, ...bugMemos];
+    setBugMemos(nextMemos);
+    localStorage.setItem(BUG_MEMO_STORAGE_KEY, JSON.stringify(nextMemos));
+    setBugTitle("");
+    setBugContent("");
   }
 
   return (
@@ -258,6 +290,32 @@ export function Admin() {
 
       {activeTab === "bugs" ? (
         <Stack>
+          <Card $soft>
+            <SectionTitle>관리자 버그 메모</SectionTitle>
+            <MemoForm>
+              <MemoInput value={bugTitle} onChange={(event) => setBugTitle(event.target.value)} placeholder="제목" />
+              <MemoTextarea
+                value={bugContent}
+                onChange={(event) => setBugContent(event.target.value)}
+                placeholder="현상, 재현 방법, 수정 메모를 적어주세요."
+              />
+              <Button type="button" $primary onClick={saveBugMemo}>메모 저장</Button>
+            </MemoForm>
+            <MemoList>
+              {bugMemos.length === 0 ? (
+                <SubText>아직 저장된 메모가 없습니다.</SubText>
+              ) : bugMemos.map((memo) => (
+                <MemoItem key={memo.id}>
+                  <Inline $wrap>
+                    <Badge $tone="warning">{memo.id}</Badge>
+                    <strong>{memo.title}</strong>
+                    <SubText>{new Date(memo.createdAt).toLocaleString("ko-KR")}</SubText>
+                  </Inline>
+                  {memo.content ? <SubText>{memo.content}</SubText> : null}
+                </MemoItem>
+              ))}
+            </MemoList>
+          </Card>
           <AdminTable title="버그 신고함" description="신고된 버그를 작업 폴더로 정리하고 수정 상태를 추적합니다." rows={bugRows} />
           <Card $soft>
             <SectionTitle>Codex 작업 폴더 계약</SectionTitle>
@@ -379,6 +437,48 @@ const AdminTableHeader = styled(CardHeader)`
     align-items: flex-start;
     padding: 16px;
   }
+`;
+
+const MemoForm = styled.div`
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+`;
+
+const MemoInput = styled.input`
+  height: 36px;
+  border: 1px solid ${({ theme }) => theme.color.border};
+  border-radius: ${({ theme }) => theme.radius.control};
+  padding: 0 10px;
+  color: ${({ theme }) => theme.color.text};
+  background: ${({ theme }) => theme.color.input};
+  font: inherit;
+`;
+
+const MemoTextarea = styled.textarea`
+  min-height: 92px;
+  border: 1px solid ${({ theme }) => theme.color.border};
+  border-radius: ${({ theme }) => theme.radius.control};
+  padding: 10px;
+  color: ${({ theme }) => theme.color.text};
+  background: ${({ theme }) => theme.color.input};
+  font: inherit;
+  resize: vertical;
+`;
+
+const MemoList = styled.div`
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+`;
+
+const MemoItem = styled.div`
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid ${({ theme }) => theme.color.border};
+  border-radius: ${({ theme }) => theme.radius.card};
+  background: ${({ theme }) => theme.color.panel};
 `;
 
 const BugFolder = styled.pre`

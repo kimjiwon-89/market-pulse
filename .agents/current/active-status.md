@@ -290,3 +290,23 @@ Date: 2026-05-28
 - Intent: receive the lab `kosdaq-bull-v1.0.0` package through the standard prod handoff path.
 - Outcome: copied the lab package into `.agents/handoff/quant/kosdaq-bull/` with prod-facing README, validation, runtime requirements, artifacts, source package, and empty sample-output marker. This is review input only; no runtime implementation, public exposure, live orders, deployment, or production DB change was performed.
 - Changed files: `.agents/handoff/quant/kosdaq-bull/*`, `.agents/current/active-status.md`.
+
+- Intent: diagnose why live paper models missed high-profile movers such as LG전자 and 삼성전자.
+- Outcome: confirmed paper candidates used stale daily change-rate ranking only; added liquidity-ranked positive movers to the candidate pool so large 거래대금 names can be included even outside change-rate top five.
+- Changed files: `apps/api/src/main/java/com/marketpulse/domain/quant/live/service/LiveQuantPaperTradingService.java`, `apps/api/src/test/java/com/marketpulse/domain/quant/live/LiveQuantPaperTradingServiceTest.java`, `.agents/current/active-status.md`.
+
+- Intent: stop showing historical package rows as today's quant recommendations and fix stale daily collection targeting.
+- Outcome: `/candidates?date=...` now returns dated paper candidates without package historical rows; web home/today requests today's candidates only; quant daily KRX collection now targets the current KST date instead of yesterday.
+- Changed files: `apps/api/src/main/java/com/marketpulse/domain/quant/live/service/LiveQuantSimulationService.java`, `apps/api/src/main/java/com/marketpulse/domain/quant/scheduler/QuantDailyCollectScheduler.java`, `apps/web/src/features/quant/api.ts`, tests, `.agents/current/active-status.md`.
+
+- Intent: analyze the 2026-06-01 intraday misses and convert market evidence into realtime model learning inputs.
+- Outcome: documented that daily top-N ranking is insufficient, captured LG pre-open/high-gap and Samsung large-liquid momentum lessons, and created a shadow learning label pack for intraday redesign.
+- Changed files: `report/quant/realtime-signal/source.md`, `.agents/current/quant-learning/20260601-intraday-lessons.json`, `.agents/current/active-status.md`.
+
+- Intent: add 2026-06-02 opening-session observations to intraday model shadow learning.
+- Outcome: captured 09:01 KST watch labels for Samsung large-liquid momentum, LG proxy rotation, robot theme spread, and failed LG follow-through while keeping all actions paper/shadow-only.
+- Changed files: `.agents/current/quant-learning/20260602-opening-watch-lessons.json`, `.agents/current/active-status.md`.
+
+- Intent: apply the root `수정사항.txt` notes before homepage review.
+- Outcome: added dated today-candidate filtering, model-detail selected-period return and latest-first trades, real API login, admin bug memo capture, and verified web/API smoke paths.
+- Changed files: `apps/web/src/features/quant/api.ts`, `apps/web/src/pages/QuantToday/index.tsx`, `apps/web/src/pages/QuantModels/index.tsx`, `apps/web/src/pages/Login/index.tsx`, `apps/web/src/pages/Admin/index.tsx`, tests, `.agents/current/active-status.md`.
