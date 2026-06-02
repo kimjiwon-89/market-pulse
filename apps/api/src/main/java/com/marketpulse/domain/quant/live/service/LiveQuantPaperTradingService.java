@@ -212,6 +212,7 @@ public class LiveQuantPaperTradingService {
 
     public List<LiveQuantCandidateDto> candidates(String modelCode, LocalDate signalDate) {
         return repository.findCandidates(modelCode, signalDate).stream()
+                .filter(item -> !isStaleRankingCandidate(item))
                 .map(item -> new LiveQuantCandidateDto(
                         item.assetCode(),
                         item.assetName(),
@@ -223,6 +224,11 @@ public class LiveQuantPaperTradingService {
                         item.expectedReturnPct()
                 ))
                 .toList();
+    }
+
+    private static boolean isStaleRankingCandidate(LiveQuantPaperTradingRepository.PaperCandidate candidate) {
+        return "AUTO_PAPER_INTRADAY".equals(candidate.source())
+                && isRankingDataStale(candidate.signalDate(), candidate.marketDate());
     }
 
     public List<LiveQuantPositionDto> positions(String modelCode) {
