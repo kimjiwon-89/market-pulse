@@ -174,6 +174,49 @@ class LiveQuantPaperTradingServiceTest {
     }
 
     @Test
+    void candidatesHideStaleRankingRowsButKeepRealtimeClusterRows() {
+        FakeRepository repository = new FakeRepository();
+        repository.candidates.add(new LiveQuantPaperTradingRepository.PaperCandidate(
+                null,
+                "KOSPI_BULL",
+                LocalDate.of(2026, 6, 2),
+                LocalDate.of(2026, 5, 26),
+                "005930",
+                "삼성전자",
+                "BUY",
+                "stale ranking",
+                new BigDecimal("350000"),
+                new BigDecimal("2.22"),
+                "AUTO_PAPER_INTRADAY"
+        ));
+        repository.candidates.add(new LiveQuantPaperTradingRepository.PaperCandidate(
+                null,
+                "KOSPI_BULL",
+                LocalDate.of(2026, 6, 2),
+                LocalDate.of(2026, 6, 2),
+                "037560",
+                "LG헬로비전",
+                "HOT",
+                "realtime cluster",
+                new BigDecimal("3300"),
+                new BigDecimal("15.38"),
+                "AUTO_PAPER_REALTIME_CLUSTER"
+        ));
+        LiveQuantPaperTradingService service = new LiveQuantPaperTradingService(
+                mock(MarketDailyPriceMapper.class),
+                code -> Optional.empty(),
+                repository,
+                CLOCK
+        );
+
+        List<String> codes = service.candidates("KOSPI_BULL", LocalDate.of(2026, 6, 2)).stream()
+                .map(com.marketpulse.domain.quant.live.dto.LiveQuantCandidateDto::assetCode)
+                .toList();
+
+        assertThat(codes).containsExactly("037560");
+    }
+
+    @Test
     void runOnceSellsOpenPositionWhenStopLossIsHit() {
         MarketDailyPriceMapper priceMapper = mock(MarketDailyPriceMapper.class);
         when(priceMapper.findLatestStockTradeDateOnOrBefore(any())).thenReturn(LocalDate.of(2026, 5, 29));
