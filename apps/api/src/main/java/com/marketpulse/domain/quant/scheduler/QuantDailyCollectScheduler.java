@@ -2,6 +2,7 @@ package com.marketpulse.domain.quant.scheduler;
 
 import com.marketpulse.domain.quant.service.QuantCollectService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -20,6 +21,7 @@ public class QuantDailyCollectScheduler {
     private final QuantCollectService collectService;
     private final Clock clock;
 
+    @Autowired
     public QuantDailyCollectScheduler(QuantCollectService collectService) {
         this(collectService, Clock.system(KST));
     }
