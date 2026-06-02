@@ -176,6 +176,40 @@ class LiveQuantPaperTradingServiceTest {
     }
 
     @Test
+    void runOnceUsesDailyRankingMarketWhenKosdaqSnapshotReturnsSegmentName() {
+        Clock juneSecond = Clock.fixed(Instant.parse("2026-06-02T01:50:00Z"), ZoneId.of("Asia/Seoul"));
+        MarketDailyPriceMapper priceMapper = mock(MarketDailyPriceMapper.class);
+        when(priceMapper.findLatestStockTradeDateOnOrBefore(any())).thenReturn(LocalDate.of(2026, 5, 26));
+        when(priceMapper.findStockRankings(eq(LocalDate.of(2026, 5, 26)), eq("CHANGE_RATE_DESC"), anyInt()))
+                .thenReturn(List.of(ranking("036930", "Jusung Engineering", "KOSDAQ", "234500", "4.69")));
+        when(priceMapper.findStockRankings(eq(LocalDate.of(2026, 5, 26)), eq("TRADE_AMOUNT"), anyInt()))
+                .thenReturn(List.of());
+
+        FakeRepository repository = new FakeRepository();
+        RealtimeStockSnapshotProvider snapshotProvider = snapshotProvider(List.of(
+                snapshot("036930", "Jusung Engineering", "우량기업부", "260000", "10.87", 1_000_000_000_000L)
+        ));
+        LiveQuantPaperTradingService service = new LiveQuantPaperTradingService(
+                priceMapper,
+                code -> Optional.of(new BigDecimal("10000")),
+                snapshotProvider,
+                IntradayMonitoringRepository.NOOP,
+                repository,
+                juneSecond
+        );
+
+        service.runOnce();
+
+        assertThat(repository.candidates)
+                .filteredOn(candidate -> candidate.modelCode().equals("KOSDAQ_BULL"))
+                .singleElement()
+                .satisfies(candidate -> {
+                    assertThat(candidate.assetCode()).isEqualTo("036930");
+                    assertThat(candidate.decision()).isEqualTo("HOT");
+                });
+    }
+
+    @Test
     void runOnceDoesNotOverwriteFreshBuyCandidateWithRealtimeScanState() {
         Clock juneSecond = Clock.fixed(Instant.parse("2026-06-02T01:50:00Z"), ZoneId.of("Asia/Seoul"));
         MarketDailyPriceMapper priceMapper = mock(MarketDailyPriceMapper.class);
