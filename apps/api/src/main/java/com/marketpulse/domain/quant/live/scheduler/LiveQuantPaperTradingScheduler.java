@@ -9,12 +9,12 @@ import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
-@ConditionalOnProperty(name = "market-pulse.quant.live-paper.scheduler.enabled", havingValue = "true")
+@ConditionalOnProperty(name = "market-pulse.quant.live-paper.scheduler.enabled", havingValue = "true", matchIfMissing = true)
 @RequiredArgsConstructor
 public class LiveQuantPaperTradingScheduler {
     private final LiveQuantPaperTradingService paperTradingService;
 
-    @Scheduled(cron = "45 */10 9-15 * * MON-FRI", zone = "Asia/Seoul")
+    @Scheduled(cron = "15 * 9-15 * * MON-FRI", zone = "Asia/Seoul")
     public void runIntradayPaperTrading() {
         LiveQuantPaperTradingService.RunResult result = paperTradingService.runOnce();
         log.info("Live quant paper trading run completed: {}", result);

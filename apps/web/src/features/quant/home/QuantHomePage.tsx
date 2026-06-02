@@ -25,7 +25,7 @@ export function QuantHomePage() {
 
   useEffect(() => {
     let mounted = true;
-    getQuantHomeSummary()
+    const load = () => getQuantHomeSummary()
       .then((data) => {
         if (!mounted) return;
         setSummary(data);
@@ -35,9 +35,12 @@ export function QuantHomePage() {
         if (!mounted) return;
         setStatus("error");
       });
+    load();
+    const intervalId = window.setInterval(load, 60_000);
 
     return () => {
       mounted = false;
+      window.clearInterval(intervalId);
     };
   }, []);
 

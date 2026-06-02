@@ -1,0 +1,162 @@
+{
+  "tradeDate": "2026-06-02",
+  "capturedAtKst": "2026-06-02T10:50:00+09:00",
+  "purpose": "shadow learning labels for LG theme second-day monitoring gaps",
+  "rootCause": [
+    {
+      "gap": "stale_daily_ranking_source",
+      "evidence": "The public candidate API showed 2026-06-02 candidates, but the market ranking rows used by the model were all tradeDate=2026-05-26.",
+      "impact": "The model can display stale candidates as today's signals and miss actual 2026-06-02 movers.",
+      "requiredRule": "If latestMarketDate is older than the signalDate by more than one trading session, block AUTO_PAPER candidate generation and show DATA_STALE."
+    },
+    {
+      "gap": "no_theme_spillover_state",
+      "evidence": "LG Electronics was a 2026-06-01 limit-up leader, but 2026-06-02 LG HelloVision and LG Display were not promoted to WATCH despite strong positive moves.",
+      "impact": "The scanner misses second-day proxy and follow-through names after a limit-up theme leader.",
+      "requiredRule": "When a leader closes limit-up or near limit-up, create next-session theme cluster watch rows for leader, preferred share, holding company, supplier, proxy, and failed-follow names."
+    },
+    {
+      "gap": "top_n_only_candidate_pool",
+      "evidence": "LiveQuantPaperTradingService only merges top 5 change-rate names and top 3 trade-amount names per market.",
+      "impact": "A +5% to +15% theme follow-through name can be missed when it is outside absolute top-N rankings.",
+      "requiredRule": "Add theme-triggered watch expansion independent of absolute market top-N."
+    },
+    {
+      "gap": "no_positive_and_negative_cluster_split",
+      "evidence": "The LG cluster had both positive proxy movers and severe failed-follow names in the same morning.",
+      "impact": "The model cannot distinguish tradable follow-through from unwind/risk names.",
+      "requiredRule": "Split cluster members into FOLLOW_THROUGH_WATCH, LEADER_PULLBACK_COOLDOWN, and THEME_FOLLOW_FAILURE."
+    }
+  ],
+  "currentLgClusterSnapshot": [
+    {
+      "assetCode": "037560",
+      "assetName": "LG HelloVision",
+      "currentPrice": 3300,
+      "todayReturnPct": 15.38,
+      "missType": "missed_positive_proxy_watch",
+      "label": "theme_spillover_follow_through",
+      "modelAction": "Promote to WATCH immediately; promote to ENTRY_READY only if one-minute VWAP hold, high rebreak, and volume acceleration continue after 09:10."
+    },
+    {
+      "assetCode": "034220",
+      "assetName": "LG Display",
+      "currentPrice": 16700,
+      "todayReturnPct": 5.7,
+      "missType": "missed_positive_proxy_watch",
+      "label": "theme_spillover_secondary_watch",
+      "modelAction": "Promote to WATCH, not immediate buy; require continuation because prior-day group move can fade quickly."
+    },
+    {
+      "assetCode": "066570",
+      "assetName": "LG Electronics",
+      "currentPrice": 361500,
+      "todayReturnPct": -4.99,
+      "missType": "missed_leader_pullback_risk",
+      "label": "leader_pullback_cooldown",
+      "modelAction": "Block chase; keep as theme anchor only. Re-entry requires reclaim of VWAP and previous limit-up close zone."
+    },
+    {
+      "assetCode": "066575",
+      "assetName": "LG Electronics Preferred",
+      "currentPrice": 110300,
+      "todayReturnPct": -11.33,
+      "missType": "missed_failed_proxy_risk",
+      "label": "theme_follow_failure",
+      "modelAction": "Block long signal; flag as failed preferred-share proxy."
+    },
+    {
+      "assetCode": "003550",
+      "assetName": "LG Corp",
+      "currentPrice": 138200,
+      "todayReturnPct": -16.65,
+      "missType": "missed_theme_unwind_risk",
+      "label": "theme_follow_failure",
+      "modelAction": "Block long signal; use as evidence that first-day group buying is unwinding."
+    },
+    {
+      "assetCode": "011070",
+      "assetName": "LG Innotek",
+      "currentPrice": 1204000,
+      "todayReturnPct": -21.31,
+      "missType": "missed_theme_unwind_risk",
+      "label": "theme_follow_failure",
+      "modelAction": "Block long signal; mark as severe failed-follow and high-volatility risk."
+    },
+    {
+      "assetCode": "064400",
+      "assetName": "LG CNS",
+      "currentPrice": 131900,
+      "todayReturnPct": -8.21,
+      "missType": "missed_theme_unwind_risk",
+      "label": "theme_follow_failure",
+      "modelAction": "Block long signal unless reclaim and cluster breadth turn positive."
+    },
+    {
+      "assetCode": "032640",
+      "assetName": "LG Uplus",
+      "currentPrice": 15800,
+      "todayReturnPct": -3.78,
+      "missType": "missed_soft_failed_follow",
+      "label": "weak_theme_follow_failure",
+      "modelAction": "No buy signal; monitor only as cluster breadth member."
+    }
+  ],
+  "requiredRealtimeScannerRules": [
+    {
+      "ruleCode": "LIMIT_LEADER_NEXT_DAY_CLUSTER",
+      "trigger": "Any KOSPI/KOSDAQ stock closes >= 25% or limit-up with trade amount above market top 50.",
+      "action": "Persist a next-session cluster watch list before open."
+    },
+    {
+      "ruleCode": "CLUSTER_MEMBER_CLASSIFICATION",
+      "trigger": "Cluster watch member has current return >= 5%, volume acceleration, or falls <= -3%.",
+      "action": "Classify as FOLLOW_THROUGH_WATCH, SECONDARY_WATCH, LEADER_PULLBACK_COOLDOWN, or THEME_FOLLOW_FAILURE."
+    },
+    {
+      "ruleCode": "WATCH_NOT_BUY_BY_DEFAULT",
+      "trigger": "A cluster member is positive but lacks VWAP/high-rebreak confirmation.",
+      "action": "Show as WATCH, not BUY; require intraday confirmation for ENTRY_READY."
+    },
+    {
+      "ruleCode": "STALE_RANKING_HARD_BLOCK",
+      "trigger": "requestedDate != marketDate used for ranking.",
+      "action": "Do not create AUTO_PAPER candidates; surface DATA_STALE diagnostics."
+    }
+  ],
+  "missedTodaySummary": {
+    "shouldHaveBeenWatchedPositive": ["037560", "034220"],
+    "shouldHaveBeenRiskFlagged": ["066570", "066575", "003550", "011070", "064400", "032640", "003555"],
+    "shouldNotBeBoughtNow": ["066570", "066575", "003550", "011070", "064400"],
+    "currentCandidateApiContainsLgCluster": false
+  },
+  "implementationApplied": {
+    "status": "implemented_in_prod_code_not_deployed",
+    "changes": [
+      "LiveQuantPaperTradingScheduler now runs every minute during 09:00-15:59 KST when enabled.",
+      "The live paper scheduler is enabled by default unless QUANT_LIVE_PAPER_SCHEDULER_ENABLED=false.",
+      "LiveQuantPaperTradingService blocks stale ranking candidate generation when latest market date is more than three calendar days behind signal date.",
+      "RealtimeStockSnapshotProvider reads current price/change-rate/trading-value snapshots from StockDetailService.",
+      "LG next-day cluster creates WATCH, COOLDOWN, and WARNING candidates from realtime snapshots without opening paper positions.",
+      "Only BUY candidates can open paper positions; WATCH/COOLDOWN/WARNING never buy."
+    ],
+    "modelCoverageConclusion": {
+      "currentModelsAreInsufficientForAllRegimes": true,
+      "reason": "KOSPI_BULL and KOSDAQ_BULL can cover positive momentum and some liquidity-ranked movers, but they do not fully cover crash defense, sideways mean reversion, gap-fade, leader-proxy rotation, or downside continuation.",
+      "requiredModelFamilies": [
+        "INTRADAY_MOMENTUM",
+        "THEME_SPILLOVER",
+        "LARGE_LIQUID_MOMENTUM",
+        "DOWNSIDE_CONTINUATION_AVOIDANCE",
+        "TECHNICAL_REBOUND_WATCH",
+        "SIDEWAYS_MEAN_REVERSION",
+        "GAP_FADE_RISK",
+        "MARKET_REGIME_RISK_BUDGET"
+      ]
+    },
+    "verification": [
+      "LiveQuantPaperTradingServiceTest passed.",
+      "LiveQuantSimulationServiceTest, QuantDailyCollectSchedulerTest, and StockDetailServiceTest passed."
+    ]
+  }
+}

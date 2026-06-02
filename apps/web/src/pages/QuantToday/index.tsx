@@ -37,8 +37,9 @@ function todayIsoKst() {
 
 function tone(code: QuantDecision["decisionCode"]) {
   if (code === "BUY") return "up";
+  if (code === "HOT" || code === "ENTRY_READY" || code === "WATCH") return "up";
   if (code === "SELL") return "down";
-  if (code === "WARNING") return "warning";
+  if (code === "WARNING" || code === "COOLDOWN") return "warning";
   return "flat";
 }
 
@@ -52,7 +53,7 @@ export function QuantToday() {
   useEffect(() => {
     let mounted = true;
     setError(false);
-    getBullQuantDecisions(selectedDate)
+    const load = () => getBullQuantDecisions(selectedDate)
       .then((items) => {
         if (!mounted) return;
         setDecisions(items);
@@ -63,11 +64,14 @@ export function QuantToday() {
         setError(true);
         setDecisions([]);
       });
+    load();
+    const intervalId = selectedDate === today ? window.setInterval(load, 60_000) : undefined;
 
     return () => {
       mounted = false;
+      if (intervalId) window.clearInterval(intervalId);
     };
-  }, [selectedDate]);
+  }, [selectedDate, today]);
 
   const modelCount = useMemo(
     () => new Set(decisions.flatMap((item) => item.modelNames)).size,

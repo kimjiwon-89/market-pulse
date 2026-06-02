@@ -260,7 +260,23 @@ function mapModel(dto: LiveModelSummaryDto): QuantModelSummary {
 }
 
 function mapDecision(dto: LiveCandidateDto, model: QuantModelSummary = mapModel(fallbackBullModel)): QuantDecision {
-  const warning = (dto.expectedReturnPct ?? 0) < 0 || dto.decision === "WARNING";
+  const rawDecision = (dto.decision || "BUY").toUpperCase();
+  const decisionCode = rawDecision === "HOT" || rawDecision === "WATCH" || rawDecision === "ENTRY_READY" || rawDecision === "COOLDOWN" || rawDecision === "WARNING"
+    ? rawDecision
+    : (dto.expectedReturnPct ?? 0) < 0
+      ? "WARNING"
+      : "BUY";
+  const decisionLabel = decisionCode === "HOT"
+    ? "집중 감시"
+    : decisionCode === "WATCH"
+      ? "감시 종목"
+      : decisionCode === "ENTRY_READY"
+        ? "진입 대기"
+        : decisionCode === "COOLDOWN"
+          ? "추격 금지"
+          : decisionCode === "WARNING"
+            ? "조심할 종목"
+            : "매수 후보";
 
   return {
     assetCode: dto.assetCode,
@@ -271,8 +287,8 @@ function mapDecision(dto: LiveCandidateDto, model: QuantModelSummary = mapModel(
     badgeTone: toneFromCode(dto.assetCode),
     modelNames: [model.name],
     modelLabel: model.marketMode,
-    decisionLabel: warning ? "조심할 종목" : "살펴볼 종목",
-    decisionCode: warning ? "WARNING" : "BUY",
+    decisionLabel,
+    decisionCode,
     reasonBullets: [dto.reason || dto.candidateType || "모델 후보로 선별됨"],
     cautionBullets: [
       dto.signalPrice ? `신호가 ${dto.signalPrice.toLocaleString("ko-KR")}원 기준 확인` : "실시간 체결 판단은 별도 확인",
@@ -553,7 +569,7 @@ export async function getQuantHomeSummary(): Promise<QuantHomeSummary> {
   }));
   const candidatePool = allCandidates.flat();
   const decisions = candidatePool
-    .filter((item) => item.signalDate === today && item.sourceType === "AUTO_PAPER")
+    .filter((item) => item.signalDate === today && item.sourceType?.startsWith("AUTO_PAPER"))
     .slice(0, 8);
   const bullModelDto = visibleModelDtos.find((model) => model.modelCode === PRIMARY_MODEL_CODE) ?? visibleModelDtos[0] ?? fallbackBullModel;
   const bullModel = mapModel(bullModelDto);
@@ -594,7 +610,7 @@ export async function getBullQuantDecisions(date = todayIsoKst()) {
   const candidates = await getData<LiveCandidateDto[]>(`/quant/live/models/${PRIMARY_MODEL_CODE}/candidates`, { date });
   return candidates
     .map((item) => mapDecision(item, mapModel(fallbackBullModel)))
-    .filter((item) => item.signalDate === date && item.sourceType === "AUTO_PAPER");
+    .filter((item) => item.signalDate === date && item.sourceType?.startsWith("AUTO_PAPER"));
 }
 
 export async function getBullQuantReports() {
