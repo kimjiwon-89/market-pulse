@@ -18,10 +18,12 @@ import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -34,6 +36,8 @@ public class LiveQuantPaperTradingService {
     private static final int MAX_HOLD_DAYS = 20;
     private static final int MAX_CANDIDATES_PER_MODEL = 5;
     private static final int MAX_LIQUID_CANDIDATES_PER_MODEL = 3;
+    private static final int MAX_REALTIME_SCAN_UNIVERSE = 80;
+    private static final int MAX_REALTIME_SCAN_CANDIDATES_PER_MODEL = 8;
     private static final int RANKING_SCAN_LIMIT = 500;
     private static final int LIQUIDITY_SCAN_LIMIT = 200;
     private static final int MAX_MARKET_DATE_STALENESS_DAYS = 3;
@@ -93,17 +97,17 @@ public class LiveQuantPaperTradingService {
 
         int sold = closeTriggeredPositions();
         boolean rankingDataStale = isRankingDataStale(signalDate, marketDate);
-        List<MarketStockRankingDto> ranked = rankingDataStale
-                ? List.of()
-                : priceMapper.findStockRankings(marketDate, "CHANGE_RATE_DESC", RANKING_SCAN_LIMIT);
-        List<MarketStockRankingDto> liquidRanked = rankingDataStale
-                ? List.of()
-                : priceMapper.findStockRankings(marketDate, "TRADE_AMOUNT", LIQUIDITY_SCAN_LIMIT);
+        List<MarketStockRankingDto> rankingScanRows = priceMapper.findStockRankings(marketDate, "CHANGE_RATE_DESC", RANKING_SCAN_LIMIT);
+        List<MarketStockRankingDto> liquidityScanRows = priceMapper.findStockRankings(marketDate, "TRADE_AMOUNT", LIQUIDITY_SCAN_LIMIT);
+        List<MarketStockRankingDto> ranked = rankingDataStale ? List.of() : rankingScanRows;
+        List<MarketStockRankingDto> liquidRanked = rankingDataStale ? List.of() : liquidityScanRows;
         int candidates = 0;
         int bought = 0;
         for (ModelSpec spec : ModelSpec.activeBullModels()) {
             List<MarketStockRankingDto> modelCandidates = selectCandidates(spec, ranked, liquidRanked);
+            Set<String> buyCandidateAssetCodes = new HashSet<>();
             for (MarketStockRankingDto row : modelCandidates) {
+                buyCandidateAssetCodes.add(row.getCode());
                 BigDecimal price = quote(row.getCode()).orElse(row.getClosePrice());
                 LiveQuantPaperTradingRepository.PaperCandidate candidate = new LiveQuantPaperTradingRepository.PaperCandidate(
                         null,
@@ -124,6 +128,18 @@ public class LiveQuantPaperTradingService {
                 if (buyIfNeeded(candidate, price)) {
                     bought++;
                 }
+            }
+            for (LiveQuantPaperTradingRepository.PaperCandidate candidate : realtimeMarketMomentumCandidates(
+                    spec,
+                    signalDate,
+                    marketDate,
+                    rankingScanRows,
+                    liquidityScanRows,
+                    buyCandidateAssetCodes
+            )) {
+                repository.upsertCandidate(candidate);
+                recordMonitoring(candidate, snapshot(candidate.assetCode()).orElse(null), signalDate);
+                candidates++;
             }
             for (LiveQuantPaperTradingRepository.PaperCandidate candidate : realtimeClusterCandidates(spec, signalDate, marketDate)) {
                 repository.upsertCandidate(candidate);
@@ -154,6 +170,87 @@ public class LiveQuantPaperTradingService {
                 .limit(MAX_LIQUID_CANDIDATES_PER_MODEL)
                 .forEach(item -> selected.putIfAbsent(item.getCode(), item));
         return List.copyOf(selected.values());
+    }
+
+    private List<LiveQuantPaperTradingRepository.PaperCandidate> realtimeMarketMomentumCandidates(
+            ModelSpec spec,
+            LocalDate signalDate,
+            LocalDate marketDate,
+            List<MarketStockRankingDto> ranked,
+            List<MarketStockRankingDto> liquidRanked,
+            Set<String> excludedAssetCodes
+    ) {
+        Map<String, MarketStockRankingDto> universe = new LinkedHashMap<>();
+        ranked.stream()
+                .filter(item -> matchesMarket(spec, item))
+                .filter(item -> !excludedAssetCodes.contains(item.getCode()))
+                .filter(item -> !ClusterMember.isSpecialClusterAsset(item.getCode()))
+                .limit(MAX_REALTIME_SCAN_UNIVERSE)
+                .forEach(item -> universe.putIfAbsent(item.getCode(), item));
+        liquidRanked.stream()
+                .filter(item -> matchesMarket(spec, item))
+                .filter(item -> !excludedAssetCodes.contains(item.getCode()))
+                .filter(item -> !ClusterMember.isSpecialClusterAsset(item.getCode()))
+                .limit(MAX_REALTIME_SCAN_UNIVERSE)
+                .forEach(item -> universe.putIfAbsent(item.getCode(), item));
+
+        return universe.values().stream()
+                .map(row -> realtimeMarketCandidate(spec, signalDate, marketDate, row))
+                .flatMap(Optional::stream)
+                .sorted(Comparator
+                        .comparing((LiveQuantPaperTradingRepository.PaperCandidate item) -> decisionPriority(item.decision()))
+                        .thenComparing(LiveQuantPaperTradingRepository.PaperCandidate::expectedReturnPct, Comparator.reverseOrder())
+                        .thenComparing(LiveQuantPaperTradingRepository.PaperCandidate::assetCode))
+                .limit(MAX_REALTIME_SCAN_CANDIDATES_PER_MODEL)
+                .toList();
+    }
+
+    private Optional<LiveQuantPaperTradingRepository.PaperCandidate> realtimeMarketCandidate(
+            ModelSpec spec,
+            LocalDate signalDate,
+            LocalDate marketDate,
+            MarketStockRankingDto row
+    ) {
+        Optional<RealtimeStockSnapshot> maybeSnapshot = snapshot(row.getCode());
+        if (maybeSnapshot.isEmpty()) {
+            return Optional.empty();
+        }
+        RealtimeStockSnapshot realtime = maybeSnapshot.get();
+        if (!matchesMarket(spec, realtime, row)) {
+            return Optional.empty();
+        }
+        ClusterDecision decision = classifyRealtimeMarketMomentum(spec, realtime);
+        if (decision == null) {
+            return Optional.empty();
+        }
+        return Optional.of(new LiveQuantPaperTradingRepository.PaperCandidate(
+                null,
+                spec.modelCode(),
+                signalDate,
+                signalDate != null ? signalDate : marketDate,
+                realtime.assetCode(),
+                firstNonBlank(realtime.assetName(), row.getName()),
+                decision.decision(),
+                decision.reason(),
+                realtime.currentPrice(),
+                safe(realtime.changeRate()),
+                "AUTO_PAPER_REALTIME_SCAN"
+        ));
+    }
+
+    private ClusterDecision classifyRealtimeMarketMomentum(ModelSpec spec, RealtimeStockSnapshot snapshot) {
+        BigDecimal changeRate = safe(snapshot.changeRate());
+        String prefix = spec.market() + "_REALTIME_MOMENTUM";
+        if (changeRate.compareTo(FOLLOW_THROUGH_WATCH_PCT) >= 0) {
+            return new ClusterDecision("HOT", prefix + " HOT: live momentum +" + changeRate + "%");
+        }
+        if (changeRate.compareTo(SECONDARY_WATCH_PCT) >= 0) {
+            return new ClusterDecision("WATCH", prefix + " WATCH: live momentum +" + changeRate + "%");
+        }
+        if (changeRate.compareTo(FAILURE_PCT) <= 0) {
+            return new ClusterDecision("WARNING", prefix + " WARNING: live drawdown " + changeRate + "%");
+        }
+        return null;
     }
 
     private List<LiveQuantPaperTradingRepository.PaperCandidate> realtimeClusterCandidates(
@@ -382,6 +479,24 @@ public class LiveQuantPaperTradingService {
         return market.toUpperCase().contains(spec.market());
     }
 
+    private static boolean matchesMarket(ModelSpec spec, RealtimeStockSnapshot snapshot, MarketStockRankingDto fallback) {
+        String market = snapshot.market();
+        if (market == null || market.isBlank()) {
+            return matchesMarket(spec, fallback);
+        }
+        return market.toUpperCase().contains(spec.market());
+    }
+
+    private static int decisionPriority(String decision) {
+        return switch (decision) {
+            case "HOT" -> 0;
+            case "WATCH" -> 1;
+            case "WARNING" -> 2;
+            case "COOLDOWN" -> 3;
+            default -> 4;
+        };
+    }
+
     private Optional<RealtimeStockSnapshot> snapshot(String assetCode) {
         try {
             return snapshotProvider.currentSnapshot(assetCode);
@@ -445,6 +560,11 @@ public class LiveQuantPaperTradingService {
     }
 
     private record ClusterMember(String assetCode, String assetName, String market, String cluster, boolean leader) {
+        static boolean isSpecialClusterAsset(String assetCode) {
+            return lgSecondDayCluster().stream()
+                    .anyMatch(item -> item.assetCode().equals(assetCode));
+        }
+
         static List<ClusterMember> lgSecondDayCluster() {
             return List.of(
                     new ClusterMember("066570", "LG전자", "KOSPI", "LG_NEXT_DAY_CLUSTER", true),

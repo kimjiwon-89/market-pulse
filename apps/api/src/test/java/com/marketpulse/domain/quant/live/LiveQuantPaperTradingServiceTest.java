@@ -129,6 +129,87 @@ class LiveQuantPaperTradingServiceTest {
     }
 
     @Test
+    void runOnceScansKosdaqRealtimeMomentumWhenDailyRankingDataIsStale() {
+        Clock juneSecond = Clock.fixed(Instant.parse("2026-06-02T01:50:00Z"), ZoneId.of("Asia/Seoul"));
+        MarketDailyPriceMapper priceMapper = mock(MarketDailyPriceMapper.class);
+        when(priceMapper.findLatestStockTradeDateOnOrBefore(any())).thenReturn(LocalDate.of(2026, 5, 26));
+        when(priceMapper.findStockRankings(eq(LocalDate.of(2026, 5, 26)), eq("CHANGE_RATE_DESC"), anyInt()))
+                .thenReturn(List.of(
+                        ranking("356860", "TLB", "KOSDAQ", "87500", "10.17"),
+                        ranking("031330", "SAMT", "KOSDAQ", "7400", "8.10")
+                ));
+        when(priceMapper.findStockRankings(eq(LocalDate.of(2026, 5, 26)), eq("TRADE_AMOUNT"), anyInt()))
+                .thenReturn(List.of(
+                        ranking("034220", "LG Display", "KOSPI", "16700", "5.70"),
+                        ranking("356860", "TLB", "KOSDAQ", "87500", "10.17")
+                ));
+
+        FakeRepository repository = new FakeRepository();
+        RealtimeStockSnapshotProvider snapshotProvider = snapshotProvider(List.of(
+                snapshot("356860", "TLB", "KOSDAQ", "92200", "11.80", 52_000_000_000L),
+                snapshot("031330", "SAMT", "KOSDAQ", "7200", "-3.40", 18_000_000_000L)
+        ));
+        LiveQuantPaperTradingService service = new LiveQuantPaperTradingService(
+                priceMapper,
+                code -> Optional.of(new BigDecimal("10000")),
+                snapshotProvider,
+                IntradayMonitoringRepository.NOOP,
+                repository,
+                juneSecond
+        );
+
+        service.runOnce();
+
+        assertThat(repository.candidates)
+                .filteredOn(candidate -> candidate.modelCode().equals("KOSDAQ_BULL"))
+                .extracting(LiveQuantPaperTradingRepository.PaperCandidate::assetCode)
+                .containsExactlyInAnyOrder("356860", "031330");
+        assertThat(repository.candidates)
+                .filteredOn(candidate -> candidate.assetCode().equals("356860"))
+                .singleElement()
+                .satisfies(candidate -> {
+                    assertThat(candidate.source()).isEqualTo("AUTO_PAPER_REALTIME_SCAN");
+                    assertThat(candidate.decision()).isEqualTo("HOT");
+                });
+        assertThat(repository.trades).isEmpty();
+    }
+
+    @Test
+    void runOnceDoesNotOverwriteFreshBuyCandidateWithRealtimeScanState() {
+        Clock juneSecond = Clock.fixed(Instant.parse("2026-06-02T01:50:00Z"), ZoneId.of("Asia/Seoul"));
+        MarketDailyPriceMapper priceMapper = mock(MarketDailyPriceMapper.class);
+        when(priceMapper.findLatestStockTradeDateOnOrBefore(any())).thenReturn(LocalDate.of(2026, 6, 2));
+        when(priceMapper.findStockRankings(eq(LocalDate.of(2026, 6, 2)), eq("CHANGE_RATE_DESC"), anyInt()))
+                .thenReturn(List.of(ranking("356860", "TLB", "KOSDAQ", "87500", "10.17")));
+        when(priceMapper.findStockRankings(eq(LocalDate.of(2026, 6, 2)), eq("TRADE_AMOUNT"), anyInt()))
+                .thenReturn(List.of());
+
+        FakeRepository repository = new FakeRepository();
+        RealtimeStockSnapshotProvider snapshotProvider = snapshotProvider(List.of(
+                snapshot("356860", "TLB", "KOSDAQ", "92200", "11.80", 52_000_000_000L)
+        ));
+        LiveQuantPaperTradingService service = new LiveQuantPaperTradingService(
+                priceMapper,
+                code -> Optional.of(new BigDecimal("92200")),
+                snapshotProvider,
+                IntradayMonitoringRepository.NOOP,
+                repository,
+                juneSecond
+        );
+
+        service.runOnce();
+
+        assertThat(repository.candidates)
+                .filteredOn(candidate -> candidate.modelCode().equals("KOSDAQ_BULL"))
+                .singleElement()
+                .satisfies(candidate -> {
+                    assertThat(candidate.assetCode()).isEqualTo("356860");
+                    assertThat(candidate.source()).isEqualTo("AUTO_PAPER_INTRADAY");
+                    assertThat(candidate.decision()).isEqualTo("BUY");
+                });
+    }
+
+    @Test
     void runOnceClassifiesLgClusterFollowThroughAndFailures() {
         Clock juneSecond = Clock.fixed(Instant.parse("2026-06-02T01:50:00Z"), ZoneId.of("Asia/Seoul"));
         MarketDailyPriceMapper priceMapper = mock(MarketDailyPriceMapper.class);

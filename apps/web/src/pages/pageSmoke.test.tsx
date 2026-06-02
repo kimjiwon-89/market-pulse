@@ -260,6 +260,7 @@ vi.mock("@/features/quant/api", () => {
     })),
     getQuantModelDetail: getQuantModelDetailMock,
     getBullQuantDecisions: vi.fn(async () => [decision]),
+    getQuantDecisions: vi.fn(async () => [decision]),
     getBullQuantReports: vi.fn(async () => [report]),
     getQuantReports: vi.fn(async () => [report]),
     getBullQuantReportDetail: vi.fn(async () => ({

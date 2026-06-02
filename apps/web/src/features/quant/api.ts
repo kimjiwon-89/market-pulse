@@ -336,6 +336,30 @@ function mapReportDetail(dto: LiveReportDetailDto): QuantReportDetail {
   };
 }
 
+function balancedDecisionLimit(decisions: QuantDecision[], limit: number) {
+  const grouped = new Map<string, QuantDecision[]>();
+  decisions.forEach((decision) => {
+    const modelName = decision.modelNames[0] ?? "?щ윭 紐⑤뜽";
+    const group = grouped.get(modelName) ?? [];
+    group.push(decision);
+    grouped.set(modelName, group);
+  });
+
+  const result: QuantDecision[] = [];
+  while (result.length < limit && [...grouped.values()].some((items) => items.length > 0)) {
+    for (const items of grouped.values()) {
+      const next = items.shift();
+      if (next) {
+        result.push(next);
+      }
+      if (result.length >= limit) {
+        break;
+      }
+    }
+  }
+  return result;
+}
+
 function mapModelDetail(dto: LiveModelDetailDto): QuantModelDetail {
   return {
     candidates: (dto.candidates ?? []).map((item) => ({
@@ -482,6 +506,23 @@ function buildHotStocks(): QuantHotStockItem[] {
   ];
 }
 
+async function getVisibleModelDtos() {
+  const models = await getData<LiveModelSummaryDto[]>("/quant/live/models").catch(() => []);
+  return (models.length > 0 ? models : [fallbackBullModel])
+    .filter((model) => !HIDDEN_MODEL_CODES.has(model.modelCode));
+}
+
+async function getDecisionsForModels(modelDtos: LiveModelSummaryDto[], date: string) {
+  const allCandidates = await Promise.all(modelDtos.map(async (modelDto) => {
+    const model = mapModel(modelDto);
+    const candidates = await getData<LiveCandidateDto[]>(`/quant/live/models/${model.code}/candidates`, { date }).catch(() => []);
+    return candidates.map((item) => mapDecision(item, model));
+  }));
+
+  return allCandidates.flat()
+    .filter((item) => item.signalDate === date && item.sourceType?.startsWith("AUTO_PAPER"));
+}
+
 async function getHotStocks(): Promise<QuantHotStockItem[]> {
   const date = todayBasicKst();
   const [upStocks, downStocks] = await Promise.all([
@@ -547,8 +588,8 @@ function buildKpis(model: QuantModelSummary | undefined, rawModel: LiveModelSumm
 }
 
 export async function getQuantHomeSummary(): Promise<QuantHomeSummary> {
-  const [models, reports, news, kospi, kosdaq, regimeSnapshot, hotStocks] = await Promise.all([
-    getData<LiveModelSummaryDto[]>("/quant/live/models").catch(() => []),
+  const [visibleModelDtos, reports, news, kospi, kosdaq, regimeSnapshot, hotStocks] = await Promise.all([
+    getVisibleModelDtos(),
     getData<LiveReportSummaryDto[]>("/quant/live/reports", { modelCode: PRIMARY_MODEL_CODE }).catch(() => []),
     getData<NewsDto[]>("/news/inquire-daily-news", { limit: 5 }).catch(() => []),
     getData<IndexResponseDto>("/index/inquire-daily-indexchartprice", { indexCode: "0001" }).catch(() => undefined),
@@ -558,19 +599,9 @@ export async function getQuantHomeSummary(): Promise<QuantHomeSummary> {
   ]);
   const marketRegime = mapMarketRegime(regimeSnapshot);
 
-  const visibleModelDtos = (models.length > 0 ? models : [fallbackBullModel])
-    .filter((model) => !HIDDEN_MODEL_CODES.has(model.modelCode));
   const mappedModels = visibleModelDtos.map(mapModel);
   const today = todayIsoKst();
-  const allCandidates = await Promise.all(visibleModelDtos.map(async (modelDto) => {
-    const model = mapModel(modelDto);
-    const candidates = await getData<LiveCandidateDto[]>(`/quant/live/models/${model.code}/candidates`, { date: today }).catch(() => []);
-    return candidates.map((item) => mapDecision(item, model));
-  }));
-  const candidatePool = allCandidates.flat();
-  const decisions = candidatePool
-    .filter((item) => item.signalDate === today && item.sourceType?.startsWith("AUTO_PAPER"))
-    .slice(0, 8);
+  const decisions = balancedDecisionLimit(await getDecisionsForModels(visibleModelDtos, today), 8);
   const bullModelDto = visibleModelDtos.find((model) => model.modelCode === PRIMARY_MODEL_CODE) ?? visibleModelDtos[0] ?? fallbackBullModel;
   const bullModel = mapModel(bullModelDto);
 
@@ -611,6 +642,10 @@ export async function getBullQuantDecisions(date = todayIsoKst()) {
   return candidates
     .map((item) => mapDecision(item, mapModel(fallbackBullModel)))
     .filter((item) => item.signalDate === date && item.sourceType?.startsWith("AUTO_PAPER"));
+}
+
+export async function getQuantDecisions(date = todayIsoKst()) {
+  return getDecisionsForModels(await getVisibleModelDtos(), date);
 }
 
 export async function getBullQuantReports() {

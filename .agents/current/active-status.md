@@ -119,6 +119,10 @@ Date: 2026-05-28
 - Outcome: copied `D:\market-pulse\logo.png` into `apps/web/public/logo.png`, wired it as favicon/apple touch icon, replaced the header letter mark with the logo image, and verified the browser loads the asset.
 - Changed files: `apps/web/public/logo.png`, `apps/web/index.html`, `apps/web/src/layout/Header.tsx`, `market-pulse-prod/.agents/current/active-status.md`.
 
+- Intent: fix the realtime quant monitor showing only LG/KOSPI candidates.
+- Outcome: added market-wide realtime scan candidates for both `KOSPI_BULL` and `KOSDAQ_BULL`, while keeping stale daily rankings blocked as buy evidence; `/quant/today` now loads candidates from every visible model.
+- Changed files: `apps/api/src/main/java/com/marketpulse/domain/quant/live/service/LiveQuantPaperTradingService.java`, `apps/api/src/test/java/com/marketpulse/domain/quant/live/LiveQuantPaperTradingServiceTest.java`, `apps/web/src/features/quant/api.ts`, `apps/web/src/pages/QuantToday/index.tsx`.
+
 - Intent: expose only the active Bull v4 quant model on user-facing quant pages and remove quant-home mock data.
 - Outcome: wired home, today, model list/detail, and reports to `/api/quant/live/*`, filters visible models to `BULL_V4`, maps live candidates/reports/news into UI state, and shows API-error/empty states instead of fallback mock data.
 - Changed files: `apps/web/src/features/quant/api.ts`, `apps/web/src/features/quant/quantTypes.ts`, `apps/web/src/features/quant/home/*`, `apps/web/src/pages/QuantToday/index.tsx`, `apps/web/src/pages/QuantModels/index.tsx`, `apps/web/src/pages/Reports/index.tsx`, `apps/web/src/pages/pageSmoke.test.tsx`.
